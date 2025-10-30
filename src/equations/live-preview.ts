@@ -4,7 +4,7 @@ import { editorInfoField } from 'obsidian';
 import { RangeSetBuilder } from '@codemirror/state';
 import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './numbering';
-import { EquationBlock } from 'index/typings/markdown';
+import { EquationBlock } from 'types';
 
 export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
     return ViewPlugin.fromClass(

@@ -1,5 +1,5 @@
 import { TFile, App, CachedMetadata } from 'obsidian';
-import { EquationBlock } from 'index/typings/markdown';
+import { EquationBlock } from 'types';
 import { trimMathText, parseMarkdownComment, parseYamlLike } from 'utils/parse';
 
 export class ActiveNoteEquationProvider {
@@ -21,8 +21,6 @@ export class ActiveNoteEquationProvider {
 
             let blockId: string | undefined = section.id;
             
-            // In Live Preview, the cache's section.id is not always up-to-date.
-            // A manual check on the next line is more reliable.
             const nextLineIndex = section.position.end.line + 1;
             const lines = content.split('\n');
             if (nextLineIndex < lines.length) {
@@ -47,20 +45,19 @@ export class ActiveNoteEquationProvider {
                 }
             }
             
-            const equation = new EquationBlock({
+            const equation: EquationBlock = {
                 $file: file.path,
-                $id: EquationBlock.readableId(file.path, ordinal),
-                $ordinal: ordinal++,
-                $position: { start: section.position.start.line, end: section.position.end.line },
-                $pos: section.position,
-                $links: [],
-                $blockId: blockId,
                 $type: 'equation',
+                $blockId: blockId,
+                $pos: section.position,
+                $position: { start: section.position.start.line, end: section.position.end.line },
                 $mathText: mathText,
                 $manualTag: manualTag,
                 $label: label,
                 $display: display,
-            });
+                $printName: null,
+                $refName: null,
+            };
             
             equations.push(equation);
         }

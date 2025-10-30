@@ -1,146 +1,137 @@
-import { App, Component, PluginSettingTab, Setting } from "obsidian";
-
-import LatexReferencer, { VAULT_ROOT } from "../main";
-import { DEFAULT_EXTRA_SETTINGS, DEFAULT_SETTINGS } from "./settings";
-import { ExtraSettingsHelper, MathContextSettingsHelper } from "./helper";
-import { ExcludedFileManageModal, LocalContextSettingsSuggestModal } from "settings/modals";
-// import { PROJECT_DESCRIPTION } from "project";
-
+import { App, PluginSettingTab, Setting } from "obsidian";
+import LatexReferencer from "../main";
+import { NUMBER_STYLES } from "./settings";
 
 export class MathSettingTab extends PluginSettingTab {
-    component: Component;
-
     constructor(app: App, public plugin: LatexReferencer) {
         super(app, plugin);
-        this.component = new Component();
-    }
-
-    addRestoreDefaultsButton() {
-        new Setting(this.containerEl)
-            .addButton((btn) => {
-                btn.setButtonText("Restore defaults");
-                btn.onClick(async () => {
-                    Object.assign(this.plugin.settings[VAULT_ROOT], DEFAULT_SETTINGS);
-                    Object.assign(this.plugin.extraSettings, DEFAULT_EXTRA_SETTINGS);
-                    this.display();
-                })
-            });
     }
 
     display() {
         const { containerEl } = this;
         containerEl.empty();
-        this.component.load();
 
-        containerEl.createEl("h4", { text: "Global" });
+        containerEl.createEl("h2", { text: "Equation Numbering & Referencing" });
 
-        const root = this.app.vault.getRoot();
-        const globalHelper = new MathContextSettingsHelper(
-            this.containerEl,
-            this.plugin.settings[VAULT_ROOT],
-            DEFAULT_SETTINGS,
-            this.plugin,
-            root
-        );
-        this.component.addChild(globalHelper);
+        new Setting(containerEl)
+            .setName("Number only referenced equations")
+            .setDesc("If turned on, only equations that are referenced somewhere will be numbered.")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.numberOnlyReferencedEquations)
+                .onChange(async value => {
+                    this.plugin.settings.numberOnlyReferencedEquations = value;
+                    await this.plugin.saveSettings();
+                })
+            );
 
-        const extraHelper = new ExtraSettingsHelper(
-            this.containerEl,
-            this.plugin.extraSettings,
-            this.plugin.extraSettings,
-            this.plugin,
-            false, 
-            false
-        );
-        this.component.addChild(extraHelper);
+        new Setting(containerEl)
+            .setName("Equation number prefix")
+            .addText(text => text
+                .setValue(this.plugin.settings.eqNumberPrefix)
+                .onChange(async value => {
+                    this.plugin.settings.eqNumberPrefix = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+        
+        new Setting(containerEl)
+            .setName("Equation number suffix")
+            .addText(text => text
+                .setValue(this.plugin.settings.eqNumberSuffix)
+                .onChange(async value => {
+                    this.plugin.settings.eqNumberSuffix = value;
+                    await this.plugin.saveSettings();
+                })
+            );
 
-        const heading = extraHelper.addHeading('Equations - general');
-        const numberingHeading = this.containerEl.querySelector<HTMLElement>('.equation-heading')!;
-        this.containerEl.insertBefore(
-            heading.settingEl,
-            numberingHeading
-        );
-        this.containerEl.insertAfter(
-            extraHelper.settingRefs.enableProof.settingEl,
-            this.containerEl.querySelector('.proof-heading')!
-        );
-        this.containerEl.insertAfter(
-            extraHelper.settingRefs.showTheoremCalloutEditButton.settingEl, 
-            globalHelper.settingRefs.profile.settingEl
-        );
-        this.containerEl.insertAfter(
-            extraHelper.settingRefs.excludeExampleCallout.settingEl, 
-            globalHelper.settingRefs.profile.settingEl
-        );
-        this.containerEl.insertBefore(
-            extraHelper.settingRefs.foldDefault.settingEl, 
-            globalHelper.settingRefs.labelPrefix.settingEl
-        );
-        this.containerEl.insertBefore(
-            extraHelper.settingRefs.setOnlyTheoremAsMain.settingEl, 
-            globalHelper.settingRefs.labelPrefix.settingEl
-        );
-        this.containerEl.insertBefore(
-            extraHelper.settingRefs.setLabelInModal.settingEl, 
-            globalHelper.settingRefs.labelPrefix.settingEl
-        );
-        this.containerEl.insertAfter(
-            extraHelper.settingRefs.noteTitleInTheoremLink.settingEl, 
-            globalHelper.settingRefs.refFormat.settingEl
-        );
-        this.containerEl.insertAfter(
-            extraHelper.settingRefs.noteTitleInEquationLink.settingEl, 
-            globalHelper.settingRefs.eqRefSuffix.settingEl
-        );
+        new Setting(containerEl)
+            .setName("Equation number initial count")
+            .addText(text => text
+                .setValue(String(this.plugin.settings.eqNumberInit))
+                .onChange(async value => {
+                    const num = parseInt(value);
+                    if (!isNaN(num)) {
+                        this.plugin.settings.eqNumberInit = num;
+                        await this.plugin.saveSettings();
+                    }
+                })
+            );
 
-        this.containerEl.insertBefore(
-            globalHelper.settingRefs.insertSpace.settingEl,
-            extraHelper.settingRefs.searchMethod.settingEl,
-        );
-
-        // const projectHeading = containerEl.createEl("h3", { text: "Projects (experimental)" });
-        // const projectDesc = containerEl.createDiv({
-        //     text: PROJECT_DESCRIPTION,
-        //     cls: ["setting-item-description", "math-booster-setting-item-description"]
-        // });
-
-        // this.containerEl.insertBefore(
-        //     projectHeading,
-        //     extraHelper.settingRefs.projectInfix.settingEl
-        // );
-        // this.containerEl.insertAfter(
-        //     projectDesc,
-        //     projectHeading,
-        // );
-
-        this.addRestoreDefaultsButton();
-
-        containerEl.createEl("h4", { text: "Local" });
-        new Setting(containerEl).setName("Local settings")
-            .setDesc("You can set up local (i.e. file-specific or folder-specific) settings, which have more precedence than the global settings. Local settings can be configured in various ways; here in the plugin settings, right-clicking in the file explorer, the \"Open local settings for the current file\" command, and the \"Open local settings for the current file\" button in the theorem callout settings pop-ups.")
-            .addButton((btn) => {
-                btn.setButtonText("Search files & folders")
-                    .onClick(() => {
-                        new LocalContextSettingsSuggestModal(this.app, this.plugin, this).open();
-                    });
+        new Setting(containerEl)
+            .setName("Equation number style")
+            .addDropdown(dropdown => {
+                for (const style of NUMBER_STYLES) {
+                    dropdown.addOption(style, style);
+                }
+                dropdown
+                    .setValue(this.plugin.settings.eqNumberStyle)
+                    .onChange(async value => {
+                        this.plugin.settings.eqNumberStyle = value as typeof NUMBER_STYLES[number];
+                        await this.plugin.saveSettings();
+                    })
             });
 
         new Setting(containerEl)
-            .setName("Excluded files")
-            .setDesc("You can make your search results more visible by excluding certain files or folders.")
-            .addButton((btn) => {
-                btn.setButtonText("Manage")
-                    .onClick(() => {
-                        new ExcludedFileManageModal(this.app, this.plugin).open();
-                    });
-            });
-    }
+            .setName("Reference link prefix")
+            .addText(text => text
+                .setValue(this.plugin.settings.eqRefPrefix)
+                .onChange(async value => {
+                    this.plugin.settings.eqRefPrefix = value;
+                    await this.plugin.saveSettings();
+                })
+            );
 
-    async hide() {
-        super.hide();
-        await this.plugin.saveSettings();
-        this.plugin.indexManager.trigger('global-settings-updated');
-        this.plugin.updateLinkAutocomplete();
-        this.component.unload();
+        new Setting(containerEl)
+            .setName("Reference link suffix")
+            .addText(text => text
+                .setValue(this.plugin.settings.eqRefSuffix)
+                .onChange(async value => {
+                    this.plugin.settings.eqRefSuffix = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName("Show note title in equation link")
+            .setDesc("If turned on, a link to an equation will be like \"Note title > (1.1)\".")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.noteTitleInEquationLink)
+                .onChange(async value => {
+                    this.plugin.settings.noteTitleInEquationLink = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        containerEl.createEl("h2", { text: "Autocomplete & Search" });
+
+        new Setting(containerEl)
+            .setName("Enable autocompletion")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableSuggest)
+                .onChange(async value => {
+                    this.plugin.settings.enableSuggest = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+        
+        new Setting(containerEl)
+            .setName("Trigger for autocompletion")
+            .addText(text => text
+                .setValue(this.plugin.settings.triggerSuggest)
+                .onChange(async value => {
+                    this.plugin.settings.triggerSuggest = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName("Render math in suggestions")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.renderMathInSuggestion)
+                .onChange(async value => {
+                    this.plugin.settings.renderMathInSuggestion = value;
+                    await this.plugin.saveSettings();
+                })
+            );
     }
 }

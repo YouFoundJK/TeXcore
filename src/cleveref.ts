@@ -2,17 +2,13 @@ import { App, MarkdownView, TFile, HeadingSubpathResult, BlockSubpathResult } fr
 import * as MathLinks from 'obsidian-mathlinks';
 import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './equations/numbering';
-import { MathIndex } from 'index/math-index';
 
 export class CleverefProvider extends MathLinks.Provider {
     app: App;
-    index: MathIndex;
 
     constructor(mathLinks: any, public plugin: LatexReferencer) {
-        // Using `any` for `mathLinks` as the exact type is unclear. This should be revisited.
         super(mathLinks);
         this.app = plugin.app;
-        this.index = plugin.indexManager.index;
     }
 
     provide(
@@ -20,12 +16,12 @@ export class CleverefProvider extends MathLinks.Provider {
         targetFile: TFile | null,
         targetSubpathResult: HeadingSubpathResult | BlockSubpathResult | null,
     ): string | null {
-        // The subpath for a block link is "#^blockid". This check is now correct.
         if (!targetFile || !parsedLinktext.subpath || !parsedLinktext.subpath.startsWith('#^')) {
             return null;
         }
 
         let content: string | null = null;
+        // The only reliable SYNCHRONOUS way to get content is to find an open editor.
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
             const view = leaf.view;
             if (view instanceof MarkdownView && view.file?.path === targetFile.path) {
@@ -34,37 +30,25 @@ export class CleverefProvider extends MathLinks.Provider {
             }
         }
 
+        // If the file is not open, we cannot process it. This is a necessary limitation
+        // to comply with the synchronous nature of the MathLinks API.
         if (content === null) {
-            this.app.vault.read(targetFile).then(cachedContent => {
-                if (cachedContent) {
-                    content = cachedContent;
-                }
-            }).catch(error => {
-                console.error("Error reading file from vault:", error);
-            });
-
-            if (!content) {
-                return null;
-            }
+            return null;
         }
-        
-        // Correctly extract the block ID by removing the first two characters ("#^").
+    
         const blockId = parsedLinktext.subpath.substring(2);
 
-        if (content) {
-            const equations = processActiveNoteEquations(this.plugin, targetFile, content);
-            const targetEquation = equations.get(blockId);
+        const equations = processActiveNoteEquations(this.plugin, targetFile, content);
+        const targetEquation = equations.get(blockId);
 
-            if (targetEquation?.$refName) {
-                let result = targetEquation.$refName;
-                // Check if the original link was to a different file (`path` is not empty)
-                if (this.plugin.extraSettings.noteTitleInEquationLink && parsedLinktext.path) {
-                    result = targetFile.basename + ' > ' + result;
-                }
-                return result;
+        if (targetEquation?.$refName) {
+            let result = targetEquation.$refName;
+            if (this.plugin.settings.noteTitleInEquationLink && parsedLinktext.path) {
+                result = targetFile.basename + ' > ' + result;
             }
+            return result;
         }
-        
+    
         return null;
     }
 }

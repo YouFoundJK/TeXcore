@@ -1,22 +1,20 @@
 import LatexReferencer from "main";
 import { App, Editor, EditorSuggestContext, MarkdownView, SuggestModal } from "obsidian";
 import { ActiveNoteSearchCore, SuggestParent } from "./core";
-import { MathBlock } from "index/typings/markdown";
+import { EquationBlock } from "types";
 
-export class MathSearchModal extends SuggestModal<MathBlock> implements SuggestParent {
+export class MathSearchModal extends SuggestModal<EquationBlock> implements SuggestParent {
     app: App;
     core: ActiveNoteSearchCore;
 
     constructor(public plugin: LatexReferencer) {
         super(plugin.app);
         this.app = plugin.app;
-        
         this.core = new ActiveNoteSearchCore(this);
         this.core.setScope();
-        
         this.setPlaceholder('Search equations in the active note...');
         this.inputEl.addClass('math-booster-search-input');
-        this.limit = this.plugin.extraSettings.suggestNumber;
+        this.limit = this.plugin.settings.suggestNumber;
     }
 
     getEditor(): Editor {
@@ -28,26 +26,24 @@ export class MathSearchModal extends SuggestModal<MathBlock> implements SuggestP
     getContext(): Omit<EditorSuggestContext, 'query'> | null {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (!view?.file) return null;
-
         const start = view.editor.getCursor('from');
         const end = view.editor.getCursor('to');
-
-        return { file: view.file, editor: view.editor, start, end }
+        return { file: view.file, editor: view.editor, start, end };
     }
 
-    getSelectedItem(): MathBlock {
+    getSelectedItem(): EquationBlock {
         return this.chooser.values![this.chooser.selectedItem];
-    };
+    }
 
     getSuggestions(query: string) {
         return this.core.getSuggestions(query);
     }
 
-    renderSuggestion(value: MathBlock, el: HTMLElement) {
+    renderSuggestion(value: EquationBlock, el: HTMLElement) {
         this.core.renderSuggestion(value, el);
     }
 
-    onChooseSuggestion(item: MathBlock, evt: MouseEvent | KeyboardEvent) {
+    onChooseSuggestion(item: EquationBlock, evt: MouseEvent | KeyboardEvent) {
         this.core.selectSuggestion(item, evt);
     }
 }

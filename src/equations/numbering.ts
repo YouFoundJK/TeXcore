@@ -1,9 +1,8 @@
-import { TFile, App } from "obsidian";
-import { ActiveNoteEquationProvider } from "./provider";
-import { EquationBlock } from "index/typings/markdown";
-import { resolveSettings } from "utils/plugin";
-import { getEqNumberPrefix, CONVERTER } from "utils/format";
+import { TFile } from "obsidian";
+import { CONVERTER, getEqNumberPrefix } from "utils/format";
+import { EquationBlock } from "types";
 import LatexReferencer from "main";
+import { ActiveNoteEquationProvider } from "equations/provider";
 
 /**
  * Finds all equations in a file's content, counts their backlinks, and assigns print/reference names.
@@ -11,7 +10,7 @@ import LatexReferencer from "main";
 export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile, content: string): Map<string, EquationBlock> {
     const provider = new ActiveNoteEquationProvider(plugin.app);
     const equations = provider.getEquations(file, content);
-    const settings = resolveSettings(undefined, plugin, file);
+    const settings = plugin.settings;
 
     const processedEquations = new Map<string, EquationBlock>();
     let equationCount = 0;
@@ -31,7 +30,7 @@ export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile,
             } else if (!settings.numberOnlyReferencedEquations || backlinkCount > 0) {
                 eq.$index = equationCount;
                 const num = settings.eqNumberInit + equationCount;
-                printName = `(${eqPrefix}${CONVERTER[settings.eqNumberStyle](num)}${eqSuffix})`;
+                printName = `(${eqPrefix}${CONVERTER[settings.eqNumberStyle as keyof typeof CONVERTER](num)}${eqSuffix})`;
                 equationCount++;
             }
 
