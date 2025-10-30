@@ -30,4 +30,5 @@ docs/_site/
 # Unused
 src/callout_decoration.ts
 exported_latest/*
+exported_original
 .export-to-txt.py

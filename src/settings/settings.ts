@@ -2,7 +2,6 @@ import { Modifier } from "obsidian";
 
 import { DEFAULT_PROFILES, Profile } from "./profile";
 import { LeafArgs } from "../typings/type";
-import { QueryType, SearchRange } from "search/core";
 
 // Types
 
@@ -175,8 +174,6 @@ export type ExtraSettings = ImporterSettings & {
     enableProof: boolean;
     autocompleteDvQuery: string;
     // searchModal*: not congigurable from the setting tab, just remenbers the last state
-    searchModalQueryType: QueryType;
-    searchModalRange: SearchRange;
     searchModalDvQuery: string;
 }
 
@@ -271,8 +268,6 @@ export const DEFAULT_EXTRA_SETTINGS: Required<ExtraSettings> = {
     excludeExampleCallout: false,
     enableProof: true,
     autocompleteDvQuery: '',
-    searchModalQueryType: 'both',
-    searchModalRange: 'recent',
     searchModalDvQuery: '',
 };
 
