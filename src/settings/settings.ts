@@ -275,3 +275,61 @@ export const DEFAULT_EXTRA_SETTINGS: Required<ExtraSettings> = {
     searchModalRange: 'recent',
     searchModalDvQuery: '',
 };
+
+export interface EquationToolsSettings {
+    // Numbering
+    numberOnlyReferencedEquations: boolean;
+    inferEqNumberPrefix: boolean;
+    inferEqNumberPrefixFromProperty: string;
+    inferEqNumberPrefixRegExp: string;
+    eqNumberPrefix: string;
+    eqNumberSuffix: string;
+    eqNumberInit: number;
+    eqNumberStyle: NumberStyle;
+    lineByLine: boolean;
+
+    // Referencing
+    eqRefPrefix: string;
+    eqRefSuffix: string;
+    insertSpace: boolean;
+    
+    // Autocomplete & Search
+    enableSuggest: boolean;
+    triggerSuggest: string;
+    renderMathInSuggestion: boolean;
+    suggestNumber: number;
+    searchMethod: SearchMethod;
+    modifierToJump: Modifier;
+    modifierToNoteLink: Modifier;
+    showModifierInstruction: boolean;
+    suggestLeafOption: LeafOption;
+}
+
+export const DEFAULT_EQUATION_TOOLS_SETTINGS: Required<EquationToolsSettings> = {
+    // Numbering
+    numberOnlyReferencedEquations: true,
+    inferEqNumberPrefix: true,
+    inferEqNumberPrefixFromProperty: "",
+    inferEqNumberPrefixRegExp: "^[0-9]+(\\.[0-9]+)*",
+    eqNumberPrefix: "",
+    eqNumberSuffix: "",
+    eqNumberInit: 1,
+    eqNumberStyle: "arabic",
+    lineByLine: true,
+
+    // Referencing
+    eqRefPrefix: "", 
+    eqRefSuffix: "",
+    insertSpace: true,
+
+    // Autocomplete & Search
+    enableSuggest: true,
+    triggerSuggest: "\\eqref",
+    renderMathInSuggestion: true,
+    suggestNumber: 20,
+    searchMethod: "Fuzzy",
+    modifierToJump: "Mod",
+    modifierToNoteLink: "Shift",
+    showModifierInstruction: true,
+    suggestLeafOption: "Current tab", 
+};
