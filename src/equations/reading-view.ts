@@ -32,16 +32,14 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
                 const section = ctx.getSectionInfo(mathEl);
                 if (!section) return;
 
-                // Use the reliable, position-based lookup to find the corresponding equation.
-                // This works for BOTH legacy and new-style equations.
                 const equation = lineToEquationMap.get(section.lineStart);
 
-                if (equation?.$printName) {
+                // Change this condition
+                if (equation?.$printName && !equation.$subIndices) {
                     const numberEl = createSpan({
                         cls: "math-booster-equation-number",
                         text: equation.$printName,
                     });
-                    // Check if a number element already exists to prevent duplication
                     if (!mathEl.parentElement?.querySelector(".math-booster-equation-number")) {
                         mathEl.parentElement?.classList.add("math-booster-has-equation-number");
                         mathEl.parentElement?.appendChild(numberEl);

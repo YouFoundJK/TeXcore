@@ -16,6 +16,7 @@ interface EquationInfo {
     to: number;
     id: string;
     printName: string | null; // The calculated number, e.g., "(1)"
+    subIndices?: Set<number>; // Add this property
 }
 type EquationState = readonly EquationInfo[];
 
@@ -81,13 +82,27 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
     const file = state.field(editorInfoField).file;
     if (!file) return [];
 
-    // THE CRITICAL FIX: This regex now correctly finds [[#^eq-...]] links.
-    const refRegex = /\[\[#\^eq-[\w-]+\]\]/g;
-    const refCounts = new Map<string, number>();
-    let refMatch;
-    while ((refMatch = refRegex.exec(text)) !== null) {
-        const id = refMatch[0].slice(4, -2); // Extracts 'eq-...' from '[[#^eq-...]]'
-        refCounts.set(id, (refCounts.get(id) ?? 0) + 1);
+    // 1. Scan for all references, including sub-equation links
+    const referenceMap = new Map<string, { totalCount: number, subIndices: Set<number> }>();
+    const linkRegex = /\[\[#\^eq-[\w-]+(?:-\d+)?\]\]/g;
+    let match;
+    while ((match = linkRegex.exec(text)) !== null) {
+        const linkText = match[0].slice(4, -2); // eq-id or eq-id-2
+        const parts = linkText.split('-');
+        const baseId = parts.slice(0, 2).join('-'); // eq-id
+        const subIndexStr = parts.length > 2 ? parts[parts.length - 1] : undefined;
+
+        if (!referenceMap.has(baseId)) {
+            referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
+        }
+        const refInfo = referenceMap.get(baseId)!;
+        refInfo.totalCount++;
+        if (subIndexStr) {
+            const subIndex = parseInt(subIndexStr);
+            if (!isNaN(subIndex)) {
+                refInfo.subIndices.add(subIndex);
+            }
+        }
     }
 
     const mathBlocks = state.field(mathBlockPositionsField);
@@ -97,9 +112,12 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
         const idMatch = blockText.match(/% id: (eq-[\w-]+)/);
         if (idMatch) {
             const id = idMatch[1];
+            const refInfo = referenceMap.get(id);
             equationInfos.push({
                 from: block.from, to: block.to, id: id,
-                refCount: refCounts.get(id) ?? 0, printName: null,
+                refCount: refInfo?.totalCount ?? 0,
+                printName: null,
+                subIndices: refInfo?.subIndices,
             });
         }
     }
@@ -121,49 +139,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
 }
 
 
-const idInjectorAnnotation = Annotation.define<boolean>();
 const tagManagerAnnotation = Annotation.define<boolean>();
-
-function createIdInjectorPlugin(plugin: LatexReferencer): ViewPlugin<any> {
-    return ViewPlugin.fromClass(class {
-        constructor(view: EditorView) { this.injectIds(view); }
-        update(update: ViewUpdate) {
-            if (update.docChanged && !update.transactions.some(tr => tr.annotation(idInjectorAnnotation))) {
-                this.injectIds(update.view);
-            }
-        }
-        injectIds(view: EditorView) {
-            const mathBlocks = view.state.field(mathBlockPositionsField);
-            const changes: { from: number; insert: string }[] = [];
-            for (let i = mathBlocks.length - 1; i >= 0; i--) {
-                const block = mathBlocks[i];
-                const blockText = view.state.doc.sliceString(block.from, block.to);
-                if (/% id: eq-[\w-]+/.test(blockText)) continue;
-                const endLine = view.state.doc.lineAt(block.to);
-                if (endLine.number < view.state.doc.lines) {
-                    const lineAfter = view.state.doc.line(endLine.number + 1);
-                    if (/^\s*\^[\w-]+$/.test(lineAfter.text)) continue;
-                }
-                if (blockText.replace(/\s/g, "") === '$$$$') continue;
-                const newId = generateEqId();
-                const insertPos = block.to - 2;
-                const charBefore = view.state.doc.sliceString(insertPos - 1, insertPos);
-                const textToInsert = (charBefore === '\n' ? '' : '\n') + `% id: ${newId}\n`;
-                changes.push({ from: insertPos, insert: textToInsert });
-            }
-            if (changes.length > 0) {
-                setTimeout(() => {
-                    const tr = view.state.update({
-                        changes,
-                        selection: view.state.selection.map(view.state.changes(changes)),
-                        annotations: idInjectorAnnotation.of(true),
-                    });
-                    view.dispatch(tr);
-                }, 0);
-            }
-        }
-    });
-}
 
 /**
  * The "Hands". This is the one and only plugin responsible for adding,
@@ -183,42 +159,77 @@ function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateFie
             if (this.timeout) clearTimeout(this.timeout);
             this.timeout = setTimeout(() => this.runCheck(view), 300);
         }
+
+// equations/live-preview.ts (inside ViewPlugin.fromClass)
+
         runCheck(view: EditorView) {
             const equationInfos = view.state.field(equationField);
             const changes: { from: number; to: number; insert: string }[] = [];
 
             for (const info of equationInfos) {
-                const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
-                const blockText = view.state.doc.sliceString(info.from, info.to);
-                
-                const tagRegex = /\\tag\{[^{}]+\}/;
-                const match = blockText.match(tagRegex);
-                const existingTagContent = match ? match[0].slice(5, -1) : null;
+                const blockContent = view.state.doc.sliceString(info.from + 2, info.to - 2);
+                let newBlockContent: string | null = null;
 
-                if (requiredTagContent === existingTagContent) continue;
+                // Mode 1: Multi-tag for sub-references
+                if (info.subIndices && info.subIndices.size > 0 && info.printName) {
+                    const baseName = info.printName.slice(1, -1);
+                    const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
+                    const idMatch = blockContent.match(idCommentRegex);
+                    const idComment = idMatch ? idMatch[0].trim() : '';
+                    let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
+                    mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '');
+                    const rows = mathPart.trim().split(/\\\\/);
+                    let hasContent = false;
 
-                if (requiredTagContent) {
-                    // ACTION: ADD or UPDATE tag
-                    const newTag = `\\tag{${requiredTagContent}}`;
-                    if (match) {
-                        // UPDATE existing tag
-                        const from = info.from + (match.index ?? 0);
-                        const to = from + match[0].length;
-                        changes.push({ from, to, insert: newTag });
-                    } else {
-                        // ADD new tag
-                        const insertPos = info.to - 2;
-                        const charBefore = view.state.doc.sliceString(insertPos - 1, insertPos);
-                        const textToInsert = (charBefore.trim() ? ' ' : '') + newTag;
-                        changes.push({ from: insertPos, to: insertPos, insert: textToInsert });
+                    const taggedRows = rows.map((row, index) => {
+                        if (row.trim() === '') return row;
+                        hasContent = true;
+                        const subIndex = index + 1;
+                        const newTag = ` \\tag{${baseName}.${subIndex}}`;
+                        const endEnvMatch = row.match(/(\\end\{[a-zA-Z*]+\})/);
+                        if (endEnvMatch && endEnvMatch.index !== undefined) {
+                            const before = row.substring(0, endEnvMatch.index).trimEnd();
+                            const environment = endEnvMatch[0];
+                            const after = row.substring(endEnvMatch.index + environment.length);
+                            return before + newTag + ' ' + environment + after;
+                        } else {
+                            return row.trimEnd() + newTag;
+                        }
+                    });
+
+                    if (hasContent) {
+                        newBlockContent = taggedRows.join(' \\\\ ') + (idComment ? `\n${idComment}`: '');
                     }
-                } else {
-                    // ACTION: REMOVE tag
-                    if (match) {
-                        const from = info.from + (match.index ?? 0);
-                        const to = from + match[0].length;
-                        const charBefore = view.state.doc.sliceString(from - 1, from);
-                        changes.push({ from: charBefore === ' ' ? from - 1 : from, to, insert: '' });
+                } 
+                // Mode 2: Single-tag for normal references (Corrected)
+                else { 
+                    const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
+                    
+                    // 1. Isolate the ID comment to protect it.
+                    const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
+                    const idMatch = blockContent.match(idCommentRegex);
+                    const idComment = idMatch ? idMatch[0].trim() : '';
+
+                    // 2. Get the pure math part of the block.
+                    let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
+                    
+                    // 3. Clean ALL existing tags from the math part.
+                    mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '').trim();
+
+                    // 4. Append the single tag to the math part, if needed.
+                    if (requiredTagContent) {
+                        mathPart += ` \\tag{${requiredTagContent}}`;
+                    }
+                    
+                    // 5. Reconstruct the full content with the comment at the end.
+                    newBlockContent = mathPart + (idComment ? `\n${idComment}` : '');
+                }
+
+                if (newBlockContent !== null) {
+                    const oldNormalized = blockContent.replace(/\s+/g, '');
+                    const newNormalized = newBlockContent.replace(/\s+/g, '');
+                    if (oldNormalized !== newNormalized) {
+                        changes.push({ from: info.from + 2, to: info.to - 2, insert: `\n${newBlockContent.trim()}\n` });
                     }
                 }
             }
@@ -249,7 +260,6 @@ export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
     return [
         mathBlockPositionsField,
         equationField,
-        createIdInjectorPlugin(plugin),
         createTagManagerPlugin(plugin, equationField),
     ];
 }

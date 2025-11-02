@@ -4,34 +4,59 @@ import { EquationBlock } from "types";
 import LatexReferencer from "main";
 import { ActiveNoteEquationProvider } from "equations/provider";
 
+interface ReferenceInfo {
+    totalCount: number;
+    subIndices: Set<number>;
+}
+
 /**
- * Finds all equations in a file's content, counts their backlinks, and assigns print/reference names.
- * This is the main processing function for both legacy and new-style equations,
- * used by Reading View, Live Preview, and the Cleveref provider.
+ * Finds all equations in a file's content, counts their backlinks (including sub-references), 
+ * and assigns print/reference names.
  */
 export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile, content: string): Map<string, EquationBlock> {
     const provider = new ActiveNoteEquationProvider(plugin.app);
     const equations = provider.getEquations(file, content);
     const settings = plugin.settings;
 
+    // 1. Scan the entire document once to build a map of reference counts.
+    const referenceMap = new Map<string, ReferenceInfo>();
+    const linkRegex = /\[\[(?:#\^|\^)(eq-[\w-]+)(?:-(\d+))?\]\]/g;
+    let match;
+    while ((match = linkRegex.exec(content)) !== null) {
+        const [, baseId, subIndexStr] = match;
+        
+        if (!referenceMap.has(baseId)) {
+            referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
+        }
+        const refInfo = referenceMap.get(baseId)!;
+
+        refInfo.totalCount++;
+        if (subIndexStr) {
+            const subIndex = parseInt(subIndexStr);
+            if (!isNaN(subIndex)) {
+                refInfo.subIndices.add(subIndex);
+            }
+        }
+    }
+
     const processedEquations = new Map<string, EquationBlock>();
     let equationCount = 0;
     const eqPrefix = getEqNumberPrefix(plugin.app, file, settings);
     const eqSuffix = settings.eqNumberSuffix;
 
+    // 2. Process each equation using the pre-computed reference map.
     for (const eq of equations) {
         let printName: string | null = null;
         let refName: string | null = null;
 
         if (eq.$blockId) {
-            // Robustly count backlinks for BOTH legacy ([[#^...]]) and new ([[...^...]]) link formats.
-            const legacyRegex = new RegExp(`\\[\\[#\\^${eq.$blockId}\\]\\]`, "g");
-            const newStyleRegex = new RegExp(`\\[\\[\\^${eq.$blockId}\\]\\]`, "g");
+            const refInfo = referenceMap.get(eq.$blockId);
+            const backlinkCount = refInfo?.totalCount ?? 0;
+            const subIndices = refInfo?.subIndices;
 
-            const legacyCount = (content.match(legacyRegex) || []).length;
-            const newStyleCount = (content.match(newStyleRegex) || []).length;
-            
-            const backlinkCount = legacyCount + newStyleCount;
+            if (subIndices && subIndices.size > 0) {
+                eq.$subIndices = subIndices;
+            }
             
             if (eq.$manualTag) {
                 printName = `(${eq.$manualTag})`;
@@ -39,7 +64,8 @@ export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile,
                 eq.$index = equationCount;
                 const num = settings.eqNumberInit + equationCount;
                 const numberStyle = settings.eqNumberStyle as keyof typeof CONVERTER;
-                printName = `(${eqPrefix}${CONVERTER[numberStyle](num)}${eqSuffix})`;
+                const convertedNum = CONVERTER[numberStyle](num);
+                printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
                 equationCount++;
             }
 

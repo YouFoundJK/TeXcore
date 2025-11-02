@@ -21,7 +21,6 @@ export class CleverefProvider extends MathLinks.Provider {
         }
 
         let content: string | null = null;
-        // The only reliable SYNCHRONOUS way to get content is to find an open editor.
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
             const view = leaf.view;
             if (view instanceof MarkdownView && view.file?.path === targetFile.path) {
@@ -29,21 +28,34 @@ export class CleverefProvider extends MathLinks.Provider {
                 break;
             }
         }
-
-        // If the file is not open, we cannot process it. This is a necessary limitation
-        // to comply with the synchronous nature of the MathLinks API.
         if (content === null) {
             return null;
         }
-    
-        const blockId = parsedLinktext.subpath.substring(2);
+
+        const subpath = parsedLinktext.subpath.substring(2); // remove #^
+        const subpathMatch = subpath.match(/^(eq-[\w]+)(?:-(\d+))?$/);
+        if (!subpathMatch) {
+            return null;
+        }
+
+        const [, blockId, subIndexStr] = subpathMatch;
+        const subIndex = subIndexStr ? parseInt(subIndexStr) : undefined;
 
         const equations = processActiveNoteEquations(this.plugin, targetFile, content);
         const targetEquation = equations.get(blockId);
+        
+        if (targetEquation?.$printName) {
+            let result: string;
+            const settings = this.plugin.settings;
 
-        if (targetEquation?.$refName) {
-            let result = targetEquation.$refName;
-            if (this.plugin.settings.noteTitleInEquationLink && parsedLinktext.path) {
+            if (subIndex !== undefined) {
+                const baseName = targetEquation.$printName.slice(1, -1);
+                result = settings.eqRefPrefix + `(${baseName}.${subIndex})` + settings.eqRefSuffix;
+            } else {
+                result = targetEquation.$refName ?? targetEquation.$printName;
+            }
+
+            if (settings.noteTitleInEquationLink && parsedLinktext.path) {
                 result = targetFile.basename + ' > ' + result;
             }
             return result;

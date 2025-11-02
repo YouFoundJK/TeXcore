@@ -19,4 +19,5 @@ export interface EquationBlock {
     $printName: string | null;
     $refName: string | null;
     $index?: number;
+    $subIndices?: Set<number>; // Add this line
 }

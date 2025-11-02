@@ -40,7 +40,11 @@ export class ActiveNoteEquationProvider {
             }
 
             const tagMatch = mathText.match(/\\tag\{(.*?[^\s])\}/);
-            const manualTag = tagMatch ? tagMatch[1] : null;
+            let manualTag: string | null = null;
+            if (tagMatch) {
+                // tagMatch[1] is the full content, e.g., "1.1" or "1"
+                manualTag = tagMatch[1].split('.')[0]; 
+            }
 
             const comments = parseMarkdownComment(mathText);
             let label: string | undefined;
