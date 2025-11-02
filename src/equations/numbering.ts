@@ -6,6 +6,8 @@ import { ActiveNoteEquationProvider } from "equations/provider";
 
 /**
  * Finds all equations in a file's content, counts their backlinks, and assigns print/reference names.
+ * This is the main processing function for both legacy and new-style equations,
+ * used by Reading View, Live Preview, and the Cleveref provider.
  */
 export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile, content: string): Map<string, EquationBlock> {
     const provider = new ActiveNoteEquationProvider(plugin.app);
@@ -22,15 +24,22 @@ export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile,
         let refName: string | null = null;
 
         if (eq.$blockId) {
-            const backlinkRegex = new RegExp(`\\[\\[#\\^${eq.$blockId}\\]\\]`, "g");
-            const backlinkCount = (content.match(backlinkRegex) || []).length;
+            // Robustly count backlinks for BOTH legacy ([[#^...]]) and new ([[...^...]]) link formats.
+            const legacyRegex = new RegExp(`\\[\\[#\\^${eq.$blockId}\\]\\]`, "g");
+            const newStyleRegex = new RegExp(`\\[\\[\\^${eq.$blockId}\\]\\]`, "g");
+
+            const legacyCount = (content.match(legacyRegex) || []).length;
+            const newStyleCount = (content.match(newStyleRegex) || []).length;
+            
+            const backlinkCount = legacyCount + newStyleCount;
             
             if (eq.$manualTag) {
                 printName = `(${eq.$manualTag})`;
             } else if (!settings.numberOnlyReferencedEquations || backlinkCount > 0) {
                 eq.$index = equationCount;
                 const num = settings.eqNumberInit + equationCount;
-                printName = `(${eqPrefix}${CONVERTER[settings.eqNumberStyle as keyof typeof CONVERTER](num)}${eqSuffix})`;
+                const numberStyle = settings.eqNumberStyle as keyof typeof CONVERTER;
+                printName = `(${eqPrefix}${CONVERTER[numberStyle](num)}${eqSuffix})`;
                 equationCount++;
             }
 

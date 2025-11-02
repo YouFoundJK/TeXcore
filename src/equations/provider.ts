@@ -19,15 +19,23 @@ export class ActiveNoteEquationProvider {
             const text = content.slice(section.position.start.offset, section.position.end.offset);
             const mathText = trimMathText(text);
 
-            let blockId: string | undefined = section.id;
-            
-            const nextLineIndex = section.position.end.line + 1;
-            const lines = content.split('\n');
-            if (nextLineIndex < lines.length) {
-                const nextLine = lines[nextLineIndex].trim();
-                const idMatch = nextLine.match(/^\^([a-zA-Z0-9\-_]+)$/);
-                if (idMatch) {
-                    blockId = idMatch[1];
+            let blockId: string | undefined;
+
+            // Priority 1: Check for the new internal ID format.
+            const internalIdMatch = mathText.match(/% id: (eq-[\w-]+)/);
+            if (internalIdMatch) {
+                blockId = internalIdMatch[1];
+            } else {
+                // Priority 2: Fallback to the legacy external ID format.
+                blockId = section.id;
+                const nextLineIndex = section.position.end.line + 1;
+                const lines = content.split('\n');
+                if (nextLineIndex < lines.length) {
+                    const nextLine = lines[nextLineIndex].trim();
+                    const legacyIdMatch = nextLine.match(/^\^([a-zA-Z0-9\-_]+)$/);
+                    if (legacyIdMatch) {
+                        blockId = legacyIdMatch[1];
+                    }
                 }
             }
 
