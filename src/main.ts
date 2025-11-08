@@ -1,7 +1,8 @@
 import { MarkdownView, Plugin } from 'obsidian';
 import type { Extension } from '@codemirror/state';
 
-import { registerQuickPreview } from 'obsidian-quick-preview';
+// REMOVED: No longer importing from the external plugin
+// import { registerQuickPreview } from 'obsidian-quick-preview'; 
 
 import { PluginSettings, DEFAULT_SETTINGS } from './features/settings/settings';
 import { MathSettingTab } from "./features/settings/tab";
@@ -18,6 +19,9 @@ import { LinkAutocomplete } from 'features/search/editor-suggest';
 import { MathSearchModal } from 'features/search/modal';
 import { EquationBlock } from 'types';
 
+// ADDED: Import our new internal patcher function
+import { patchSuggesterWithQuickPreview } from 'features/quick-preview/patcher';
+
 export default class LatexReferencer extends Plugin {
 	settings: PluginSettings;
 	editorExtensions: Extension[];
@@ -27,8 +31,6 @@ export default class LatexReferencer extends Plugin {
 		await this.loadSettings();
 		this.internalProviders.push(new LatexLinkProvider(this));
 		this.addSettingTab(new MathSettingTab(this.app, this));
-
-
 
 		// Commands
 		this.addCommand({
@@ -52,18 +54,23 @@ export default class LatexReferencer extends Plugin {
 
 		// Link autocompletion
 		this.registerEditorSuggest(new LinkAutocomplete(this));
+		
+        // REPLACED: The old external plugin logic is gone.
+        // We now call our internal patcher directly.
 		const itemNormalizer = (item: EquationBlock) => ({
-			linktext: item.$file,
-			sourcePath: '',
+			linktext: item.$file + '#^' + item.$blockId, // Use the block ID for more precise linking
+			sourcePath: item.$file,
 			line: item.$position.start,
 		});
-		registerQuickPreview(this.app, this, LinkAutocomplete, itemNormalizer);
-		registerQuickPreview(this.app, this, MathSearchModal, itemNormalizer);
 
-	// Markdown post processors for Reading View
-	this.registerMarkdownPostProcessor(createEquationNumberProcessor(this));
-	this.registerMarkdownPostProcessor(CustomMathLinksProcessor(this));
-	this.app.workspace.onLayoutReady(() => this.forceRerender());
+		patchSuggesterWithQuickPreview(this, LinkAutocomplete, itemNormalizer);
+		patchSuggesterWithQuickPreview(this, MathSearchModal, itemNormalizer);
+
+
+		// Markdown post processors for Reading View
+		this.registerMarkdownPostProcessor(createEquationNumberProcessor(this));
+		this.registerMarkdownPostProcessor(CustomMathLinksProcessor(this));
+		this.app.workspace.onLayoutReady(() => this.forceRerender());
 	}
 
 	async loadSettings() {

@@ -1,7 +1,17 @@
-import { PaneType, SplitDirection } from "obsidian";
+import { PaneType, SplitDirection, UserEvent } from "obsidian";
 import { EditorView } from "@codemirror/view";
 
 declare module "obsidian" {
+    // 1. DEFINE the complete Suggestions interface here
+    interface Suggestions<T> {
+        selectedItem: number;
+        values: T[];
+        containerEl: HTMLElement;
+        moveUp(event: KeyboardEvent): void;
+        moveDown(event: KeyboardEvent): void;
+        setSelectedItem(index: number, event: UserEvent | null): void;
+    }
+
     interface App {
         plugins: {
             enabledPlugins: Set<string>;
@@ -10,33 +20,24 @@ declare module "obsidian" {
             };
             getPlugin: (id: string) => Plugin | null;
         };
+        internalPlugins: {
+            getPluginById(id: string): Plugin & { instance: any };
+        };
     }
     interface Editor {
         cm?: EditorView;
     }
-    // Reference: https://github.com/tadashi-aikawa/obsidian-various-complements-plugin/blob/be4a12c3f861c31f2be3c0f81809cfc5ab6bb5fd/src/ui/AutoCompleteSuggest.ts#L595-L619
+    
     interface EditorSuggest<T> {
         scope: Scope;
-        suggestions: {
-            selectedItem: number;
-            values: T[];
-            containerEl: HTMLElement;
-        };
+        // 2. USE the complete interface
+        suggestions: Suggestions<T>;
         suggestEl: HTMLElement;
     }
 
-    // Reference: https://github.com/tadashi-aikawa/obsidian-another-quick-switcher/blob/6aa40a46fe817d25c11847a46ec6c765c742d629/src/ui/UnsafeModalInterface.ts#L5
     interface SuggestModal<T> {
-        chooser: {
-            values: T[] | null;
-            selectedItem: number;
-            setSelectedItem(
-                item: number,
-                event?: KeyboardEvent,
-            ): void;
-            useSelectedItem(ev: Partial<KeyboardEvent>): void;
-            suggestions: Element[];
-        };
+        // 3. USE the complete interface here as well
+        chooser: Suggestions<T>;
     }
 }
 
