@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import fs from "fs";
 import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
 
 const banner =
@@ -49,3 +50,5 @@ if (prod) {
 } else {
 	await context.watch();
 }
+
+fs.copyFileSync("styles/main.css", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/styles.css");

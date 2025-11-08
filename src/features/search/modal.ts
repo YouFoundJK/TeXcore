@@ -13,7 +13,7 @@ export class MathSearchModal extends SuggestModal<EquationBlock> implements Sugg
         this.core = new ActiveNoteSearchCore(this);
         this.core.setScope();
         this.setPlaceholder('Search equations in the active note...');
-        this.inputEl.addClass('math-booster-search-input');
+
         this.limit = this.plugin.settings.suggestNumber;
     }
 

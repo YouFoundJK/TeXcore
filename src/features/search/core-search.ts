@@ -76,7 +76,7 @@ export class ActiveNoteSearchCore {
     }
 
     renderSuggestion(block: EquationBlock, el: HTMLElement): void {
-        const baseEl = el.createDiv({ cls: "math-booster-search-item" });
+        const baseEl = el.createDiv();
         const smallEl = baseEl.createEl("small", { text: `Line ${block.$position.start + 1}`, cls: "math-booster-search-item-description" });
         if (this.plugin.settings.renderMathInSuggestion) {
             const mjxContainerEl = renderMath(block.$mathText, true);
