@@ -1,5 +1,5 @@
 import { Modifier } from "obsidian";
-import { LeafArgs } from "../typings/type";
+import { LeafArgs } from "../../declarations";
 
 // Types
 export const NUMBER_STYLES = ["arabic", "alph", "Alph", "roman", "Roman"] as const;

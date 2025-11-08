@@ -1,5 +1,5 @@
 import { App, TFile } from "obsidian";
-import { PluginSettings } from "settings/settings";
+import { PluginSettings } from "../features/settings/settings";
 
 const ROMAN = ["", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM",
     "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC",

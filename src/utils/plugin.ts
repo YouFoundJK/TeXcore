@@ -1,6 +1,6 @@
 import LatexReferencer from "main";
 import { Editor, TFile, CachedMetadata, Notice } from "obsidian";
-import { getIO } from "file-io";
+import { getIO } from "./file-io";
 import { EquationBlock } from "types";
 import { generateEqId } from "./obsidian";
 

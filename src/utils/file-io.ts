@@ -1,6 +1,6 @@
-import { CachedMetadata, Editor, MarkdownView, Pos, TFile } from "obsidian";
+import { Editor, MarkdownView, Pos, TFile } from "obsidian";
 
-import LatexReferencer from "./main";
+import LatexReferencer from "../main";
 import { isEditingView, locToEditorPosition } from "utils/editor";
 import { insertAt, splitIntoLines } from "utils/general";
 

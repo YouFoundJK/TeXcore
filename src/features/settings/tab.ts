@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import LatexReferencer from "../main";
+import LatexReferencer from "../../main";
 import { NUMBER_STYLES } from "./settings";
 
 export class MathSettingTab extends PluginSettingTab {

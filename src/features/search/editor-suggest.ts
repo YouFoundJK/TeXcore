@@ -1,7 +1,7 @@
 import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo } from "obsidian";
 import LatexReferencer from "main";
 import { EquationBlock } from "types";
-import { ActiveNoteSearchCore, SuggestParent } from "./core";
+import { ActiveNoteSearchCore, SuggestParent } from "./core-search";
 
 export class LinkAutocomplete extends EditorSuggest<EquationBlock> implements SuggestParent {
     core: ActiveNoteSearchCore;

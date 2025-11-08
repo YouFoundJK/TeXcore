@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view';
 import { BlockSubpathResult, CachedMetadata, Component, HeadingSubpathResult, MarkdownPostProcessorContext, MarkdownView, Modifier, Platform, Plugin, Pos, SectionCache, parseLinktext, resolveSubpath } from "obsidian";
 import { App, TAbstractFile, TFile, TFolder } from "obsidian";
 import { locToEditorPosition } from 'utils/editor';
-import { LeafArgs } from 'typings/type';
+import { LeafArgs } from '../declarations';
 
 ////////////////////
 // File utilities //

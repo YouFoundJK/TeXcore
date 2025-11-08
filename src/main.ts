@@ -3,19 +3,19 @@ import type { Extension } from '@codemirror/state';
 
 import { registerQuickPreview } from 'obsidian-quick-preview';
 
-import { PluginSettings, DEFAULT_SETTINGS } from 'settings/settings';
-import { MathSettingTab } from "settings/tab";
+import { PluginSettings, DEFAULT_SETTINGS } from './features/settings/settings';
+import { MathSettingTab } from "./features/settings/tab";
 
-import { Provider } from 'link-renderer/provider-link-render';
+import { Provider } from './features/linker/provider-link-render';
 import { LatexLinkProvider } from 'latex-provider';
-import { createEquationNumberProcessor } from 'equations/reading-view';
-import { CustomMathLinksProcessor } from 'link-renderer/reading-view';
-import { createEquationNumberPlugin } from 'equations/live-preview-equations';
-import { createLivePreviewLinkRendererPlugin } from 'link-renderer/live-preview-link-renderer';
+import { createEquationNumberProcessor } from 'features/equations/reading-view-equations';
+import { CustomMathLinksProcessor } from './features/linker/reading-view-linker';
+import { createEquationNumberPlugin } from 'features/equations/live-preview-equations';
+import { createLivePreviewLinkRendererPlugin } from './features/linker/live-preview-link-renderer';
 
 import { insertDisplayMath } from 'utils/plugin';
-import { LinkAutocomplete } from 'search/editor-suggest';
-import { MathSearchModal } from 'search/modal';
+import { LinkAutocomplete } from 'features/search/editor-suggest';
+import { MathSearchModal } from 'features/search/modal';
 import { EquationBlock } from 'types';
 
 export default class LatexReferencer extends Plugin {

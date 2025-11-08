@@ -1,11 +1,10 @@
-import { Extension, StateField, EditorState, Annotation, RangeSetBuilder } from '@codemirror/state';
-import { EditorView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
+import { Extension, StateField, EditorState, Annotation } from '@codemirror/state';
+import { EditorView, ViewPlugin, Decoration, DecorationSet, ViewUpdate, WidgetType } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
-import { generateEqId } from 'utils/obsidian';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
 import { EquationBlock } from 'types';
-import { processActiveNoteEquations } from './numbering';
+
 
 /**
  * The in-memory state for the TagManager. It holds only the information
@@ -95,7 +94,8 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
         if (!referenceMap.has(baseId)) {
             referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
         }
-        const refInfo = referenceMap.get(baseId)!;
+        const refInfo = referenceMap.get(baseId);
+        if (!refInfo) continue;
         refInfo.totalCount++;
         if (subIndexStr) {
             const subIndex = parseInt(subIndexStr);
@@ -145,7 +145,7 @@ const tagManagerAnnotation = Annotation.define<boolean>();
  * The "Hands". This is the one and only plugin responsible for adding,
  * updating, or removing \tag{...} commands from the editor text.
  */
-function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateField<EquationState>): ViewPlugin<any> {
+function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateField<EquationState>): ViewPlugin<object> {
     return ViewPlugin.fromClass(class {
         timeout: NodeJS.Timeout | null = null;
 

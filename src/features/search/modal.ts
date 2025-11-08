@@ -1,6 +1,6 @@
 import LatexReferencer from "main";
 import { App, Editor, EditorSuggestContext, MarkdownView, SuggestModal } from "obsidian";
-import { ActiveNoteSearchCore, SuggestParent } from "./core";
+import { ActiveNoteSearchCore, SuggestParent } from "./core-search";
 import { EquationBlock } from "types";
 
 export class MathSearchModal extends SuggestModal<EquationBlock> implements SuggestParent {

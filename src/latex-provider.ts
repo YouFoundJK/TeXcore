@@ -1,7 +1,7 @@
 import { App, MarkdownView, TFile, HeadingSubpathResult, BlockSubpathResult } from 'obsidian';
 import LatexReferencer from 'main';
-import { processActiveNoteEquations } from './equations/numbering';
-import { Provider } from './link-renderer/provider-link-render';
+import { processActiveNoteEquations } from './features/equations/numbering';
+import { Provider } from './features/linker/provider-link-render';
 
 
 export class LatexLinkProvider extends Provider {
