@@ -5,7 +5,7 @@ import { LEAF_OPTION_TO_ARGS } from 'settings/settings';
 import { getModifierNameInPlatform, openFileAndSelectPosition } from 'utils/obsidian';
 import { insertBlockIdIfNotExist } from 'utils/plugin';
 import { MathSearchModal } from './modal';
-import { ActiveNoteEquationProvider } from 'equations/provider';
+import { ActiveNoteEquationProvider } from 'equations/provider-equation';
 
 export type ScoredEquationBlock = { match: SearchResult, block: EquationBlock };
 

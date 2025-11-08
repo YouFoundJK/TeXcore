@@ -1,13 +1,14 @@
 import { App, MarkdownView, TFile, HeadingSubpathResult, BlockSubpathResult } from 'obsidian';
-import * as MathLinks from 'obsidian-mathlinks';
 import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './equations/numbering';
+import { Provider } from './link-renderer/provider-link-render';
 
-export class CleverefProvider extends MathLinks.Provider {
+
+export class LatexLinkProvider extends Provider {
     app: App;
 
-    constructor(mathLinks: any, public plugin: LatexReferencer) {
-        super(mathLinks);
+    constructor(public plugin: LatexReferencer) {
+        super();
         this.app = plugin.app;
     }
 
@@ -29,14 +30,15 @@ export class CleverefProvider extends MathLinks.Provider {
             }
         }
         if (content === null) {
-            return null;
+            // If the target file is not open, read it from the vault
+            // Note: This is a fallback and might not be perfectly in sync with unsaved changes.
+            this.app.vault.cachedRead(targetFile).then(fileContent => content = fileContent);
+            if (content === null) return null;
         }
 
         const subpath = parsedLinktext.subpath.substring(2); // remove #^
         const subpathMatch = subpath.match(/^(eq-[\w]+)(?:-(\d+))?$/);
-        if (!subpathMatch) {
-            return null;
-        }
+        if (!subpathMatch) return null;
 
         const [, blockId, subIndexStr] = subpathMatch;
         const subIndex = subIndexStr ? parseInt(subIndexStr) : undefined;

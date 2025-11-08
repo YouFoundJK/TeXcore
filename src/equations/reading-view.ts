@@ -34,7 +34,11 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
 
                 const equation = lineToEquationMap.get(section.lineStart);
 
-                // Change this condition
+                // Add the ID to the parent container to make it a linkable target
+                if (equation?.$blockId && mathEl.parentElement) {
+                    mathEl.parentElement.id = equation.$blockId;
+                }
+
                 if (equation?.$printName && !equation.$subIndices) {
                     const numberEl = createSpan({
                         cls: "math-booster-equation-number",
