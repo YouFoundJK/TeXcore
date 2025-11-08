@@ -1,11 +1,11 @@
-import { Editor, TFile, App, CachedMetadata } from 'obsidian';
+import { TFile, App, CachedMetadata } from 'obsidian';
 import { EquationBlock } from 'index/typings/markdown';
 import { trimMathText, parseMarkdownComment, parseYamlLike } from 'utils/parse';
 
 export class ActiveNoteEquationProvider {
     constructor(public app: App) {}
 
-    getEquations(file: TFile, editor: Editor): EquationBlock[] {
+    getEquations(file: TFile, content: string): EquationBlock[] {
         const cache: CachedMetadata | null = this.app.metadataCache.getFileCache(file);
         if (!cache?.sections) {
             return [];
@@ -16,17 +16,17 @@ export class ActiveNoteEquationProvider {
         let ordinal = 0;
 
         for (const section of mathSections) {
-            const fromPos = { line: section.position.start.line, ch: section.position.start.col };
-            const toPos = { line: section.position.end.line, ch: section.position.end.col };
-            
-            const text = editor.getRange(fromPos, toPos);
+            const text = content.slice(section.position.start.offset, section.position.end.offset);
             const mathText = trimMathText(text);
 
             let blockId: string | undefined = section.id;
-            // The cache's section.id is not always up-to-date in Live Preview.
+            
+            // In Live Preview, the cache's section.id is not always up-to-date.
             // A manual check on the next line is more reliable.
-            if (section.position.end.line + 1 < editor.lineCount()) {
-                const nextLine = editor.getLine(section.position.end.line + 1).trim();
+            const nextLineIndex = section.position.end.line + 1;
+            const lines = content.split('\n');
+            if (nextLineIndex < lines.length) {
+                const nextLine = lines[nextLineIndex].trim();
                 const idMatch = nextLine.match(/^\^([a-zA-Z0-9\-_]+)$/);
                 if (idMatch) {
                     blockId = idMatch[1];
@@ -52,7 +52,7 @@ export class ActiveNoteEquationProvider {
                 $id: EquationBlock.readableId(file.path, ordinal),
                 $ordinal: ordinal++,
                 $position: { start: section.position.start.line, end: section.position.end.line },
-                $pos: section.position, // The position object from the cache is a complete Pos object
+                $pos: section.position,
                 $links: [],
                 $blockId: blockId,
                 $type: 'equation',

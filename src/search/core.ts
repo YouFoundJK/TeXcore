@@ -161,7 +161,9 @@ export class ActiveNoteSearchCore extends MathSearchCore {
         const editor = this.parent.getEditor();
 
         if (file && editor) {
-            return this.provider.getEquations(file, editor);
+            // This is the fix: Pass the editor's content string.
+            const content = editor.getValue();
+            return this.provider.getEquations(file, content);
         }
         
         return [];

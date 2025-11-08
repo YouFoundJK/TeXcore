@@ -83,9 +83,24 @@ export default class LatexReferencer extends Plugin {
 
 		// wait until the layout is ready to ensure MathLinks has been loaded when calling addProvider()
 		this.app.workspace.onLayoutReady(() => {
-			this.addChild(
-				MathLinks.addProvider(this.app, (mathLinks) => new CleverefProvider(mathLinks, this))
-			);
+			console.log("[DEBUG main.ts] onLayoutReady triggered. Attempting to add MathLinks provider.");
+			try {
+				if (!MathLinks) {
+					console.error("[DEBUG main.ts] CRITICAL FAILURE: MathLinks API is not available.");
+					return;
+				}
+				
+				const providerRegistration = MathLinks.addProvider(this.app, (mathLinks) => {
+					console.log("[DEBUG main.ts] MathLinks provider factory function is being executed.");
+					return new CleverefProvider(mathLinks as any, this);
+				});
+
+				this.addChild(providerRegistration);
+				console.log("[DEBUG main.ts] -> SUCCESS: MathLinks provider was added successfully.");
+
+			} catch (e) {
+				console.error("[DEBUG main.ts] -> CRITICAL FAILURE: An error occurred while adding the MathLinks provider:", e);
+			}
 		});
 
 
