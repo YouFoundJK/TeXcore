@@ -1,8 +1,6 @@
-import { MarkdownView, Plugin } from 'obsidian';
+import { MarkdownView, Plugin, TFile, parseLinktext } from 'obsidian';
 import type { Extension } from '@codemirror/state';
-
-// REMOVED: No longer importing from the external plugin
-// import { registerQuickPreview } from 'obsidian-quick-preview'; 
+import { around } from 'monkey-around';
 
 import { PluginSettings, DEFAULT_SETTINGS } from './features/settings/settings';
 import { MathSettingTab } from "./features/settings/tab";
@@ -21,14 +19,34 @@ import { EquationBlock } from 'types';
 
 // ADDED: Import our new internal patcher function
 import { patchSuggesterWithQuickPreview } from 'features/quick-preview/patcher';
+import { EquationCache } from './features/cache/equation-cache';
 
 export default class LatexReferencer extends Plugin {
 	settings: PluginSettings;
 	editorExtensions: Extension[];
 	internalProviders: Provider[] = [];
+	equationCache: EquationCache;
 
 	async onload() {
 		await this.loadSettings();
+
+		// Caching
+		this.equationCache = new EquationCache(this);
+		this.app.workspace.onLayoutReady(async () => {
+			await this.equationCache.buildCache();
+		});
+
+		// Register event handlers to keep the cache up-to-date
+		this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
+			await this.equationCache.updateFile(file);
+		}));
+		this.registerEvent(this.app.vault.on('rename', async (file, oldPath) => {
+			if (file instanceof TFile) this.equationCache.renameFile(file, oldPath);
+		}));
+		this.registerEvent(this.app.vault.on('delete', async (file) => {
+			if (file instanceof TFile) this.equationCache.removeFile(file);
+		}));
+
 		this.internalProviders.push(new LatexLinkProvider(this));
 		this.addSettingTab(new MathSettingTab(this.app, this));
 
@@ -71,6 +89,8 @@ export default class LatexReferencer extends Plugin {
 		this.registerMarkdownPostProcessor(createEquationNumberProcessor(this));
 		this.registerMarkdownPostProcessor(CustomMathLinksProcessor(this));
 		this.app.workspace.onLayoutReady(() => this.forceRerender());
+
+		this.patchPagePreview();
 	}
 
 	async loadSettings() {
@@ -96,5 +116,48 @@ export default class LatexReferencer extends Plugin {
 				view.previewMode.rerender(true);
 			}
 		}, 800);
+	}
+
+	patchPagePreview() {
+		const pagePreviewPlugin = this.app.internalPlugins.getPluginById('page-preview');
+		if (!pagePreviewPlugin?.instance) {
+			console.log("Latex Referencer: Page Preview plugin not found. Cannot patch hover behavior.");
+			return;
+		}
+
+		const instance = pagePreviewPlugin.instance;
+		const plugin = this;
+
+		const uninstaller = around(instance, {
+			onLinkHover(old: any) {
+				return function (hoverParent: any, targetEl: any, linktext: string, sourcePath: string, state: any) {
+					const { path, subpath } = parseLinktext(linktext);
+
+					// Check if it's our custom equation link (e.g., [[#^eq-...]] or [[file#^eq-...]])
+					if (subpath && subpath.startsWith('^eq-')) {
+						const blockId = subpath.substring(1); // Remove '^', leaving 'eq-...'
+						const targetFile = plugin.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
+
+						if (targetFile instanceof TFile) {
+							// Perform a SYNCHRONOUS lookup in our cache
+							const targetEquation = plugin.equationCache.get(targetFile.path, blockId);
+
+							if (targetEquation) {
+								const line = targetEquation.$position.start;
+								const newState = { ...state, scroll: line };
+								// Immediately call the original function with the correct line number
+								return old.call(this, hoverParent, targetEl, linktext, sourcePath, newState);
+							}
+						}
+					}
+
+					// If it's not our link, or if we couldn't find it in the cache,
+					// call the original function without modification.
+					return old.call(this, hoverParent, targetEl, linktext, sourcePath, state);
+				};
+			}
+		});
+
+		this.register(uninstaller);
 	}
 }
