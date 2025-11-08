@@ -41,8 +41,3 @@ declare module "obsidian" {
 }
 
 export type LeafArgs = [newLeaf?: PaneType | boolean] | [newLeaf?: 'split', direction?: SplitDirection];
-
-declare module "index/web-worker/importer.worker" {
-    const WorkerFactory: new () => Worker;
-    export default WorkerFactory;
-}

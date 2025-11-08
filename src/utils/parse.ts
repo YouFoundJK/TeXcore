@@ -2,14 +2,6 @@ export function trimMathText(text: string): string {
     return text.match(/\$\$([\s\S]*)\$\$/)?.[1].trim() ?? '';
 }
 
-export function parseLatexComment(line: string): { nonComment: string, comment: string } {
-    const match = line.match(/(?<!\\)%/);
-    if (match?.index !== undefined) {
-        return { nonComment: line.substring(0, match.index), comment: line.substring(match.index + 1) }
-    }
-    return { nonComment: line, comment: '' };
-}
-
 /** Parse the given markdown text and returns all comments in it as an array of lines. */
 export function parseMarkdownComment(markdown: string): string[] {
     const comments: string[] = [];

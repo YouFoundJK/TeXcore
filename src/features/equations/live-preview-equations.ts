@@ -1,9 +1,8 @@
 import { Extension, StateField, EditorState, Annotation } from '@codemirror/state';
-import { EditorView, ViewPlugin, Decoration, DecorationSet, ViewUpdate, WidgetType } from '@codemirror/view';
+import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
-import { EquationBlock } from 'types';
 
 
 /**
@@ -262,12 +261,4 @@ export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
         equationField,
         createTagManagerPlugin(plugin, equationField),
     ];
-}
-
-// THIS IS A DUMMY WIDGET LEFT HERE TO PREVENT ERRORS IN OTHER FILES
-// THAT MIGHT STILL REFERENCE IT. IT DOES NOTHING.
-class EquationNumberWidget extends WidgetType {
-    constructor(public equation: EquationBlock) { super(); }
-    eq(other: EquationNumberWidget) { return true; }
-    toDOM() { return createSpan(); }
 }
