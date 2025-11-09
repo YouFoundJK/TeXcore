@@ -1,10 +1,8 @@
-import * as electron from "electron";
 import * as fs from "fs/promises";
 import { ButtonComponent, type FrontMatterCache, Modal, Setting, TFile, TFolder, debounce } from "obsidian";
 import * as path from "path";
 import { PageSize } from "./constant";
-import i18n, { type Lang } from "./i18n";
-import BetterExportPdfPlugin from "./main";
+import LatexReferencer from "../../main";
 import { exportToPDF, getOutputFile, getOutputPath } from "./pdf";
 import { createWebview, fixDoc, getAllStyles, getPatchStyle, renderMarkdown, type ParamType } from "./render";
 import { isNumber, mm2px, px2mm, safeParseFloat, safeParseInt, traverseFolder } from "./utils";
@@ -53,7 +51,6 @@ export class ExportConfigModal extends Modal {
   canceled: boolean;
   multiplePdf?: boolean;
   callback: Callback;
-  plugin: BetterExportPdfPlugin;
   file: TFile | TFolder;
   preview: Electron.WebViewElement;
   webviews: Electron.WebViewElement[];
@@ -62,18 +59,15 @@ export class ExportConfigModal extends Modal {
   docs: DocType[];
   title: string;
   frontMatter: FrontMatterCache;
-  i18n: Lang;
   scale: number;
   // @ts-ignore
   svelte: Progress;
 
-  constructor(plugin: BetterExportPdfPlugin, file: TFile | TFolder, multiplePdf?: boolean) {
+  constructor(public plugin: LatexReferencer, file: TFile | TFolder, multiplePdf?: boolean) {
     super(plugin.app);
     this.canceled = true;
-    this.plugin = plugin;
     this.file = file;
     this.completed = false;
-    this.i18n = i18n.current;
     this.docs = [];
     this.scale = 0.75;
     this.webviews = [];
@@ -410,7 +404,7 @@ export class ExportConfigModal extends Modal {
   }
 
   private generateForm(contentEl: HTMLDivElement) {
-    new Setting(contentEl).setName(this.i18n.exportDialog.filenameAsTitle).addToggle((toggle) =>
+    new Setting(contentEl).setName("Include file name as title").addToggle((toggle) =>
       toggle
         .setTooltip("Include file name as title")
         .setValue(this.config["showTitle"])
@@ -444,7 +438,7 @@ export class ExportConfigModal extends Modal {
       "Ledger",
       "Custom",
     ];
-    new Setting(contentEl).setName(this.i18n.exportDialog.pageSize).addDropdown((dropdown) => {
+    new Setting(contentEl).setName("Page Size").addDropdown((dropdown) => {
       dropdown
         .addOptions(Object.fromEntries(pageSizes.map((size) => [size, size])))
         .setValue(this.config.pageSize as string)
@@ -493,7 +487,7 @@ export class ExportConfigModal extends Modal {
     sizeEl.settingEl.hidden = this.config["pageSize"] !== "Custom";
 
     new Setting(contentEl)
-      .setName(this.i18n.exportDialog.margin)
+      .setName("Margin")
       .setDesc("The unit is millimeters.")
       .addDropdown((dropdown) => {
         dropdown
@@ -557,7 +551,7 @@ export class ExportConfigModal extends Modal {
       });
     btmEl.settingEl.hidden = this.config["marginType"] != "3";
 
-    new Setting(contentEl).setName(this.i18n.exportDialog.downscalePercent).addSlider((slider) => {
+    new Setting(contentEl).setName("Downscale Percent").addSlider((slider) => {
       slider
         .setLimits(0, 100, 1)
         .setValue(this.config["scale"] as number)
@@ -566,7 +560,7 @@ export class ExportConfigModal extends Modal {
           slider.showTooltip();
         });
     });
-    new Setting(contentEl).setName(this.i18n.exportDialog.landscape).addToggle((toggle) =>
+    new Setting(contentEl).setName("Landscape").addToggle((toggle) =>
       toggle
         .setTooltip("landscape")
         .setValue(this.config["landscape"])
@@ -575,7 +569,7 @@ export class ExportConfigModal extends Modal {
         }),
     );
 
-    new Setting(contentEl).setName(this.i18n.exportDialog.displayHeader).addToggle((toggle) =>
+    new Setting(contentEl).setName("Display Header").addToggle((toggle) =>
       toggle
         .setTooltip("Display header")
         .setValue(this.config["displayHeader"])
@@ -584,7 +578,7 @@ export class ExportConfigModal extends Modal {
         }),
     );
 
-    new Setting(contentEl).setName(this.i18n.exportDialog.displayFooter).addToggle((toggle) =>
+    new Setting(contentEl).setName("Display Footer").addToggle((toggle) =>
       toggle
         .setTooltip("Display footer")
         .setValue(this.config["displayFooter"])
@@ -593,7 +587,7 @@ export class ExportConfigModal extends Modal {
         }),
     );
 
-    new Setting(contentEl).setName(this.i18n.exportDialog.openAfterExport).addToggle((toggle) =>
+    new Setting(contentEl).setName("Open after export").addToggle((toggle) =>
       toggle
         .setTooltip("Open the exported file after exporting.")
         .setValue(this.config["open"])
@@ -605,7 +599,7 @@ export class ExportConfigModal extends Modal {
     const snippets = this.cssSnippets();
 
     if (Object.keys(snippets).length > 0 && this.plugin.settings.enabledCss) {
-      new Setting(contentEl).setName(this.i18n.exportDialog.cssSnippets).addDropdown((dropdown) => {
+      new Setting(contentEl).setName("CSS snippets").addDropdown((dropdown) => {
         dropdown
           .addOption("0", "Not select")
           .addOptions(snippets)

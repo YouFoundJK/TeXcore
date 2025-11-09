@@ -1,9 +1,10 @@
 import * as electron from "electron";
 import * as fs from "fs/promises";
-import { type FrontMatterCache } from "obsidian";
+import { type FrontMatterCache, Notice } from "obsidian";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFRef, StandardFonts } from "pdf-lib";
 
-import type { BetterExportPdfPluginSettings } from "./main";
+import type { PluginSettings } from "../settings/settings";
+
 import type { DocType, PageSizeType, TConfig } from "./modal";
 import { TreeNode, getHeadingTree, safeParseFloat, safeParseInt } from "./utils";
 
@@ -261,9 +262,9 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
       Type: "Outlines",
       ...(rootCount > 0
         ? {
-            First: refMap.get(outlines[0])!,
-            Last: refMap.get(outlines[outlines.length - 1])!,
-          }
+          First: refMap.get(outlines[0])!,
+          Last: refMap.get(outlines[outlines.length - 1])!,
+        }
         : {}),
       Count: rootCount,
     }),
@@ -367,7 +368,7 @@ export function setMetadata(
 
 export async function exportToPDF(
   outputFile: string,
-  config: TConfig & BetterExportPdfPluginSettings,
+  config: TConfig & PluginSettings, // Changed from BetterExportPdfPluginSettings
   w: Electron.WebViewElement,
   { doc, frontMatter }: DocType,
 ) {
@@ -434,12 +435,8 @@ export async function exportToPDF(
   }
 
   try {
-    let data: Uint8Array = await new Promise<Buffer>((resolve, reject) => {
-      (w as any).printToPDF(printOptions, (error: any, data: Buffer) => {
-        if (error) return reject(error);
-        resolve(data);
-      });
-    });
+    const buffer = await (w as any).printToPDF(printOptions);
+    let data: Uint8Array = new Uint8Array(buffer);
 
     data = await editPDF(data, {
       headings: getHeadingTree(doc),
@@ -456,6 +453,7 @@ export async function exportToPDF(
     }
   } catch (error) {
     console.error(error);
+    new Notice("Export to PDF failed: " + error);
   }
 }
 

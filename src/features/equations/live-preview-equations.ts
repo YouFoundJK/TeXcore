@@ -3,6 +3,7 @@ import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
+import type { PluginSettings } from "features/settings/settings";
 
 
 /**
@@ -122,7 +123,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
     }
 
     let equationCount = 0;
-    const eqPrefix = getEqNumberPrefix(plugin.app, file, settings);
+    const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>);
     const eqSuffix = settings.eqNumberSuffix;
 
     for (const info of equationInfos) {

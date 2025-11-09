@@ -4,10 +4,10 @@
 	"description": "An Obsidian.md plugin that provides a powerful indexing & referencing system for theorems & equations in your vault. Bring LaTeX-like workflow into Obsidian with theorem environments, automatic equation numbering, and more.",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && sass styles.scss styles.css",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && sass src/styles/main.css styles.css",
 		"prod": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"dev-style": "sass --watch styles.scss styles.css",
-		"build-style": "sass --watch styles.scss styles.css",
+		"dev-style": "sass --watch src/styles/main.css styles.css",
+		"build-style": "sass --watch src/styles/main.css styles.css",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],
@@ -20,9 +20,11 @@
 		"@typescript-eslint/parser": "5.29.0",
 		"builtin-modules": "3.3.0",
 		"deepmerge": "^4.3.1",
+		"esbuild-svelte": "^0.9.4",
 		"obsidian": "latest",
 		"p-limit": "^7.2.0",
 		"pdf-lib": "^1.17.1",
+		"sass": "^1.97.2",
 		"svelte": "^5.43.5",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
@@ -30,6 +32,7 @@
 	"dependencies": {
 		"@codemirror/language": "^6.0.0",
 		"@lezer/common": "^1.0.3",
+		"@lucide/svelte": "^0.562.0",
 		"esbuild": "^0.25.12",
 		"esbuild-plugin-inline-worker": "^0.1.1",
 		"flatqueue": "^2.0.3",

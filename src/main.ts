@@ -1,6 +1,8 @@
-import { MarkdownView, Plugin, TFile, parseLinktext } from 'obsidian';
+import { MarkdownView, Plugin, TFile, parseLinktext, Menu, TFolder } from 'obsidian';
 import type { Extension } from '@codemirror/state';
 import { around } from 'monkey-around';
+import * as fs from "fs/promises";
+import * as path from "path";
 
 import { PluginSettings, DEFAULT_SETTINGS } from './features/settings/settings';
 import { MathSettingTab } from "./features/settings/tab";
@@ -20,6 +22,10 @@ import { EquationBlock } from 'types';
 // ADDED: Import our new internal patcher function
 import { patchSuggesterWithQuickPreview } from 'features/quick-preview/patcher';
 import { EquationCache } from './features/cache/equation-cache';
+import { ExportConfigModal } from "./features/export-pdf/modal";
+import { traverseFolder } from "./features/export-pdf/utils";
+
+const isDev = process.env.NODE_ENV === "development";
 
 export default class LatexReferencer extends Plugin {
 	settings: PluginSettings;
@@ -64,6 +70,76 @@ export default class LatexReferencer extends Plugin {
 				new MathSearchModal(this).open();
 			}
 		});
+
+		this.addCommand({
+			id: "export-current-file-to-pdf",
+			name: "Export current file to PDF",
+			checkCallback: (checking: boolean) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const file = view?.file;
+				if (!file) {
+					return false;
+				}
+				if (checking) {
+					return true;
+				}
+				new ExportConfigModal(this, file).open();
+
+				return true;
+			},
+		});
+
+		// Menu items for file export
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file: TFile | TFolder) => {
+				let title = file instanceof TFolder ? "Export folder to PDF" : "Better Export PDF";
+				if (isDev) {
+					title = `${title} (dev)`;
+				}
+
+				menu.addItem((item) => {
+					item
+						.setTitle(title)
+						.setIcon("download")
+						.setSection("action")
+						.onClick(async () => {
+							new ExportConfigModal(this, file).open();
+						});
+				});
+			}),
+		);
+
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file: TFile | TFolder) => {
+				if (file instanceof TFolder) {
+					let title = "Export to PDF...";
+					if (isDev) {
+						title = `${title} (dev)`;
+					}
+					menu.addItem((item) => {
+						item.setTitle(title).setIcon("lucide-folder-down").setSection("action");
+						// @ts-ignore
+						const subMenu: Menu = item.setSubmenu();
+						subMenu.addItem((item) =>
+							item
+								.setTitle("Export each file to PDF")
+								.setIcon("lucide-file-stack")
+								.onClick(async () => {
+									new ExportConfigModal(this, file, true).open();
+							}),
+						);
+						subMenu.addItem((item) =>
+							item
+								.setTitle("Generate TOC.md file")
+								.setIcon("lucide-file-text")
+								.onClick(async () => {
+									await this.generateToc(file);
+							}),
+						);
+					});
+				}
+			}),
+		);
 
 		// Editor Extensions
 		this.editorExtensions = []
@@ -159,5 +235,22 @@ export default class LatexReferencer extends Plugin {
 		});
 
 		this.register(uninstaller);
+	}
+
+	async generateToc(root: TFolder | TFile) {
+		// @ts-ignore
+		const basePath = this.app.vault.adapter.basePath;
+		const toc = path.join(basePath, root.path, "_TOC_.md");
+		const content = `---\ntoc: true\ntitle: ${root.name}\n---\n`;
+		await fs.writeFile(toc, content);
+		if (root instanceof TFolder) {
+			const files = traverseFolder(root);
+			for (const file of files) {
+				if (file.name == "_TOC_.md") {
+					continue;
+				}
+				await fs.appendFile(toc, `[[${file.path}]]\n`);
+			}
+		}
 	}
 }

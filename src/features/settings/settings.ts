@@ -1,4 +1,5 @@
 import { Modifier } from "obsidian";
+import type { TConfig } from "../export-pdf/modal";
 import { LeafArgs } from "../../declarations";
 
 // Types
@@ -43,6 +44,22 @@ export interface PluginSettings {
     modifierToJump: Modifier;
     showModifierInstruction: boolean;
     suggestLeafOption: LeafOption;
+
+    // PDF Export Settings
+    prevConfig?: TConfig;
+    showTitle: boolean;
+    maxLevel: string;
+    displayHeader: boolean;
+    displayFooter: boolean;
+    headerTemplate: string;
+    footerTemplate: string;
+    printBackground: boolean;
+    generateTaggedPDF: boolean;
+    displayMetadata: boolean;
+    isTimestamp: boolean;
+    debug: boolean;
+    enabledCss: boolean;
+    concurrency: string;
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
@@ -69,4 +86,34 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     modifierToJump: "Mod",
     showModifierInstruction: true,
     suggestLeafOption: "Current tab", 
+
+    // PDF Export Settings
+    prevConfig: {
+        pageSize: "A4",
+        marginType: "1",
+        open: true,
+        landscape: false,
+        scale: 100,
+        showTitle: true,
+        displayHeader: true,
+        displayFooter: true,
+        marginTop: "10",
+        marginBottom: "10",
+        marginLeft: "10",
+        marginRight: "10",
+        cssSnippet: "0",
+    },
+    showTitle: true,
+    maxLevel: "6",
+    displayHeader: true,
+    displayFooter: true,
+    headerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="title"></span></div>`,
+    footerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
+    printBackground: false,
+    generateTaggedPDF: false,
+    displayMetadata: false,
+    isTimestamp: false,
+    debug: false,
+    enabledCss: false,
+    concurrency: "5",
 };

@@ -3,6 +3,7 @@ import { CONVERTER, getEqNumberPrefix } from "utils/format";
 import { EquationBlock } from "types";
 import LatexReferencer from "main";
 import { ActiveNoteEquationProvider } from "features/equations/provider-equation";
+import type { PluginSettings } from "features/settings/settings";
 
 interface ReferenceInfo {
     totalCount: number;
@@ -28,7 +29,7 @@ export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile,
         if (!referenceMap.has(baseId)) {
             referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
         }
-        const refInfo = referenceMap.get(baseId)!;
+        const refInfo = referenceMap.get(baseId) ?? { totalCount: 0, subIndices: new Set() };
 
         refInfo.totalCount++;
         if (subIndexStr) {
@@ -41,7 +42,7 @@ export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile,
 
     const processedEquations = new Map<string, EquationBlock>();
     let equationCount = 0;
-    const eqPrefix = getEqNumberPrefix(plugin.app, file, settings);
+    const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>);
     const eqSuffix = settings.eqNumberSuffix;
 
     // 2. Process each equation using the pre-computed reference map.

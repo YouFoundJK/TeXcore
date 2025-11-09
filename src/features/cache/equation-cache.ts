@@ -6,7 +6,7 @@ import { processActiveNoteEquations } from 'features/equations/numbering';
 export class EquationCache {
     private cache: Map<string, Map<string, EquationBlock>> = new Map();
 
-    constructor(private plugin: LatexReferencer) {}
+    constructor(private plugin: LatexReferencer) { }
 
     /**
      * Synchronously gets a cached equation block for a given file path and block ID.
@@ -16,6 +16,10 @@ export class EquationCache {
      */
     get(filePath: string, blockId: string): EquationBlock | undefined {
         return this.cache.get(filePath)?.get(blockId);
+    }
+
+    getEquationsForFile(filePath: string): Map<string, EquationBlock> | undefined {
+        return this.cache.get(filePath);
     }
 
     /**

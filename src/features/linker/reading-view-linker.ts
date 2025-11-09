@@ -46,10 +46,11 @@ export class LatexRenderChild extends MarkdownRenderChild {
 		const mathLink = getMathLink(this.plugin, this.targetLink, this.sourcePath);
 
 		if (mathLink) {
-			// Check if the link element is still in the DOM
-			const linkEl = this.containerEl.querySelector('a.internal-link');
-			if (linkEl) {
-				setMathLink(mathLink, linkEl as HTMLElement);
+			// The containerEl is now the link element itself
+			const linkEl = this.containerEl as HTMLElement;
+			// Verify it's still in the DOM (though MarkdownRenderChild handles unloading)
+			if (linkEl.isConnected) {
+				setMathLink(mathLink, linkEl);
 			}
 		}
 		finishRenderMath();
@@ -63,12 +64,12 @@ export const CustomMathLinksProcessor = (plugin: LatexReferencer): MarkdownPostP
 			const href = link.getAttribute('data-href');
 			if (href && href.contains('#^eq-')) {
 				// This is one of our equation links.
-				// The link is already a proper <a href> tag, so we just need to change its text.
+				// Pass the specific link element as the container to scope the child correctly.
 				context.addChild(
-					new LatexRenderChild(element, plugin, context.sourcePath, href)
+					new LatexRenderChild(link, plugin, context.sourcePath, href)
 				);
 			}
 		}
 	};
 };
-export {}
+export { }

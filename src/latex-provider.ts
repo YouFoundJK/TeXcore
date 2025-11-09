@@ -21,21 +21,6 @@ export class LatexLinkProvider extends Provider {
             return null;
         }
 
-        let content: string | null = null;
-        for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-            const view = leaf.view;
-            if (view instanceof MarkdownView && view.file?.path === targetFile.path) {
-                content = view.editor.getValue();
-                break;
-            }
-        }
-        if (content === null) {
-            // If the target file is not open, read it from the vault
-            // Note: This is a fallback and might not be perfectly in sync with unsaved changes.
-            this.app.vault.cachedRead(targetFile).then(fileContent => content = fileContent);
-            if (content === null) return null;
-        }
-
         const subpath = parsedLinktext.subpath.substring(2); // remove #^
         const subpathMatch = subpath.match(/^(eq-[\w]+)(?:-(\d+))?$/);
         if (!subpathMatch) return null;
@@ -43,9 +28,9 @@ export class LatexLinkProvider extends Provider {
         const [, blockId, subIndexStr] = subpathMatch;
         const subIndex = subIndexStr ? parseInt(subIndexStr) : undefined;
 
-        const equations = processActiveNoteEquations(this.plugin, targetFile, content);
-        const targetEquation = equations.get(blockId);
-        
+        // Use the cache instead of parsing the file content manually
+        const targetEquation = this.plugin.equationCache.get(targetFile.path, blockId);
+
         if (targetEquation?.$printName) {
             let result: string;
             const settings = this.plugin.settings;
@@ -62,7 +47,7 @@ export class LatexLinkProvider extends Provider {
             }
             return result;
         }
-    
+
         return null;
     }
 }
