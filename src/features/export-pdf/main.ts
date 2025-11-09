@@ -4,7 +4,7 @@ import { ExportConfigModal, type TConfig } from "./modal";
 import ConfigSettingTab from "./setting";
 import { traverseFolder } from "./utils";
 import * as fs from "fs/promises";
-import path from "path";
+import * as path from "path";
 
 const isDev = process.env.NODE_ENV === "development";
 

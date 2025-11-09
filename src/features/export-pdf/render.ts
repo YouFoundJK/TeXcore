@@ -330,7 +330,7 @@ export function createWebview(scale = 1.25) {
      border: 1px solid #f2f2f2;
     `,
   );
-  webview.nodeintegration = true;
+  webview.setAttribute("nodeintegration", "true");
   return webview;
 }
 

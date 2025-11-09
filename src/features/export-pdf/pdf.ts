@@ -1,4 +1,4 @@
-import electron, { type WebviewTag } from "electron";
+import * as electron from "electron";
 import * as fs from "fs/promises";
 import { type FrontMatterCache } from "obsidian";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFRef, StandardFonts } from "pdf-lib";
@@ -368,7 +368,7 @@ export function setMetadata(
 export async function exportToPDF(
   outputFile: string,
   config: TConfig & BetterExportPdfPluginSettings,
-  w: WebviewTag,
+  w: Electron.WebViewElement,
   { doc, frontMatter }: DocType,
 ) {
   console.log("output pdf:", outputFile);
@@ -384,7 +384,7 @@ export async function exportToPDF(
   if (scale > 200 || scale < 10) {
     scale = 100;
   }
-  const printOptions: electron.PrintToPDFOptions = {
+  const printOptions: any = {
     landscape: config?.["landscape"],
     printBackground: config?.["printBackground"],
     generateTaggedPDF: config?.["generateTaggedPDF"],
@@ -434,7 +434,12 @@ export async function exportToPDF(
   }
 
   try {
-    let data = await w.printToPDF(printOptions);
+    let data: Uint8Array = await new Promise<Buffer>((resolve, reject) => {
+      (w as any).printToPDF(printOptions, (error: any, data: Buffer) => {
+        if (error) return reject(error);
+        resolve(data);
+      });
+    });
 
     data = await editPDF(data, {
       headings: getHeadingTree(doc),
@@ -456,7 +461,7 @@ export async function exportToPDF(
 
 export async function getOutputFile(filename: string, isTimestamp?: boolean) {
   // @ts-ignore
-  const result = await electron.remote.dialog.showSaveDialog({
+  const result: Electron.SaveDialogReturnValue = await electron.remote.dialog.showSaveDialog({
     title: "Export to PDF",
     defaultPath: filename + (isTimestamp ? "-" + Date.now() : "") + ".pdf",
     filters: [
@@ -464,7 +469,7 @@ export async function getOutputFile(filename: string, isTimestamp?: boolean) {
       { name: "PDF", extensions: ["pdf"] },
     ],
     properties: ["showOverwriteConfirmation", "createDirectory"],
-  });
+  } as any);
 
   if (result.canceled) {
     return;
@@ -474,7 +479,7 @@ export async function getOutputFile(filename: string, isTimestamp?: boolean) {
 
 export async function getOutputPath(filename: string, isTimestamp?: boolean) {
   // @ts-ignore
-  const result = await electron.remote.dialog.showOpenDialog({
+  const result: Electron.OpenDialogReturnValue = await electron.remote.dialog.showOpenDialog({
     title: "Export to PDF",
     defaultPath: filename,
     properties: ["openDirectory"],

@@ -1,7 +1,7 @@
 import * as electron from "electron";
 import * as fs from "fs/promises";
 import { ButtonComponent, type FrontMatterCache, Modal, Setting, TFile, TFolder, debounce } from "obsidian";
-import path from "path";
+import * as path from "path";
 import { PageSize } from "./constant";
 import i18n, { type Lang } from "./i18n";
 import BetterExportPdfPlugin from "./main";
@@ -11,10 +11,10 @@ import { isNumber, mm2px, px2mm, safeParseFloat, safeParseInt, traverseFolder } 
 import Progress from "./Progress.svelte";
 import { mount, unmount } from "svelte";
 import pLimit from "p-limit";
-export type PageSizeType = electron.PrintToPDFOptions["pageSize"];
+export type PageSizeType = Electron.PrintToPDFOptions["pageSize"];
 
 export interface TConfig {
-  pageSize: PageSizeType | "Custom";
+  pageSize: string;
   pageWidth?: string;
   pageHeight?: string;
 
@@ -55,8 +55,8 @@ export class ExportConfigModal extends Modal {
   callback: Callback;
   plugin: BetterExportPdfPlugin;
   file: TFile | TFolder;
-  preview: electron.WebviewTag;
-  webviews: electron.WebviewTag[];
+  preview: Electron.WebViewElement;
+  webviews: Electron.WebViewElement[];
   previewDiv: HTMLDivElement;
   completed: boolean;
   docs: DocType[];
@@ -430,7 +430,7 @@ export class ExportConfigModal extends Modal {
           });
         }),
     );
-    const pageSizes: (PageSizeType | "Custom")[] = [
+    const pageSizes: string[] = [
       "A0",
       "A1",
       "A2",
@@ -449,7 +449,7 @@ export class ExportConfigModal extends Modal {
         .addOptions(Object.fromEntries(pageSizes.map((size) => [size, size])))
         .setValue(this.config.pageSize as string)
         .onChange(async (value: string) => {
-          this.config["pageSize"] = value as PageSizeType;
+          this.config["pageSize"] = value;
           if (value == "Custom") {
             sizeEl.settingEl.hidden = false;
           } else {

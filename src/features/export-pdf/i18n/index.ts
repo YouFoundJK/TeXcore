@@ -1,4 +1,4 @@
-import merge from "deepmerge";
+import * as merge from "deepmerge";
 import en from "./en";
 import zh from "./zh";
 
