@@ -39,6 +39,7 @@ const context = await esbuild.context({
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
+	logOverride: { "invalid-source-mappings": "silent" },
 	minify: prod,
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
