@@ -4,6 +4,7 @@ import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
 import type { PluginSettings } from "features/settings/settings";
+import { getCalloutPrefix, isStructuralCalloutLine } from "utils/parse";
 
 
 /**
@@ -160,24 +161,59 @@ function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateFie
             this.timeout = setTimeout(() => this.runCheck(view), 300);
         }
 
-// equations/live-preview.ts (inside ViewPlugin.fromClass)
+        // equations/live-preview.ts (inside ViewPlugin.fromClass)
 
         runCheck(view: EditorView) {
             const equationInfos = view.state.field(equationField);
             const changes: { from: number; to: number; insert: string }[] = [];
 
             for (const info of equationInfos) {
-                const blockContent = view.state.doc.sliceString(info.from + 2, info.to - 2);
-                let newBlockContent: string | null = null;
+                // Determine the prefix from the OPENING line of the block.
+                // This is the source of truth for indentation/callout level.
+                const startLine = view.state.doc.lineAt(info.from);
+                const prefix = getCalloutPrefix(startLine.text);
 
-                // Mode 1: Multi-tag for sub-references
+                // Get inner content (excluding $$ delimiters)
+                const blockContent = view.state.doc.sliceString(info.from + 2, info.to - 2);
+
+                // --- Common Extraction Logic ---
+                // 1. Extract existing ID if present
+                const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
+                const idMatch = blockContent.match(idCommentRegex);
+                const idVal = idMatch ? idMatch[0].match(/eq-[\w-]+/)?.[0] : null;
+
+                // 2. Isolate Math Part (all text before the ID comment)
+                let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
+
+                // 3. Clean existing tags
+                mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '');
+
+                // 4. Robust Line-Based Trimming
+                // Split into lines to inspect them individually.
+                let mathLines = mathPart.split(/\r?\n/);
+
+                // We want to remove trailing lines that contain ONLY the prefix (or whitespace).
+                // These are "structural" lines that shouldn't be treated as math content.
+                // e.g. a line that is just "> " or "   > "
+
+                // Pop lines from the end until we hit content or run out
+                while (mathLines.length > 0 && isStructuralCalloutLine(mathLines[mathLines.length - 1])) {
+                    mathLines.pop();
+                }
+
+                // Be careful: if we stripped everything (empty block), we might want to keep one empty line?
+                // Or just have empty content.
+                // If mathLines is empty now, it means block was empty.
+
+                // Rejoin the trimmed math part
+                mathPart = mathLines.join('\n');
+
+
+                let newInnerContent: string | null = null;
+
+                // --- Mode 1: Sub-equation ---
                 if (info.subIndices && info.subIndices.size > 0 && info.printName) {
                     const baseName = info.printName.slice(1, -1);
-                    const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
-                    const idMatch = blockContent.match(idCommentRegex);
-                    const idComment = idMatch ? idMatch[0].trim() : '';
-                    let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
-                    mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '');
                     const rows = mathPart.trim().split(/\\\\/);
                     let hasContent = false;
 
@@ -198,38 +234,45 @@ function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateFie
                     });
 
                     if (hasContent) {
-                        newBlockContent = taggedRows.join(' \\\\ ') + (idComment ? `\n${idComment}`: '');
+                        newInnerContent = taggedRows.join(' \\\\ ');
                     }
-                } 
-                // Mode 2: Single-tag for normal references (Corrected)
-                else { 
+                }
+                // --- Mode 2: Normal Equation ---
+                else {
                     const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
-                    
-                    // 1. Isolate the ID comment to protect it.
-                    const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
-                    const idMatch = blockContent.match(idCommentRegex);
-                    const idComment = idMatch ? idMatch[0].trim() : '';
+                    // mathPart is already trimmed of trailing structural lines.
+                    // We still trimEnd to remove trailing spaces on the last content line itself.
+                    mathPart = mathPart.trimEnd();
 
-                    // 2. Get the pure math part of the block.
-                    let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
-                    
-                    // 3. Clean ALL existing tags from the math part.
-                    mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '').trim();
-
-                    // 4. Append the single tag to the math part, if needed.
                     if (requiredTagContent) {
                         mathPart += ` \\tag{${requiredTagContent}}`;
                     }
-                    
-                    // 5. Reconstruct the full content with the comment at the end.
-                    newBlockContent = mathPart + (idComment ? `\n${idComment}` : '');
+                    newInnerContent = mathPart;
                 }
 
-                if (newBlockContent !== null) {
-                    const oldNormalized = blockContent.replace(/\s+/g, '');
-                    const newNormalized = newBlockContent.replace(/\s+/g, '');
-                    if (oldNormalized !== newNormalized) {
-                        changes.push({ from: info.from + 2, to: info.to - 2, insert: `\n${newBlockContent.trim()}\n` });
+                // --- Reconstruction ---
+                if (newInnerContent !== null) {
+                    // Logic to reconstruct the block end
+                    const existingSuffix = view.state.doc.sliceString(info.from + 2, info.to);
+                    // But if we trimmed, we might lose them.
+                    // blockContent usually starts with `\n`.
+
+                    // Simple heuristic: If original started with newline, keep it.
+                    const leadingNewline = blockContent.startsWith('\n') ? '\n' : '';
+                    const cleanMath = newInnerContent.trim();
+
+                    let proposedSuffix = leadingNewline + cleanMath;
+
+                    if (idVal) {
+                        proposedSuffix += `\n${prefix}% id: ${idVal}`;
+                    }
+                    proposedSuffix += `\n${prefix}$$`;
+
+                    // Comparison
+                    // We simply compare the strings.
+                    // Note: This replaces EVERYTHING from inside the block to the end of the block.
+                    if (existingSuffix !== proposedSuffix) {
+                        changes.push({ from: info.from + 2, to: info.to, insert: proposedSuffix });
                     }
                 }
             }

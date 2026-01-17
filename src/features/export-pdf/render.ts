@@ -1,6 +1,7 @@
 import { App, Component, type FrontMatterCache, MarkdownRenderer, MarkdownView, Notice, TFile } from "obsidian";
 import type { TConfig } from "./modal";
 import { copyAttributes, fixAnchors, modifyDest } from "./utils";
+import { checkAndFixCalloutMath } from "../../utils/fixer";
 
 export function getAllStyles() {
   const cssTexts: string[] = [];
@@ -214,8 +215,11 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   // and then move the content. The subsequent manual postProcess call ensures we capture
   // any necessary promises for the PDF generation wait-cycle.
   const tempContainer = document.createElement("div");
-  const fixedLines = fixCalloutMath(lines);
-  await MarkdownRenderer.render(app, fixedLines.join("\n"), tempContainer, file.path, comp);
+  // Apply the fix for callout math blocks if needed
+  const linesContent = lines.join("\n");
+  const fixedContent = checkAndFixCalloutMath(linesContent) ?? linesContent;
+
+  await MarkdownRenderer.render(app, fixedContent, tempContainer, file.path, comp);
 
   const el = createFragment();
   Array.from(tempContainer.children).forEach((item) => {
@@ -350,46 +354,5 @@ function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): 
       observer.disconnect();
       reject(new Error(`timeout ${timeout}ms`));
     }, timeout);
-  });
-}
-
-/**
- * Fixes broken math blocks inside callouts for PDF export.
- * Obsidian's PDF export requires all lines of a math block inside a callout to start with '>'.
- * This function detects such blocks and prepends missing '>' characters.
- */
-function fixCalloutMath(lines: string[]) {
-  let inMathBlock = false;
-  let mathBlockStartLevel = 0;
-
-  return lines.map((line) => {
-    // Determine current blockquote level
-    const match = line.match(/^(\s*(?:>\s?)*)/);
-    const prefix = match ? match[0] : "";
-    const currentLevel = (prefix.match(/>/g) || []).length;
-
-    const dollars = (line.match(/\$\$/g) || []).length;
-
-    let processedLine = line;
-
-    // If inside a math block and the indentation level dropped, fix it.
-    if (inMathBlock && currentLevel < mathBlockStartLevel) {
-      const missingLevels = mathBlockStartLevel - currentLevel;
-      const patch = "> ".repeat(missingLevels);
-      processedLine = patch + line;
-    }
-
-    // Toggle block state if we see an odd number of '$$' on the line.
-    // This handles standard start/end tags.
-    if (dollars % 2 !== 0) {
-      if (!inMathBlock) {
-        inMathBlock = true;
-        mathBlockStartLevel = currentLevel;
-      } else {
-        inMathBlock = false;
-      }
-    }
-
-    return processedLine;
   });
 }

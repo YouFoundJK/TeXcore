@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin, TFile, parseLinktext, Menu, TFolder } from 'obsidian';
+import { MarkdownView, Plugin, TFile, parseLinktext, Menu, TFolder, Editor, Notice } from 'obsidian';
 import type { Extension } from '@codemirror/state';
 import { around } from 'monkey-around';
 import * as fs from "fs/promises";
@@ -23,6 +23,7 @@ import { EquationBlock } from 'types';
 import { patchSuggesterWithQuickPreview } from 'features/quick-preview/patcher';
 import { EquationCache } from './features/cache/equation-cache';
 import { ExportConfigModal } from "./features/export-pdf/modal";
+import { checkAndFixCalloutMath } from 'utils/fixer';
 import { traverseFolder } from "./features/export-pdf/utils";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -57,6 +58,21 @@ export default class LatexReferencer extends Plugin {
 		this.addSettingTab(new MathSettingTab(this.app, this));
 
 		// Commands
+		this.addCommand({
+			id: 'fix-callout-equations',
+			name: 'Fix callout equations in active note',
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				const content = editor.getValue();
+				const fixed = checkAndFixCalloutMath(content);
+				if (fixed) {
+					editor.setValue(fixed);
+					new Notice('Fixed callout equations.');
+				} else {
+					new Notice('No issues found or no changes needed.');
+				}
+			}
+		});
+
 		this.addCommand({
 			id: 'insert-display-math',
 			name: 'Insert display math',
@@ -126,7 +142,7 @@ export default class LatexReferencer extends Plugin {
 								.setIcon("lucide-file-stack")
 								.onClick(async () => {
 									new ExportConfigModal(this, file, true).open();
-							}),
+								}),
 						);
 						subMenu.addItem((item) =>
 							item
@@ -134,7 +150,7 @@ export default class LatexReferencer extends Plugin {
 								.setIcon("lucide-file-text")
 								.onClick(async () => {
 									await this.generateToc(file);
-							}),
+								}),
 						);
 					});
 				}
@@ -148,9 +164,9 @@ export default class LatexReferencer extends Plugin {
 
 		// Link autocompletion
 		this.registerEditorSuggest(new LinkAutocomplete(this));
-		
-        // REPLACED: The old external plugin logic is gone.
-        // We now call our internal patcher directly.
+
+		// REPLACED: The old external plugin logic is gone.
+		// We now call our internal patcher directly.
 		const itemNormalizer = (item: EquationBlock) => ({
 			linktext: item.$file + '#^' + item.$blockId, // Use the block ID for more precise linking
 			sourcePath: item.$file,
@@ -179,7 +195,7 @@ export default class LatexReferencer extends Plugin {
 
 	updateEditorExtensions() {
 		this.editorExtensions.length = 0;
-        // PUSH BOTH PLUGINS
+		// PUSH BOTH PLUGINS
 		this.editorExtensions.push(createEquationNumberPlugin(this));
 		this.editorExtensions.push(createLivePreviewLinkRendererPlugin(this));
 		this.app.workspace.updateOptions();

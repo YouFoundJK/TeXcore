@@ -22,3 +22,21 @@ export function parseYamlLike(line: string): Record<string, string | undefined> 
     if (!result) return null;
     return { [result.key.trim()]: result.value.trim() };
 }
+
+/**
+ * Regex to identify the callout/blockquote prefix at the start of a line.
+ * Matches standard "> " or nested ">> " or even "   > ".
+ */
+export const CALLOUT_PREFIX_REGEX = /^(\s*(?:>\s?)+)/;
+
+/** Extracts the callout prefix from a line, or returns empty string. */
+export function getCalloutPrefix(line: string): string {
+    const match = line.match(CALLOUT_PREFIX_REGEX);
+    return match ? match[0] : "";
+}
+
+/** Check if a line consists ONLY of a callout prefix (and whitespace), making it a "structural" line. */
+export function isStructuralCalloutLine(line: string): boolean {
+    // Matches start of line, optional prefix chars, end of line.
+    return /^\s*(?:>\s?)*$/.test(line);
+}
