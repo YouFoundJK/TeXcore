@@ -205,26 +205,20 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
     lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n` + lines[idx];
   });
 
-  const fragment = {
-    children: undefined,
-    appendChild(e: DocumentFragment) {
-      this.children = e?.children;
-      throw new Error("exit");
-    },
-  } as unknown as HTMLElement;
-
   const promises: AyncFnType[] = [];
-  try {
-    // `render` converts Markdown to HTML, and then it undergoes postProcess handling.
-    // Here, postProcess handling is not needed.When passed as a fragment, it converts to HTML correctly,
-    // but errors occur during recent postProcess handling, thus achieving the goal of avoiding postProcess handling.
-    await MarkdownRenderer.render(app, lines.join("\n"), fragment, file.path, comp);
-  } catch (error) {
-    /* empty */
-  }
+
+  // Use a temporary container for initial rendering.
+  // Previous versions used a hack (throwing Error) to stop post-processing, but this causes
+  // visible error artifacts in newer Obsidian versions.
+  // We allow the render to complete (including implicit post-processing on the detached element)
+  // and then move the content. The subsequent manual postProcess call ensures we capture
+  // any necessary promises for the PDF generation wait-cycle.
+  const tempContainer = document.createElement("div");
+  const fixedLines = fixCalloutMath(lines);
+  await MarkdownRenderer.render(app, fixedLines.join("\n"), tempContainer, file.path, comp);
 
   const el = createFragment();
-  Array.from(fragment.children).forEach((item) => {
+  Array.from(tempContainer.children).forEach((item) => {
     el.createDiv({}, (t) => {
       return t.appendChild(item);
     });
@@ -356,5 +350,46 @@ function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): 
       observer.disconnect();
       reject(new Error(`timeout ${timeout}ms`));
     }, timeout);
+  });
+}
+
+/**
+ * Fixes broken math blocks inside callouts for PDF export.
+ * Obsidian's PDF export requires all lines of a math block inside a callout to start with '>'.
+ * This function detects such blocks and prepends missing '>' characters.
+ */
+function fixCalloutMath(lines: string[]) {
+  let inMathBlock = false;
+  let mathBlockStartLevel = 0;
+
+  return lines.map((line) => {
+    // Determine current blockquote level
+    const match = line.match(/^(\s*(?:>\s?)*)/);
+    const prefix = match ? match[0] : "";
+    const currentLevel = (prefix.match(/>/g) || []).length;
+
+    const dollars = (line.match(/\$\$/g) || []).length;
+
+    let processedLine = line;
+
+    // If inside a math block and the indentation level dropped, fix it.
+    if (inMathBlock && currentLevel < mathBlockStartLevel) {
+      const missingLevels = mathBlockStartLevel - currentLevel;
+      const patch = "> ".repeat(missingLevels);
+      processedLine = patch + line;
+    }
+
+    // Toggle block state if we see an odd number of '$$' on the line.
+    // This handles standard start/end tags.
+    if (dollars % 2 !== 0) {
+      if (!inMathBlock) {
+        inMathBlock = true;
+        mathBlockStartLevel = currentLevel;
+      } else {
+        inMathBlock = false;
+      }
+    }
+
+    return processedLine;
   });
 }
