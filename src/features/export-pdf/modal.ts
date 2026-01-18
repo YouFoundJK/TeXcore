@@ -198,14 +198,18 @@ export class ExportConfigModal extends Modal {
   }
 
   calcPageSize(element?: HTMLDivElement, config?: TConfig) {
-    const { pageSize, pageWidth } = config ?? this.config;
+    const { pageSize, pageWidth, pageHeight } = config ?? this.config;
     const el = element ?? this.previewDiv;
-    const width = PageSize?.[pageSize as string]?.[0] ?? safeParseFloat(pageWidth as string, 210);
+    const [w, h] = PageSize?.[pageSize as string] ?? [safeParseFloat(pageWidth as string, 210), safeParseFloat(pageHeight as string, 297)];
+
+    // Scale is ratio of PDF Page Width in Pixels to Container Width in Pixels
+    const width = w;
     const scale = Math.floor((mm2px(width) / el.offsetWidth) * 100) / 100;
+
     this.webviews.forEach((wb) => {
       wb.style.transform = `scale(${1 / scale},${1 / scale})`;
       wb.style.width = `calc(${scale} * 100%)`;
-      wb.style.height = `calc(${scale} * 100%)`;
+      wb.style.height = `${mm2px(h)}px`;
     });
     this.scale = scale;
     return scale;
@@ -321,7 +325,9 @@ export class ExportConfigModal extends Modal {
   }
   async onOpen() {
     this.contentEl.empty();
-    this.containerEl.style.setProperty("--dialog-width", "60vw");
+    this.modalEl.addClass("better-export-pdf-modal");
+    this.containerEl.style.setProperty("--dialog-width", "90vw");
+    this.containerEl.style.setProperty("--dialog-height", "90vh");
 
     this.titleEl.setText("Export to PDF");
     const wrapper = this.contentEl.createDiv({ attr: { id: "better-export-pdf" } });
@@ -335,6 +341,7 @@ export class ExportConfigModal extends Modal {
       });
       resizeObserver.observe(el);
       await this.appendWebviews(el);
+      this.calcPageSize(el);
       this.togglePrintSize();
     });
 
