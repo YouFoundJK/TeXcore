@@ -34,7 +34,7 @@ export interface PluginSettings {
     eqRefSuffix: string;
     insertSpace: boolean;
     noteTitleInEquationLink: boolean;
-    
+
     // Autocomplete & Search
     enableSuggest: boolean;
     triggerSuggest: string;
@@ -60,6 +60,19 @@ export interface PluginSettings {
     debug: boolean;
     enabledCss: boolean;
     concurrency: string;
+
+    // Snippets
+    snippets: Snippet[];
+}
+
+export interface Snippet {
+    id: string;
+    name: string;
+    content: string;
+    replacement?: string; // Optional: for future regex replacement support
+    options?: {
+        mode?: "insert" | "replace"; // Future proofing
+    };
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
@@ -72,7 +85,7 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     lineByLine: true,
 
     // Referencing
-    eqRefPrefix: "", 
+    eqRefPrefix: "",
     eqRefSuffix: "",
     insertSpace: true,
     noteTitleInEquationLink: true,
@@ -85,7 +98,7 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     searchMethod: "Fuzzy",
     modifierToJump: "Mod",
     showModifierInstruction: true,
-    suggestLeafOption: "Current tab", 
+    suggestLeafOption: "Current tab",
 
     // PDF Export Settings
     prevConfig: {
@@ -116,4 +129,7 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     debug: false,
     enabledCss: false,
     concurrency: "5",
+
+    // Snippets
+    snippets: [],
 };

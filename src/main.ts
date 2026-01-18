@@ -25,6 +25,7 @@ import { EquationCache } from './features/cache/equation-cache';
 import { ExportConfigModal } from "./features/export-pdf/modal";
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { traverseFolder } from "./features/export-pdf/utils";
+import { SnippetManager } from 'features/snippets/manager';
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -33,6 +34,7 @@ export default class LatexReferencer extends Plugin {
 	editorExtensions: Extension[];
 	internalProviders: Provider[] = [];
 	equationCache: EquationCache;
+	snippetManager: SnippetManager;
 
 	async onload() {
 		await this.loadSettings();
@@ -55,6 +57,11 @@ export default class LatexReferencer extends Plugin {
 		}));
 
 		this.internalProviders.push(new LatexLinkProvider(this));
+
+		// Snippets
+		this.snippetManager = new SnippetManager(this);
+		this.snippetManager.onLoad();
+
 		this.addSettingTab(new MathSettingTab(this.app, this));
 
 		// Commands

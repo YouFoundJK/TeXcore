@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, TextAreaComponent } from "obsidian";
 import LatexReferencer from "../../main";
 import { NUMBER_STYLES } from "./settings";
+import { SnippetEditModal } from "../snippets/modal";
 
 export class MathSettingTab extends PluginSettingTab {
     constructor(app: App, public plugin: LatexReferencer) {
@@ -33,7 +34,7 @@ export class MathSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-        
+
         new Setting(containerEl)
             .setName("Equation number suffix")
             .addText(text => text
@@ -113,7 +114,7 @@ export class MathSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-        
+
         new Setting(containerEl)
             .setName("Trigger for autocompletion")
             .addText(text => text
@@ -273,6 +274,7 @@ export class MathSettingTab extends PluginSettingTab {
                 });
             });
 
+
         new Setting(containerEl).setName("Debug").setHeading();
         new Setting(containerEl)
             .setName("This is useful for troubleshooting.")
@@ -283,6 +285,46 @@ export class MathSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 });
             });
+
+        // Snippets Section
+        containerEl.createEl("h2", { text: "Snippets" });
+
+        new Setting(containerEl)
+            .setName("Manage Snippets")
+            .setDesc("Add or edit your LaTeX snippets.")
+            .addButton(btn => btn
+                .setButtonText("Add Snippet")
+                .setCta()
+                .onClick(() => {
+                    new SnippetEditModal(this.plugin.app, async (result) => {
+                        await this.plugin.snippetManager.addSnippet(result);
+                        this.display(); // Refresh settings
+                    }).open();
+                }));
+
+        // List existing snippets
+        for (const snippet of this.plugin.settings.snippets) {
+            new Setting(containerEl)
+                .setName(snippet.name)
+                .setDesc(snippet.content.length > 50 ? snippet.content.substring(0, 50) + "..." : snippet.content)
+                .addButton(btn => btn
+                    .setIcon("pencil")
+                    .setTooltip("Edit")
+                    .onClick(() => {
+                        new SnippetEditModal(this.plugin.app, async (updated) => {
+                            await this.plugin.snippetManager.updateSnippet(snippet.id, updated);
+                            this.display();
+                        }, snippet).open();
+                    }))
+                .addButton(btn => btn
+                    .setIcon("trash")
+                    .setTooltip("Delete")
+                    .setWarning()
+                    .onClick(async () => {
+                        await this.plugin.snippetManager.deleteSnippet(snippet.id);
+                        this.display();
+                    }));
+        }
     }
 }
 
