@@ -1,0 +1,80 @@
+site_name: LaTeX Equation Referencer
+site_description: A minimalistic Obsidian plugin for equation numbering and referencing
+site_url: https://youfoundjk.github.io/obsidian-latex-eq-refer/
+repo_name: YouFoundJK/obsidian-latex-eq-refer
+repo_url: https://github.com/YouFoundJK/obsidian-latex-eq-refer
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Features:
+    - Equation Numbering: features/equations.md
+    - PDF Export: features/pdf-export.md
+    - LaTeX Snippets: features/snippets.md
+    - Equation Search: features/search.md
+    - Quick Preview: features/quick-preview.md
+    - Callout Support: features/callout-support.md
+  - Configuration:
+    - Settings Reference: configuration/settings.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/YouFoundJK/obsidian-latex-eq-refer
