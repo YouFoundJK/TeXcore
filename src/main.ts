@@ -11,6 +11,7 @@ import { Provider } from './features/linker/provider-link-render';
 import { LatexLinkProvider } from 'latex-provider';
 import { createEquationNumberProcessor } from 'features/equations/reading-view-equations';
 import { CustomMathLinksProcessor } from './features/linker/reading-view-linker';
+import { setupDOMObserver } from './features/linker/dom-observer';
 import { createEquationNumberPlugin } from 'features/equations/live-preview-equations';
 import { createLivePreviewLinkRendererPlugin } from './features/linker/live-preview-link-renderer';
 
@@ -26,6 +27,7 @@ import { ExportConfigModal } from "./features/export-pdf/modal";
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { traverseFolder } from "./features/export-pdf/utils";
 import { SnippetManager } from 'features/snippets/manager';
+
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -190,6 +192,7 @@ export default class LatexReferencer extends Plugin {
 		this.app.workspace.onLayoutReady(() => this.forceRerender());
 
 		this.patchPagePreview();
+		this.register(setupDOMObserver(this));
 	}
 
 	async loadSettings() {
@@ -259,6 +262,9 @@ export default class LatexReferencer extends Plugin {
 
 		this.register(uninstaller);
 	}
+
+
+
 
 	async generateToc(root: TFolder | TFile) {
 		// @ts-ignore

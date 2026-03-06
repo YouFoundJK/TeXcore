@@ -1,5 +1,5 @@
 import { editorLivePreviewField, finishRenderMath, renderMath, editorInfoField } from "obsidian";
-import { EditorSelection, RangeSetBuilder, Extension } from "@codemirror/state";
+import { EditorSelection, RangeSetBuilder, Extension, Prec } from "@codemirror/state";
 import { Decoration, DecorationSet, ViewUpdate, EditorView, ViewPlugin, PluginValue, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { getMathLink } from "./helper";
@@ -21,22 +21,22 @@ function selectionAndRangeOverlap(selection: EditorSelection, rangeFrom: number,
  * A helper function to render a string with inline math.
  */
 function setMathLink(source: string, mathLinkEl: HTMLElement) {
-	mathLinkEl.replaceChildren();
-	const mathPattern = /\$(.*?[^\s])\$/g;
-	let textFrom = 0, textTo = 0;
-	let result;
-	while ((result = mathPattern.exec(source)) !== null) {
-		const mathString = result[1];
-		textTo = result.index;
-		if (textTo > textFrom) mathLinkEl.createSpan().replaceWith(source.slice(textFrom, textTo));
+    mathLinkEl.replaceChildren();
+    const mathPattern = /\$(.*?[^\s])\$/g;
+    let textFrom = 0, textTo = 0;
+    let result;
+    while ((result = mathPattern.exec(source)) !== null) {
+        const mathString = result[1];
+        textTo = result.index;
+        if (textTo > textFrom) mathLinkEl.createSpan().replaceWith(source.slice(textFrom, textTo));
 
-		const mathEl = renderMath(mathString, false);
-		mathLinkEl.createSpan({ cls: ["math", "math-inline", "is-loaded"] }).replaceWith(mathEl);
+        const mathEl = renderMath(mathString, false);
+        mathLinkEl.createSpan({ cls: ["math", "math-inline", "is-loaded"] }).replaceWith(mathEl);
 
-		textFrom = mathPattern.lastIndex;
-	}
+        textFrom = mathPattern.lastIndex;
+    }
 
-	if (textFrom < source.length) mathLinkEl.createSpan().replaceWith(source.slice(textFrom));
+    if (textFrom < source.length) mathLinkEl.createSpan().replaceWith(source.slice(textFrom));
 }
 
 /** Given a LatexReferencer plugin instance, create a CodeMirror6 view plugin that renders equation links. */
@@ -44,12 +44,12 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
     const { app } = plugin;
 
     class MathWidget extends WidgetType {
-        constructor(public outLinkText: string, public outLinkMathLink: string, public sourcePath: string) {
+        constructor(public outLinkText: string, public outLinkMathLink: string, public sourcePath: string, public from: number, public to: number) {
             super();
         }
 
         eq(other: MathWidget) {
-            return this.outLinkText === other.outLinkText && this.outLinkMathLink === other.outLinkMathLink && this.sourcePath === other.sourcePath;
+            return this.outLinkText === other.outLinkText && this.outLinkMathLink === other.outLinkMathLink && this.sourcePath === other.sourcePath && this.from === other.from && this.to === other.to;
         }
 
         toDOM() {
@@ -127,18 +127,16 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
                                     endNode?.name.includes("formatting-link-end")
                                 ) {
                                     const linkText = state.sliceDoc(linkNode.from, linkNode.to);
-                                    
+
                                     if (linkText.startsWith("#^eq-")) {
-                                        const start = startNode.from;
-                                        const end = endNode.to;
                                         const outLinkMathLink = getMathLink(plugin, linkText, sourcePath);
 
-                                        if (outLinkMathLink && !selectionAndRangeOverlap(state.selection, start, end)) {
+                                        if (outLinkMathLink && !selectionAndRangeOverlap(state.selection, linkNode.from, linkNode.to)) {
                                             builder.add(
-                                                start,
-                                                end,
+                                                linkNode.from,
+                                                linkNode.to,
                                                 Decoration.replace({
-                                                    widget: new MathWidget(linkText, outLinkMathLink, sourcePath),
+                                                    widget: new MathWidget(linkText, outLinkMathLink, sourcePath, linkNode.from, linkNode.to),
                                                 })
                                             );
                                         }
@@ -156,6 +154,5 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
             }
         }, { decorations: v => v.decorations }
     );
-
-    return viewPlugin;
+    return Prec.highest(viewPlugin);
 }

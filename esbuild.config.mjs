@@ -54,3 +54,4 @@ if (prod) {
 }
 
 fs.copyFileSync("src/styles/main.css", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/styles.css");
+fs.copyFileSync("./manifest.json", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/manifest.json");

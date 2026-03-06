@@ -7,7 +7,6 @@ import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './numbering';
 import { EquationBlock } from 'types';
 
-
 export const createEquationNumberProcessor = (plugin: LatexReferencer): MarkdownPostProcessor => {
     return (el, ctx) => {
         const file = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);

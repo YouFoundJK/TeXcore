@@ -48,25 +48,38 @@ export class LatexRenderChild extends MarkdownRenderChild {
 		if (mathLink) {
 			// The containerEl is now the link element itself
 			const linkEl = this.containerEl as HTMLElement;
-			// Verify it's still in the DOM (though MarkdownRenderChild handles unloading)
-			if (linkEl.isConnected) {
-				setMathLink(mathLink, linkEl);
-			}
+			setMathLink(mathLink, linkEl);
 		}
 		finishRenderMath();
 	}
 }
 
+/**
+ * Manually process a single internal link element, creating a LatexRenderChild
+ * and calling onload() to render the equation number. Used by the DOM observer
+ * to handle links inside dynamically rendered callouts.
+ */
+export const processInternalLink = (link: HTMLAnchorElement, plugin: LatexReferencer, sourcePath: string) => {
+	if (link.classList.contains("math-link-processed")) return;
+	const dataHref = link.getAttribute('data-href');
+	if (dataHref && dataHref.includes('#^eq-')) {
+		link.classList.add("math-link-processed");
+		const child = new LatexRenderChild(link, plugin, sourcePath, dataHref);
+		child.onload();
+	}
+};
+
 export const CustomMathLinksProcessor = (plugin: LatexReferencer): MarkdownPostProcessor => {
 	return (element: HTMLElement, context: MarkdownPostProcessorContext) => {
 		const links = element.querySelectorAll<HTMLAnchorElement>('a.internal-link');
 		for (const link of links) {
-			const href = link.getAttribute('data-href');
-			if (href && href.contains('#^eq-')) {
-				// This is one of our equation links.
-				// Pass the specific link element as the container to scope the child correctly.
+			if (link.classList.contains("math-link-processed")) continue;
+			const dataHref = link.getAttribute('data-href');
+
+			if (dataHref && dataHref.includes('#^eq-')) {
+				link.classList.add("math-link-processed");
 				context.addChild(
-					new LatexRenderChild(link, plugin, context.sourcePath, href)
+					new LatexRenderChild(link, plugin, context.sourcePath, dataHref)
 				);
 			}
 		}
