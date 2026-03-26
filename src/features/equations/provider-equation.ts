@@ -83,16 +83,18 @@ export class ActiveNoteEquationProvider {
                 }
                 equations.push(eq);
             }
-            else if (section.type === 'callout' || section.type === 'blockquote') {
+            else if (section.type === 'callout' || section.type === 'blockquote' || section.type === 'list') {
                 const text = content.slice(section.position.start.offset, section.position.end.offset);
 
-                const lines = text.split(/\r?\n/);
-                // Improved regex to strip blockquote markers
-                const cleanLines = lines.map(l => l.replace(/^\s*>\s?/, ''));
-                const cleanText = cleanLines.join('\n');
+                let processedText = text;
+                // For callouts/blockquote, strip blockquote markers
+                if (section.type === 'callout' || section.type === 'blockquote') {
+                    const lines = text.split(/\r?\n/);
+                    const cleanLines = lines.map(l => l.replace(/^\s*>\s?/, ''));
+                    processedText = cleanLines.join('\n');
+                }
 
                 // Handle split/lazy blockquotes (odd number of $$) by appending a closing one
-                let processedText = cleanText;
                 if ((processedText.match(/\$\$/g) || []).length % 2 !== 0) {
                     processedText += '\n$$';
                 }
