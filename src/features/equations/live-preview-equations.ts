@@ -149,10 +149,19 @@ const tagManagerAnnotation = Annotation.define<boolean>();
 function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateField<EquationState>): ViewPlugin<object> {
     return ViewPlugin.fromClass(class {
         timeout: NodeJS.Timeout | null = null;
+        blockedBySelection = false;
 
-        constructor(view: EditorView) { this.scheduleCheck(view); }
+        constructor(view: EditorView) {
+            this.scheduleCheck(view);
+        }
         update(update: ViewUpdate) {
             if (update.docChanged && !update.transactions.some(tr => tr.annotation(tagManagerAnnotation))) {
+                this.scheduleCheck(update.view);
+            }
+
+            // If a previous run detected pending edits but skipped due to active selection
+            // inside an equation block, retry once the selection changes.
+            if (update.selectionSet && this.blockedBySelection) {
                 this.scheduleCheck(update.view);
             }
         }
@@ -166,8 +175,11 @@ function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateFie
         runCheck(view: EditorView) {
             const equationInfos = view.state.field(equationField);
             const changes: { from: number; to: number; insert: string }[] = [];
+            const selection = view.state.selection.main;
+            let blockedChanges = 0;
 
             for (const info of equationInfos) {
+                const selectionOverlapsEquation = selection.from <= info.to && selection.to >= info.from;
                 // Determine the prefix from the OPENING line of the block.
                 // This is the source of truth for indentation/callout level.
                 const startLine = view.state.doc.lineAt(info.from);
@@ -272,10 +284,16 @@ function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateFie
                     // We simply compare the strings.
                     // Note: This replaces EVERYTHING from inside the block to the end of the block.
                     if (existingSuffix !== proposedSuffix) {
+                        if (selectionOverlapsEquation) {
+                            blockedChanges += 1;
+                            continue;
+                        }
                         changes.push({ from: info.from + 2, to: info.to, insert: proposedSuffix });
                     }
                 }
             }
+
+            this.blockedBySelection = blockedChanges > 0;
 
             if (changes.length > 0) {
                 view.dispatch({
