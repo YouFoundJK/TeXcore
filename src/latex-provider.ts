@@ -22,14 +22,21 @@ export class LatexLinkProvider extends Provider {
         }
 
         const subpath = parsedLinktext.subpath.substring(2); // remove #^
-        const subpathMatch = subpath.match(/^(eq-[\w]+)(?:-(\d+))?$/);
+        const subpathMatch = subpath.match(/^(eq-[\w-]+)(?:-(\d+))?$/);
         if (!subpathMatch) return null;
 
         const [, blockId, subIndexStr] = subpathMatch;
         const subIndex = subIndexStr ? parseInt(subIndexStr) : undefined;
 
-        // Use the cache instead of parsing the file content manually
-        const targetEquation = this.plugin.equationCache.get(targetFile.path, blockId);
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const activeFile = activeView?.file;
+        const activeContent = typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
+        if (!activeFile || activeContent === null || targetFile.path !== activeFile.path) {
+            return null;
+        }
+
+        const equations = processActiveNoteEquations(this.plugin, activeFile, activeContent);
+        const targetEquation = equations.get(blockId);
 
         if (targetEquation?.$printName) {
             let result: string;

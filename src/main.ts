@@ -22,7 +22,7 @@ import { EquationBlock } from 'types';
 
 // ADDED: Import our new internal patcher function
 import { patchSuggesterWithQuickPreview } from 'features/quick-preview/patcher';
-import { EquationCache } from './features/cache/equation-cache';
+import { processActiveNoteEquations } from './features/equations/numbering';
 import { ExportConfigModal } from "./features/export-pdf/modal";
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { traverseFolder } from "./features/export-pdf/utils";
@@ -35,28 +35,10 @@ export default class LatexReferencer extends Plugin {
 	settings: PluginSettings;
 	editorExtensions: Extension[];
 	internalProviders: Provider[] = [];
-	equationCache: EquationCache;
 	snippetManager: SnippetManager;
 
 	async onload() {
 		await this.loadSettings();
-
-		// Caching
-		this.equationCache = new EquationCache(this);
-		this.app.workspace.onLayoutReady(async () => {
-			await this.equationCache.buildCache();
-		});
-
-		// Register event handlers to keep the cache up-to-date
-		this.registerEvent(this.app.metadataCache.on('changed', async (file) => {
-			await this.equationCache.updateFile(file);
-		}));
-		this.registerEvent(this.app.vault.on('rename', async (file, oldPath) => {
-			if (file instanceof TFile) this.equationCache.renameFile(file, oldPath);
-		}));
-		this.registerEvent(this.app.vault.on('delete', async (file) => {
-			if (file instanceof TFile) this.equationCache.removeFile(file);
-		}));
 
 		this.internalProviders.push(new LatexLinkProvider(this));
 
@@ -241,8 +223,16 @@ export default class LatexReferencer extends Plugin {
 						const targetFile = plugin.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
 
 						if (targetFile instanceof TFile) {
-							// Perform a SYNCHRONOUS lookup in our cache
-							const targetEquation = plugin.equationCache.get(targetFile.path, blockId);
+							const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+							const activeFile = activeView?.file;
+							const activeContent = typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
+
+							if (!activeFile || targetFile.path !== activeFile.path || activeContent === null) {
+								return old.call(this, hoverParent, targetEl, linktext, sourcePath, state);
+							}
+
+							const equations = processActiveNoteEquations(plugin, activeFile, activeContent);
+							const targetEquation = equations.get(blockId);
 
 							if (targetEquation) {
 								const line = targetEquation.$position.start;
