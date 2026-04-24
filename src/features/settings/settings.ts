@@ -60,19 +60,6 @@ export interface PluginSettings {
     debug: boolean;
     enabledCss: boolean;
     concurrency: string;
-
-    // Snippets
-    snippets: Snippet[];
-}
-
-export interface Snippet {
-    id: string;
-    name: string;
-    content: string;
-    replacement?: string; // Optional: for future regex replacement support
-    options?: {
-        mode?: "insert" | "replace"; // Future proofing
-    };
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
@@ -129,7 +116,4 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     debug: false,
     enabledCss: false,
     concurrency: "5",
-
-    // Snippets
-    snippets: [],
 };

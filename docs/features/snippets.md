@@ -1,126 +1,51 @@
-# LaTeX Snippets
+# Command Snippets
 
-Create reusable LaTeX code snippets for quick insertion via command palette.
+Use command palette snippets for fast note metadata and text transformations.
 
-## Overview
+## Available Commands
 
-The snippet system allows you to:
+### Add Tags
 
-- Save frequently used LaTeX code
-- Insert snippets via command palette
-- Each snippet becomes its own command
+Adds this frontmatter block at the top of the active note:
 
-## Managing Snippets
+```yaml
+---
+tags:
+  -
+aliases:
+  -
+---
+```
 
-### Adding a Snippet
-
-1. Open **Settings** → **LaTeX Equation Referencer** → **Snippets**
-2. Click **Add Snippet**
-3. Enter:
-   - **Name**: Display name (e.g., "Matrix 2x2")
-   - **Content**: The LaTeX code to insert
-
-### Editing a Snippet
-
-Click the pencil icon next to any snippet to edit its name or content.
-
-### Deleting a Snippet
-
-Click the trash icon next to a snippet and confirm deletion.
-
-!!! note "Reload Required"
-    After adding or editing snippets, you may need to reload Obsidian for command palette changes to take effect.
-
-## Using Snippets
-
-### Main Snippet Command
+How to use:
 
 1. Open Command Palette (`Ctrl/Cmd + P`)
-2. Search for "Insert LaTeX Snippet"
-3. Select from the suggestion modal
-4. Snippet content is inserted at cursor
+2. Search for "Add Tags"
+3. Run the command
 
-### Individual Snippet Commands
+Behavior:
 
-Each snippet also creates its own command:
+- Inserts the frontmatter block at the top of the file
+- If frontmatter already exists at the top of the note, no change is made
 
-- Command name: `Insert Snippet: <snippet name>`
-- Example: `Insert Snippet: Matrix 2x2`
+### Run Text Transform Snippet
 
-This allows you to:
+Applies a built-in transformation to the selected text, or to the current line if no text is selected.
 
-- Assign hotkeys to specific snippets
-- Access frequently used snippets directly
+How to use:
 
-## Example Snippets
+1. Open Command Palette (`Ctrl/Cmd + P`)
+2. Search for "Run Text Transform Snippet"
+3. Choose a transform from the list
 
-### Fraction Template
-```latex
-\frac{numerator}{denominator}
-```
+Built-in transforms:
 
-### Matrix 2×2
-```latex
-\begin{pmatrix}
-a & b \\
-c & d
-\end{pmatrix}
-```
+- Kebab Case (`my-selected-text`)
+- Title Kebab Case (`My-Selected-Text`)
+- Title Case (`My Selected Text`)
+- Clean Zotero Highlight Line (`<mark>...</mark>` to quote + source format)
 
-### Aligned Equations
-```latex
-\begin{aligned}
-a &= b + c \\
-d &= e + f
-\end{aligned}
-```
+## Notes
 
-### Summation
-```latex
-\sum_{i=1}^{n} x_i
-```
-
-### Integral
-```latex
-\int_{a}^{b} f(x) \, dx
-```
-
-### Equation with ID Template
-```latex
-$$
-% equation here
-% id: eq-
-$$
-```
-
-### Greek Letters Set
-```latex
-\alpha, \beta, \gamma, \delta, \epsilon, \theta, \lambda, \mu, \pi, \sigma, \omega
-```
-
-## Snippet Tips
-
-### Cursor Placement
-Currently, snippets insert content as-is. For multi-part snippets, use placeholder text:
-
-```latex
-\frac{NUM}{DEN}
-```
-
-### Complex Snippets
-For multi-line content, the full text is inserted. Example output:
-
-```latex
-\begin{cases}
-x & \text{if } x > 0 \\
--x & \text{if } x \leq 0
-\end{cases}
-```
-
-### Integration with Equations
-Combine snippets with the equation system:
-
-1. Insert equation template snippet
-2. Fill in the math content
-3. Add your `% id: eq-xxx` comment
-4. Reference with `\eqref` autocomplete
+- Multi-cursor selections are supported for text transforms
+- Transform commands show a notice indicating whether changes were applied
