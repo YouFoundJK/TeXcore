@@ -68,6 +68,10 @@ function cleanZoteroHighlightLine(input: string): string {
   );
 }
 
+function cleanDoubleDollarSymbols(input: string): string {
+  return input.replace(/\$\$/g, "$");
+}
+
 export const BUILTIN_TEXT_TRANSFORM_SNIPPETS: TextTransformSnippet[] = [
   {
     id: "kebab-case",
@@ -96,6 +100,13 @@ export const BUILTIN_TEXT_TRANSFORM_SNIPPETS: TextTransformSnippet[] = [
     description: "Format <mark>...</mark> highlights into quote + source",
     keywords: ["zotero", "mark", "highlight", "citation"],
     transform: cleanZoteroHighlightLine,
+  },
+  {
+    id: "clean-double-dollar-symbols",
+    name: "Clean Double Dollar Symbols",
+    description: "Replace all $$ with $",
+    keywords: ["dollar", "latex", "equation", "cleanup"],
+    transform: cleanDoubleDollarSymbols,
   },
 ];
 
