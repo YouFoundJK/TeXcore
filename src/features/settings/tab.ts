@@ -273,6 +273,21 @@ export class MathSettingTab extends PluginSettingTab {
                 });
             });
 
+        containerEl.createEl("h2", { text: "Zotero Cleanup" });
+
+        new Setting(containerEl)
+            .setName("Directories to search")
+            .setDesc("Comma-separated list of directories to search recursively for Zotero annotations (e.g. 'Zotero,Notes/Readings').")
+            .addTextArea((textArea) => {
+                textArea
+                    .setValue(this.plugin.settings.zoteroCleanDirectories)
+                    .onChange(async (value) => {
+                        this.plugin.settings.zoteroCleanDirectories = value;
+                        await this.plugin.saveSettings();
+                    });
+                textArea.inputEl.setAttr("rows", 3);
+            });
+
 
         new Setting(containerEl).setName("Debug").setHeading();
         new Setting(containerEl)

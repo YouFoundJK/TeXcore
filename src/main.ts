@@ -27,6 +27,7 @@ import { ExportConfigModal } from "./features/export-pdf/modal";
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { traverseFolder } from "./features/export-pdf/utils";
 import { SnippetManager } from 'features/snippets/manager';
+import { processZoteroCleanup } from 'features/zotero-cleanup';
 
 
 const isDev = process.env.NODE_ENV === "development";
@@ -49,6 +50,14 @@ export default class LatexReferencer extends Plugin {
 		this.addSettingTab(new MathSettingTab(this.app, this));
 
 		// Commands
+		this.addCommand({
+			id: 'remove-duplicate-zotero-annotations',
+			name: 'Remove duplicate Zotero annotations',
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				processZoteroCleanup(this, view);
+			}
+		});
+
 		this.addCommand({
 			id: 'fix-callout-equations',
 			name: 'Fix callout equations in active note',

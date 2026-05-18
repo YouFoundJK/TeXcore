@@ -60,6 +60,9 @@ export interface PluginSettings {
     debug: boolean;
     enabledCss: boolean;
     concurrency: string;
+
+    // Zotero Cleanup
+    zoteroCleanDirectories: string;
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
@@ -116,4 +119,7 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     debug: false,
     enabledCss: false,
     concurrency: "5",
+    
+    // Zotero Cleanup
+    zoteroCleanDirectories: "",
 };
