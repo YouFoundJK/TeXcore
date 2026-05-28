@@ -228,7 +228,13 @@ export default class LatexReferencer extends Plugin {
 
 					// Check if it's our custom equation link (e.g., [[#^eq-...]] or [[file#^eq-...]])
 					if (subpath && subpath.startsWith('^eq-')) {
-						const blockId = subpath.substring(1); // Remove '^', leaving 'eq-...'
+						const subpathText = subpath.substring(1); // Remove '^', leaving 'eq-...'
+						const subIndexMatch = subpathText.match(/-(\d+)$/);
+						let blockId = subpathText;
+
+						if (subIndexMatch) {
+							blockId = subpathText.substring(0, subIndexMatch.index);
+						}
 						const targetFile = plugin.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
 
 						if (targetFile instanceof TFile) {

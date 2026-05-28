@@ -104,13 +104,18 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
 
     // 1. Scan for all references, including sub-equation links
     const referenceMap = new Map<string, { totalCount: number, subIndices: Set<number> }>();
-    const linkRegex = /\[\[#\^eq-[\w-]+(?:-\d+)?\]\]/g;
+    const linkRegex = /\[\[#\^eq-[\w-]+\]\]/g;
     let match;
     while ((match = linkRegex.exec(text)) !== null) {
         const linkText = match[0].slice(4, -2); // eq-id or eq-id-2
-        const parts = linkText.split('-');
-        const baseId = parts.slice(0, 2).join('-'); // eq-id
-        const subIndexStr = parts.length > 2 ? parts[parts.length - 1] : undefined;
+        const subIndexMatch = linkText.match(/-(\d+)$/);
+        let baseId = linkText;
+        let subIndexStr: string | undefined = undefined;
+
+        if (subIndexMatch) {
+            subIndexStr = subIndexMatch[1];
+            baseId = linkText.substring(0, subIndexMatch.index);
+        }
 
         if (!referenceMap.has(baseId)) {
             referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
@@ -250,18 +255,19 @@ function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateFie
                     let hasContent = false;
 
                     const taggedRows = rows.map((row, index) => {
-                        if (row.trim() === '') return row;
+                        const cleanedRow = row.replace(/^[ \t]+/, '');
+                        if (cleanedRow.trim() === '') return cleanedRow;
                         hasContent = true;
                         const subIndex = index + 1;
                         const newTag = ` \\tag{${baseName}.${subIndex}}`;
-                        const endEnvMatch = row.match(/(\\end\{[a-zA-Z*]+\})/);
+                        const endEnvMatch = cleanedRow.match(/(\\end\{[a-zA-Z*]+\})/);
                         if (endEnvMatch && endEnvMatch.index !== undefined) {
-                            const before = row.substring(0, endEnvMatch.index).trimEnd();
+                            const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
                             const environment = endEnvMatch[0];
-                            const after = row.substring(endEnvMatch.index + environment.length);
+                            const after = cleanedRow.substring(endEnvMatch.index + environment.length);
                             return before + newTag + ' ' + environment + after;
                         } else {
-                            return row.trimEnd() + newTag;
+                            return cleanedRow.trimEnd() + newTag;
                         }
                     });
 

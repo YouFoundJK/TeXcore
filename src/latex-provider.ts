@@ -22,11 +22,18 @@ export class LatexLinkProvider extends Provider {
         }
 
         const subpath = parsedLinktext.subpath.substring(2); // remove #^
-        const subpathMatch = subpath.match(/^(eq-[\w-]+)(?:-(\d+))?$/);
-        if (!subpathMatch) return null;
+        const subIndexMatch = subpath.match(/-(\d+)$/);
+        let blockId = subpath;
+        let subIndex: number | undefined = undefined;
 
-        const [, blockId, subIndexStr] = subpathMatch;
-        const subIndex = subIndexStr ? parseInt(subIndexStr) : undefined;
+        if (subIndexMatch) {
+            subIndex = parseInt(subIndexMatch[1]);
+            blockId = subpath.substring(0, subIndexMatch.index);
+        }
+
+        if (!blockId.startsWith('eq-')) {
+            return null;
+        }
 
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
         const activeFile = activeView?.file;

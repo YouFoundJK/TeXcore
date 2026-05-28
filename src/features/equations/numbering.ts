@@ -21,10 +21,18 @@ export function processActiveNoteEquations(plugin: LatexReferencer, file: TFile,
 
     // 1. Scan the entire document once to build a map of reference counts.
     const referenceMap = new Map<string, ReferenceInfo>();
-    const linkRegex = /\[\[(?:#\^|\^)(eq-[\w-]+)(?:-(\d+))?\]\]/g;
+    const linkRegex = /\[\[(?:#\^|\^)(eq-[\w-]+)\]\]/g;
     let match;
     while ((match = linkRegex.exec(content)) !== null) {
-        const [, baseId, subIndexStr] = match;
+        const fullId = match[1];
+        const subIndexMatch = fullId.match(/-(\d+)$/);
+        let baseId = fullId;
+        let subIndexStr: string | undefined = undefined;
+
+        if (subIndexMatch) {
+            subIndexStr = subIndexMatch[1];
+            baseId = fullId.substring(0, subIndexMatch.index);
+        }
         
         if (!referenceMap.has(baseId)) {
             referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
