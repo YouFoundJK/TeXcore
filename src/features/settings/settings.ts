@@ -63,6 +63,17 @@ export interface PluginSettings {
 
     // Zotero Cleanup
     zoteroCleanDirectories: string;
+
+    // Custom Note Hotkeys
+    customNoteHotkeys: CustomNoteHotkey[];
+}
+
+export interface CustomNoteHotkey {
+    id: string;
+    notePath: string;
+    name: string;
+    hotkeyModifiers: Modifier[];
+    hotkeyKey: string;
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
@@ -122,4 +133,7 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
     
     // Zotero Cleanup
     zoteroCleanDirectories: "",
+
+    // Custom Note Hotkeys
+    customNoteHotkeys: [],
 };

@@ -28,6 +28,7 @@ import { checkAndFixCalloutMath } from 'utils/fixer';
 import { traverseFolder } from "./features/export-pdf/utils";
 import { SnippetManager } from 'features/snippets/manager';
 import { processZoteroCleanup } from 'features/zotero-cleanup';
+import { CustomNoteManager } from 'features/custom-notes/manager';
 
 
 const isDev = process.env.NODE_ENV === "development";
@@ -37,6 +38,7 @@ export default class LatexReferencer extends Plugin {
 	editorExtensions: Extension[];
 	internalProviders: Provider[] = [];
 	snippetManager: SnippetManager;
+	customNoteManager: CustomNoteManager;
 
 	async onload() {
 		await this.loadSettings();
@@ -46,6 +48,10 @@ export default class LatexReferencer extends Plugin {
 		// Snippets
 		this.snippetManager = new SnippetManager(this);
 		this.snippetManager.onLoad();
+
+		// Custom Notes
+		this.customNoteManager = new CustomNoteManager(this);
+		this.customNoteManager.onLoad();
 
 		this.addSettingTab(new MathSettingTab(this.app, this));
 

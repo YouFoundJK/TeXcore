@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, TextAreaComponent } from "obsidian";
 import LatexReferencer from "../../main";
 import { NUMBER_STYLES } from "./settings";
+import { NoteSuggestModal } from "../custom-notes/modal";
 
 export class MathSettingTab extends PluginSettingTab {
     constructor(app: App, public plugin: LatexReferencer) {
@@ -288,6 +289,164 @@ export class MathSettingTab extends PluginSettingTab {
                 textArea.inputEl.setAttr("rows", 3);
             });
 
+        containerEl.createEl("h2", { text: "Custom Note Hotkeys" });
+        containerEl.createEl("p", {
+            text: "Configure hotkeys to quickly open specific notes in your vault. You can define optional default hotkeys here, and further customize or rebind them within Obsidian's global 'Hotkeys' settings.",
+            cls: "setting-item-description"
+        });
+
+        new Setting(containerEl)
+            .setName("Add new hotkey mapping")
+            .setDesc("Create a new shortcut command to open a specific note.")
+            .addButton(btn => btn
+                .setButtonText("+ Add hotkey mapping")
+                .setCta()
+                .onClick(async () => {
+                    if (!this.plugin.settings.customNoteHotkeys) {
+                        this.plugin.settings.customNoteHotkeys = [];
+                    }
+                    this.plugin.settings.customNoteHotkeys.push({
+                        id: Date.now().toString(),
+                        notePath: "",
+                        name: "",
+                        hotkeyModifiers: ["Mod"],
+                        hotkeyKey: ""
+                    });
+                    await this.plugin.saveSettings();
+                    this.plugin.customNoteManager.registerCommands();
+                    this.display();
+                })
+            );
+
+        const hotkeys = this.plugin.settings.customNoteHotkeys || [];
+        hotkeys.forEach((item, index) => {
+            const hotkeyContainer = containerEl.createEl("div", {
+                cls: "custom-note-hotkey-item",
+                attr: {
+                    style: "border: 1px solid var(--background-modifier-border); padding: 15px; margin-bottom: 15px; border-radius: 8px; background-color: var(--background-primary-alt);"
+                }
+            });
+
+            const titleRow = hotkeyContainer.createEl("div", {
+                attr: { style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;" }
+            });
+            titleRow.createEl("strong", { text: `Hotkey Mapping #${index + 1}` });
+            
+            const deleteBtn = titleRow.createEl("button", {
+                text: "Delete",
+                cls: "mod-warning",
+                attr: { style: "background-color: var(--background-modifier-error); color: var(--text-on-accent);" }
+            });
+            deleteBtn.addEventListener("click", async () => {
+                hotkeys.splice(index, 1);
+                await this.plugin.saveSettings();
+                this.plugin.customNoteManager.registerCommands();
+                this.display();
+            });
+
+            new Setting(hotkeyContainer)
+                .setName("Friendly name")
+                .setDesc("A clear label for the Obsidian command (e.g. 'Daily Planner').")
+                .addText(text => text
+                    .setPlaceholder("e.g. My Note")
+                    .setValue(item.name)
+                    .onChange(async value => {
+                        item.name = value;
+                        await this.plugin.saveSettings();
+                        this.plugin.customNoteManager.registerCommands();
+                    })
+                );
+
+            const pathSetting = new Setting(hotkeyContainer)
+                .setName("Note path")
+                .setDesc("The relative vault path to the target markdown note.");
+            
+            pathSetting.addText(text => {
+                text.setPlaceholder("e.g. Folder/My Note.md")
+                    .setValue(item.notePath)
+                    .onChange(async value => {
+                        item.notePath = value;
+                        await this.plugin.saveSettings();
+                        this.plugin.customNoteManager.registerCommands();
+                    });
+                
+                pathSetting.addButton(btn => btn
+                    .setIcon("search")
+                    .setTooltip("Browse/Search vault notes")
+                    .onClick(() => {
+                        new NoteSuggestModal(this.app, async (file) => {
+                            text.setValue(file.path);
+                            item.notePath = file.path;
+                            await this.plugin.saveSettings();
+                            this.plugin.customNoteManager.registerCommands();
+                        }).open();
+                    })
+                );
+            });
+
+            const hotkeySetting = new Setting(hotkeyContainer)
+                .setName("Default hotkey")
+                .setDesc("Select modifiers and input a key (e.g., '1', 'a') to assign a default shortcut.");
+
+            const isMod = item.hotkeyModifiers.includes("Mod");
+            const isAlt = item.hotkeyModifiers.includes("Alt");
+            const isShift = item.hotkeyModifiers.includes("Shift");
+
+            hotkeySetting.addToggle(toggle => toggle
+                .setTooltip("Ctrl / Cmd (Mod)")
+                .setValue(isMod)
+                .onChange(async value => {
+                    if (value) {
+                        if (!item.hotkeyModifiers.includes("Mod")) item.hotkeyModifiers.push("Mod");
+                    } else {
+                        item.hotkeyModifiers = item.hotkeyModifiers.filter(m => m !== "Mod");
+                    }
+                    await this.plugin.saveSettings();
+                    this.plugin.customNoteManager.registerCommands();
+                })
+            );
+            hotkeySetting.controlEl.createSpan({ text: "Ctrl/Cmd ", attr: { style: "margin-right: 15px; font-size: 0.9em;" } });
+
+            hotkeySetting.addToggle(toggle => toggle
+                .setTooltip("Alt")
+                .setValue(isAlt)
+                .onChange(async value => {
+                    if (value) {
+                        if (!item.hotkeyModifiers.includes("Alt")) item.hotkeyModifiers.push("Alt");
+                    } else {
+                        item.hotkeyModifiers = item.hotkeyModifiers.filter(m => m !== "Alt");
+                    }
+                    await this.plugin.saveSettings();
+                    this.plugin.customNoteManager.registerCommands();
+                })
+            );
+            hotkeySetting.controlEl.createSpan({ text: "Alt ", attr: { style: "margin-right: 15px; font-size: 0.9em;" } });
+
+            hotkeySetting.addToggle(toggle => toggle
+                .setTooltip("Shift")
+                .setValue(isShift)
+                .onChange(async value => {
+                    if (value) {
+                        if (!item.hotkeyModifiers.includes("Shift")) item.hotkeyModifiers.push("Shift");
+                    } else {
+                        item.hotkeyModifiers = item.hotkeyModifiers.filter(m => m !== "Shift");
+                    }
+                    await this.plugin.saveSettings();
+                    this.plugin.customNoteManager.registerCommands();
+                })
+            );
+            hotkeySetting.controlEl.createSpan({ text: "Shift ", attr: { style: "margin-right: 15px; font-size: 0.9em;" } });
+
+            hotkeySetting.addText(text => text
+                .setPlaceholder("Key (e.g. 1, a)")
+                .setValue(item.hotkeyKey || "")
+                .onChange(async value => {
+                    item.hotkeyKey = value;
+                    await this.plugin.saveSettings();
+                    this.plugin.customNoteManager.registerCommands();
+                })
+            );
+        });
 
         new Setting(containerEl).setName("Debug").setHeading();
         new Setting(containerEl)
