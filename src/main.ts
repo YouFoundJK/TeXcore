@@ -30,6 +30,7 @@ import { SnippetManager } from 'features/snippets/manager';
 import { processZoteroCleanup } from 'features/zotero-cleanup';
 import { CustomNoteManager } from 'features/custom-notes/manager';
 import { TikzRenderer } from "./features/tikz/renderer";
+import { createRowLayoutProcessor, createLivePreviewRowLayoutPlugin } from "./features/tikz/row-layout";
 
 
 const isDev = process.env.NODE_ENV === "development";
@@ -192,6 +193,7 @@ export default class LatexReferencer extends Plugin {
 		// Markdown post processors for Reading View
 		this.registerMarkdownPostProcessor(createEquationNumberProcessor(this));
 		this.registerMarkdownPostProcessor(CustomMathLinksProcessor(this));
+		this.registerMarkdownPostProcessor(createRowLayoutProcessor(this));
 		this.app.workspace.onLayoutReady(() => this.forceRerender());
 
 		this.patchPagePreview();
@@ -212,9 +214,10 @@ export default class LatexReferencer extends Plugin {
 
 	updateEditorExtensions() {
 		this.editorExtensions.length = 0;
-		// PUSH BOTH PLUGINS
+		// PUSH ALL PLUGINS
 		this.editorExtensions.push(createEquationNumberPlugin(this));
 		this.editorExtensions.push(createLivePreviewLinkRendererPlugin(this));
+		this.editorExtensions.push(createLivePreviewRowLayoutPlugin(this));
 		this.app.workspace.updateOptions();
 	}
 
