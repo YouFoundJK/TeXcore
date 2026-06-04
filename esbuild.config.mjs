@@ -43,15 +43,28 @@ const context = await esbuild.context({
 	minify: prod,
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
-	outfile: "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/main.js", // Ensure this path is correct for your setup
+	outfile: "main.js",
 });
 
 if (prod) {
 	await context.rebuild();
+	try {
+		fs.copyFileSync("main.js", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/main.js");
+	} catch (e) {
+		console.warn("Could not copy main.js to dev-vault:", e.message);
+	}
 	process.exit(0);
 } else {
 	await context.watch();
 }
 
-fs.copyFileSync("src/styles/main.css", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/styles.css");
-fs.copyFileSync("./manifest.json", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/manifest.json");
+try {
+	fs.copyFileSync("src/styles/main.css", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/styles.css");
+} catch (e) {
+	console.warn("Could not copy main.css to dev-vault:", e.message);
+}
+try {
+	fs.copyFileSync("./manifest.json", "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/manifest.json");
+} catch (e) {
+	console.warn("Could not copy manifest.json to dev-vault:", e.message);
+}

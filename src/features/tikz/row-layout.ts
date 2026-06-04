@@ -27,6 +27,126 @@ function formatWidth(w: string): string {
     return w;
 }
 
+function splitParagraphAtNodeBoundary(p: HTMLParagraphElement, delimiterNode: Node) {
+    const parent = p.parentElement;
+    if (!parent) return;
+
+    const newP = document.createElement("p");
+    for (let attr of Array.from(p.attributes)) {
+        newP.setAttribute(attr.name, attr.value);
+    }
+
+    let nextNode = delimiterNode.nextSibling as Node;
+    while (nextNode) {
+        const toMove = nextNode;
+        nextNode = nextNode.nextSibling as Node;
+        newP.appendChild(toMove);
+    }
+
+    if (p.nextSibling) {
+        parent.insertBefore(newP, p.nextSibling);
+    } else {
+        parent.appendChild(newP);
+    }
+
+    const cleanupBr = (el: HTMLElement) => {
+        while (el.firstChild && el.firstChild.nodeName.toLowerCase() === "br") el.removeChild(el.firstChild);
+        while (el.lastChild && el.lastChild.nodeName.toLowerCase() === "br") el.removeChild(el.lastChild);
+    };
+    cleanupBr(p);
+    cleanupBr(newP);
+}
+
+function preprocessContainerRows(container: HTMLElement) {
+    let mutated = true;
+    while (mutated) {
+        mutated = false;
+        const paragraphs = Array.from(container.querySelectorAll("p"));
+        
+        for (const p of paragraphs) {
+            if (!p.parentElement) continue;
+
+            const childNodes = Array.from(p.childNodes);
+            for (let i = 0; i < childNodes.length; i++) {
+                const node = childNodes[i];
+                if (node.nodeType !== Node.TEXT_NODE) continue;
+
+                const text = node.textContent || "";
+                const lines = text.split("\n");
+                let offset = 0;
+
+                for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                    const line = lines[lineIdx].trim();
+                    const isStart = line.startsWith(";;;row");
+                    const isDelimiter = line === ";;";
+                    const isClose = line === ";;;";
+
+                    if (isStart || isDelimiter || isClose) {
+                        const lineStartIdx = text.indexOf(line, offset);
+                        if (lineStartIdx !== -1) {
+                            const textNode = node as Text;
+                            
+                            // Split after the delimiter line first
+                            const delimEndIdx = lineStartIdx + line.length;
+                            if (delimEndIdx < text.length) {
+                                textNode.splitText(delimEndIdx);
+                            }
+                            
+                            // Split before the delimiter line
+                            let delimNode: Node = textNode;
+                            if (lineStartIdx > 0) {
+                                delimNode = textNode.splitText(lineStartIdx);
+                            }
+
+                            // Split the paragraph before the delimiter node if it's not the first child
+                            if (delimNode.previousSibling) {
+                                const newP = document.createElement("p");
+                                for (let attr of Array.from(p.attributes)) {
+                                    newP.setAttribute(attr.name, attr.value);
+                                }
+                                
+                                let curr = delimNode;
+                                while (curr) {
+                                    const next = curr.nextSibling;
+                                    newP.appendChild(curr);
+                                    curr = next as Node;
+                                }
+                                
+                                if (p.nextSibling) {
+                                    p.parentElement.insertBefore(newP, p.nextSibling);
+                                } else {
+                                    p.parentElement.appendChild(newP);
+                                }
+                                
+                                const cleanupBr = (el: HTMLElement) => {
+                                    while (el.firstChild && el.firstChild.nodeName.toLowerCase() === "br") el.removeChild(el.firstChild);
+                                    while (el.lastChild && el.lastChild.nodeName.toLowerCase() === "br") el.removeChild(el.lastChild);
+                                };
+                                cleanupBr(p);
+                                cleanupBr(newP);
+                                
+                                mutated = true;
+                                break;
+                            }
+
+                            // Split the paragraph after the delimiter node if there are subsequent siblings
+                            if (delimNode.nextSibling) {
+                                splitParagraphAtNodeBoundary(p, delimNode);
+                                mutated = true;
+                                break;
+                            }
+                        }
+                    }
+                    offset += lines[lineIdx].length + 1;
+                }
+                if (mutated) break;
+            }
+            if (mutated) break;
+        }
+    }
+}
+
+
 function tightenColumn(colEl: HTMLElement) {
     colEl.style.setProperty("margin-top", "0", "important");
     colEl.style.setProperty("margin-bottom", "0", "important");
@@ -74,126 +194,114 @@ function tightenColumn(colEl: HTMLElement) {
 // ==========================================
 export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostProcessor => {
     return (el, ctx) => {
-        const file = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
-        if (!(file instanceof TFile)) return;
+        // Find the main container (e.g. .markdown-preview-view or .markdown-preview-section)
+        let cont: HTMLElement | null = el.parentElement;
+        while (cont && 
+               !cont.classList.contains("markdown-preview-view") && 
+               !cont.classList.contains("markdown-rendered") && 
+               !cont.classList.contains("markdown-preview-section")) {
+            cont = cont.parentElement;
+        }
+        if (!cont) {
+            cont = el;
+        }
+        
+        // Split merged paragraphs to isolate delimiters into standalone blocks
+        preprocessContainerRows(cont);
 
-        // Find if this element itself is a row start paragraph, or contains one
-        const startP = el.tagName.toLowerCase() === "p" && el.textContent?.trim().startsWith(";;;row")
-            ? el
-            : el.querySelector("p");
-
-        if (!startP) return;
-
-        const text = startP.textContent?.trim() || "";
-        if (!text.startsWith(";;;row")) return;
-
-        const section = ctx.getSectionInfo(el);
-        if (!section) return;
-
-        // Read the entire active page content to build the line index mapping
-        plugin.app.vault.cachedRead(file).then(content => {
-            const lines = content.split(/\r?\n/);
-            const rows: MarkdownRow[] = [];
-            let currentRow: Partial<MarkdownRow> | null = null;
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line.startsWith(";;;row")) {
-                    const widthsPart = line.substring(";;;row".length).trim().replace(/^:/, "").trim();
-                    let widths: string[] = [];
-                    if (widthsPart) {
-                        widths = widthsPart.split(/\s*\|\s*|\s*,\s*|\s+/).map(w => w.trim()).filter(w => w).map(formatWidth);
-                    }
-                    currentRow = {
-                        startLine: i,
-                        delimiters: [],
-                        widths
-                    };
-                } else if (line === ";;") {
-                    if (currentRow) {
-                        currentRow.delimiters?.push(i);
-                    }
-                } else if (line === ";;;") {
-                    if (currentRow) {
-                        currentRow.endLine = i;
-                        rows.push(currentRow as MarkdownRow);
-                        currentRow = null;
-                    }
+        // Find all target paragraphs inside el that start with ;;;row
+        const targetParagraphs: HTMLElement[] = [];
+        if (el.tagName.toLowerCase() === "p" && el.textContent?.trim().startsWith(";;;row")) {
+            targetParagraphs.push(el);
+        } else {
+            el.querySelectorAll("p").forEach((p) => {
+                if (p.textContent?.trim().startsWith(";;;row")) {
+                    targetParagraphs.push(p);
                 }
-            }
+            });
+        }
 
-            // Find the row corresponding to this start element
-            const activeRow = rows.find(r => r.startLine === section.lineStart);
-            if (!activeRow) return;
+        if (targetParagraphs.length === 0) return;
+
+        targetParagraphs.forEach((startP) => {
+            const text = startP.textContent?.trim() || "";
 
             // Defer DOM operations slightly to ensure siblings are attached
             setTimeout(() => {
-                const parent = el.parentElement;
+                const parent = startP.parentElement;
                 if (!parent) return;
 
-                if (el.dataset.rowProcessed === "true") return;
-                el.dataset.rowProcessed = "true";
+                if (startP.dataset.rowProcessed === "true") return;
 
-                const siblings = Array.from(parent.children) as HTMLElement[];
-                const startIndex = siblings.indexOf(el as HTMLElement);
-                if (startIndex === -1) return;
+                // Find the main container (e.g. .markdown-preview-view or .markdown-preview-section)
+                let container: HTMLElement | null = startP.parentElement;
+                while (container && 
+                       !container.classList.contains("markdown-preview-view") && 
+                       !container.classList.contains("markdown-rendered") && 
+                       !container.classList.contains("markdown-preview-section")) {
+                    container = container.parentElement;
+                }
+                if (!container) {
+                    container = startP.parentElement;
+                }
 
-                // Group elements into columns based on their source line ranges
-                const numColumns = activeRow.delimiters.length + 1;
-                const columnsElements: HTMLElement[][] = Array.from({ length: numColumns }, () => []);
+                // Find topBlock (direct child of the container)
+                let topBlock: HTMLElement | null = startP;
+                while (topBlock && topBlock.parentElement !== container) {
+                    topBlock = topBlock.parentElement;
+                }
+                if (!topBlock) return;
+
+                const getBlockContent = (block: HTMLElement): HTMLElement => {
+                    if (block.tagName.toLowerCase() === "div" && block.children.length === 1 && !block.className) {
+                        return block.firstElementChild as HTMLElement;
+                    }
+                    return block;
+                };
+
+                // Traverse next siblings of topBlock under container
+                const columnsElements: HTMLElement[][] = [[]];
                 const delimitersToRemove: HTMLElement[] = [];
                 let closingElement: HTMLElement | null = null;
+                let foundEnd = false;
 
-                siblings.forEach((sib) => {
-                    const sibSec = ctx.getSectionInfo(sib);
-                    if (!sibSec) return;
+                let sibBlock = topBlock.nextElementSibling as HTMLElement | null;
+                
+                while (sibBlock) {
+                    const contentEl = getBlockContent(sibBlock);
+                    const textVal = contentEl.textContent?.trim() || "";
+                    const isDelimiter = contentEl.tagName.toLowerCase() === "p" && textVal === ";;";
+                    const isClose = contentEl.tagName.toLowerCase() === "p" && textVal === ";;;";
 
-                    const sibLine = sibSec.lineStart;
-
-                    if (sibLine === activeRow.startLine) return;
-
-                    if (activeRow.delimiters.includes(sibLine)) {
-                        delimitersToRemove.push(sib);
-                        return;
-                    }
-
-                    if (sibLine === activeRow.endLine) {
-                        closingElement = sib;
-                        return;
-                    }
-
-                    for (let colIdx = 0; colIdx < numColumns; colIdx++) {
-                        const startBound = colIdx === 0 ? activeRow.startLine : activeRow.delimiters[colIdx - 1];
-                        const endBound = colIdx === numColumns - 1 ? activeRow.endLine : activeRow.delimiters[colIdx];
-
-                        if (sibLine > startBound && sibLine < endBound) {
-                            columnsElements[colIdx].push(sib);
-                            break;
-                        }
-                    }
-                });
-
-                // Extract column markdown texts from lines
-                const columnsMarkdown: string[] = [];
-                const rowLines = lines.slice(activeRow.startLine + 1, activeRow.endLine);
-                let currentColLines: string[] = [];
-
-                for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
-                    const rLine = rowLines[rIdx];
-                    if (rLine.trim() === ";;") {
-                        columnsMarkdown.push(currentColLines.join("\n"));
-                        currentColLines = [];
+                    if (isDelimiter) {
+                        delimitersToRemove.push(sibBlock);
+                        columnsElements.push([]);
+                    } else if (isClose) {
+                        closingElement = sibBlock;
+                        foundEnd = true;
+                        break;
                     } else {
-                        currentColLines.push(rLine);
+                        columnsElements[columnsElements.length - 1].push(sibBlock);
                     }
+                    sibBlock = sibBlock.nextElementSibling as HTMLElement | null;
                 }
-                columnsMarkdown.push(currentColLines.join("\n"));
 
-                // Create CSS grid layout columns
+                if (!foundEnd) return;
+
+                startP.dataset.rowProcessed = "true";
+
+                // Parse widths from the start line
+                const widthsPart = text.substring(";;;row".length).trim().replace(/^:/, "").trim();
+                let widths: string[] = [];
+                if (widthsPart) {
+                    widths = widthsPart.split(/\s*\|\s*|\s*,\s*|\s+/).map(w => w.trim()).filter(w => w).map(formatWidth);
+                }
+
+                const numColumns = columnsElements.length;
                 const gridTracks: string[] = [];
                 for (let colIdx = 0; colIdx < numColumns; colIdx++) {
-                    if (colIdx < activeRow.widths.length) {
-                        gridTracks.push(activeRow.widths[colIdx]);
+                    if (colIdx < widths.length) {
+                        gridTracks.push(widths[colIdx]);
                     } else {
                         gridTracks.push("1fr");
                     }
@@ -208,31 +316,29 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
                 rowEl.style.alignItems = "center";
                 rowEl.style.margin = "-0.5em 0";
 
-                columnsMarkdown.forEach((colMarkdown) => {
+                columnsElements.forEach((colEls) => {
                     const colEl = rowEl.createEl("div", { cls: "latex-referencer-column" });
                     colEl.style.display = "flex";
                     colEl.style.flexDirection = "column";
                     colEl.style.justifyContent = "center";
                     colEl.style.minWidth = "0";
 
-                    // Asynchronously render markdown inside layout column
-                    const comp = new MarkdownRenderChild(colEl);
-                    ctx.addChild(comp);
-                    MarkdownRenderer.render(plugin.app, colMarkdown, colEl, ctx.sourcePath, comp)
-                        .then(() => {
-                            tightenColumn(colEl);
-                            setTimeout(() => tightenColumn(colEl), 50);
-                            setTimeout(() => tightenColumn(colEl), 150);
-                            setTimeout(() => tightenColumn(colEl), 500);
-                        })
-                        .catch((err) => console.error("Latex Referencer: Failed to render column markdown", err));
+                    // Move existing elements into the column
+                    colEls.forEach(item => colEl.appendChild(item));
+
+                    tightenColumn(colEl);
+                    setTimeout(() => tightenColumn(colEl), 50);
+                    setTimeout(() => tightenColumn(colEl), 150);
+                    setTimeout(() => tightenColumn(colEl), 500);
                 });
 
                 // Replace start element and remove all old intermediate DOM nodes
-                parent.replaceChild(rowEl, el);
+                if (topBlock.parentElement) {
+                    topBlock.parentElement.replaceChild(rowEl, topBlock);
+                }
+                
                 delimitersToRemove.forEach(sib => sib.remove());
                 if (closingElement) (closingElement as HTMLElement).remove();
-                columnsElements.forEach(colEls => colEls.forEach(sib => sib.remove()));
             }, 0);
         });
     };
