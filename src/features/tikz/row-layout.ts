@@ -19,11 +19,23 @@ function selectionAndRangeOverlap(selection: EditorSelection, rangeFrom: number,
     return false;
 }
 
+function formatWidth(w: string): string {
+    w = w.trim();
+    if (/^\d+(\.\d+)?$/.test(w)) {
+        return w + "%";
+    }
+    return w;
+}
+
 function tightenColumn(colEl: HTMLElement) {
     colEl.style.setProperty("margin-top", "0", "important");
     colEl.style.setProperty("margin-bottom", "0", "important");
     colEl.style.setProperty("padding-top", "0", "important");
     colEl.style.setProperty("padding-bottom", "0", "important");
+    colEl.style.setProperty("display", "flex", "important");
+    colEl.style.setProperty("flex-direction", "column", "important");
+    colEl.style.setProperty("justify-content", "center", "important");
+    colEl.style.setProperty("align-items", "center", "important");
 
     const selectors = "p, .math, .math-block, pre, code, .block-language-tikz, mjx-container, svg, .cm-embed-block";
     colEl.querySelectorAll(selectors).forEach((el: HTMLElement) => {
@@ -31,6 +43,29 @@ function tightenColumn(colEl: HTMLElement) {
         el.style.setProperty("margin-bottom", "0", "important");
         el.style.setProperty("padding-top", "0", "important");
         el.style.setProperty("padding-bottom", "0", "important");
+        el.style.setProperty("line-height", "normal", "important");
+        
+        const tag = el.tagName.toLowerCase();
+        if (
+            tag === "p" || 
+            tag === "pre" ||
+            tag === "code" ||
+            el.classList.contains("math-block") || 
+            el.classList.contains("math") || 
+            el.classList.contains("block-language-tikz") || 
+            el.classList.contains("cm-embed-block")
+        ) {
+            const displayType = (el.classList.contains("math") && !el.classList.contains("math-block")) || tag === "code"
+                ? "inline-flex" 
+                : "flex";
+            
+            el.style.setProperty("display", displayType, "important");
+            el.style.setProperty("align-items", "center", "important");
+            el.style.setProperty("justify-content", "center", "important");
+            el.style.setProperty("vertical-align", "middle", "important");
+        } else if (tag === "svg" || tag === "mjx-container") {
+            el.style.setProperty("vertical-align", "middle", "important");
+        }
     });
 }
 
@@ -67,7 +102,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
                     const widthsPart = line.substring(";;;row".length).trim().replace(/^:/, "").trim();
                     let widths: string[] = [];
                     if (widthsPart) {
-                        widths = widthsPart.split(/\s*\|\s*|\s*,\s*|\s+/).map(w => w.trim()).filter(w => w);
+                        widths = widthsPart.split(/\s*\|\s*|\s*,\s*|\s+/).map(w => w.trim()).filter(w => w).map(formatWidth);
                     }
                     currentRow = {
                         startLine: i,
@@ -338,7 +373,7 @@ export const createLivePreviewRowLayoutPlugin = (plugin: LatexReferencer): Exten
                         
                         const widthsPart = line.substring(";;;row".length).trim().replace(/^:/, "").trim();
                         if (widthsPart) {
-                            widths = widthsPart.split(/\s*\|\s*|\s*,\s*|\s+/).map(w => w.trim()).filter(w => w);
+                            widths = widthsPart.split(/\s*\|\s*|\s*,\s*|\s+/).map(w => w.trim()).filter(w => w).map(formatWidth);
                         } else {
                             widths = [];
                         }
