@@ -99,6 +99,22 @@ export class TikzRenderer {
                 throw new Error("Failed to download TikZJax JavaScript resource.");
             }
         }
+
+        // Check and fetch styles.css (cached locally as tikzjax.css)
+        const cssPath = `${pluginDir}/tikzjax.css`;
+        if (!(await adapter.exists(cssPath))) {
+            const cssUrls = [
+                "https://cdn.jsdelivr.net/gh/artisticat1/obsidian-tikzjax@main/styles.css",
+                "https://raw.githubusercontent.com/artisticat1/obsidian-tikzjax/main/styles.css"
+            ];
+            try {
+                const text = await this.fetchWithFallback(cssUrls);
+                await adapter.write(cssPath, text);
+            } catch (err) {
+                console.error("Failed to download tikzjax.css", err);
+                throw new Error("Failed to download TikZJax CSS resource.");
+            }
+        }
     }
 
     private async loadResourcesFromCache() {
@@ -121,10 +137,22 @@ export class TikzRenderer {
         }
 
         this.tikzjaxJs = jsText;
+
+        if (await adapter.exists(`${pluginDir}/tikzjax.css`)) {
+            this.tikzjaxCss = await adapter.read(`${pluginDir}/tikzjax.css`);
+        }
     }
 
     private loadTikZJax(doc: Document) {
         if (doc.getElementById("tikzjax")) return;
+
+        // Ingest TikZJax styles (specifically font-face mappings for math glyphs)
+        if (!doc.getElementById("tikzjax-css") && this.tikzjaxCss) {
+            const style = doc.createElement("style");
+            style.id = "tikzjax-css";
+            style.textContent = this.tikzjaxCss;
+            doc.head.appendChild(style);
+        }
 
         // Ingest Custom Styling to integrate seamlessly with the note theme
         const customStyle = doc.createElement("style");
