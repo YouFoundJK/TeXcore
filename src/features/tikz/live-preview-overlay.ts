@@ -1,6 +1,6 @@
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
-import { MarkdownRenderChild } from "obsidian";
+import { Notice } from "obsidian";
 import LatexReferencer from "../../main";
 
 class TikzLivePreviewOverlay {
@@ -57,19 +57,47 @@ class TikzLivePreviewOverlay {
         this.overlayEl.style.flexDirection = "column";
         this.overlayEl.style.overflow = "hidden";
 
-        // Drag Handle
+        // Drag Handle / Header Container
         const handleEl = doc.createElement("div");
         handleEl.classList.add("tikz-live-preview-handle");
         handleEl.style.cursor = "move";
-        handleEl.style.padding = "6px";
+        handleEl.style.padding = "6px 10px";
         handleEl.style.backgroundColor = "var(--background-secondary-alt)";
         handleEl.style.borderBottom = "1px solid var(--border-color)";
         handleEl.style.fontSize = "0.85em";
         handleEl.style.fontWeight = "bold";
-        handleEl.style.textAlign = "center";
         handleEl.style.color = "var(--text-muted)";
         handleEl.style.userSelect = "none";
-        handleEl.textContent = "TikZ Live Preview";
+        handleEl.style.display = "flex";
+        handleEl.style.justifyContent = "space-between";
+        handleEl.style.alignItems = "center";
+
+        const titleEl = doc.createElement("span");
+        titleEl.textContent = "TikZ Live Preview";
+        handleEl.appendChild(titleEl);
+
+        const exportBtn = doc.createElement("button");
+        exportBtn.textContent = "Export SVG";
+        exportBtn.style.padding = "2px 8px";
+        exportBtn.style.fontSize = "0.8em";
+        exportBtn.style.borderRadius = "4px";
+        exportBtn.style.border = "1px solid var(--border-color)";
+        exportBtn.style.backgroundColor = "var(--interactive-accent)";
+        exportBtn.style.color = "var(--text-on-accent)";
+        exportBtn.style.cursor = "pointer";
+        exportBtn.style.fontWeight = "bold";
+        
+        // Prevent drag events when clicking button
+        exportBtn.onmousedown = (e: MouseEvent) => {
+            e.stopPropagation();
+        };
+        
+        exportBtn.onclick = (e: MouseEvent) => {
+            e.stopPropagation();
+            this.exportSvg();
+        };
+        
+        handleEl.appendChild(exportBtn);
         this.overlayEl.appendChild(handleEl);
 
         // Container for TikZ render
@@ -151,6 +179,53 @@ class TikzLivePreviewOverlay {
         script.setAttribute("type", "text/tikz");
         script.setAttribute("data-show-console", "true");
         script.textContent = code;
+    }
+
+    private exportSvg() {
+        if (!this.containerEl) return;
+        
+        const svgEl = this.containerEl.querySelector("svg");
+        if (!svgEl) {
+            new Notice("No rendered TikZ SVG found to export yet.");
+            return;
+        }
+
+        const doc = this.view.dom.ownerDocument;
+        
+        // Clone the SVG element
+        const svgClone = svgEl.cloneNode(true) as SVGElement;
+        
+        // Ensure standard XML namespace is present
+        if (!svgClone.getAttribute("xmlns")) {
+            svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        }
+
+        // Inline CSS fonts and styles from the document
+        const tikzStyle = doc.getElementById("tikzjax-css")?.textContent;
+        if (tikzStyle) {
+            const styleEl = doc.createElementNS("http://www.w3.org/2000/svg", "style");
+            styleEl.textContent = tikzStyle;
+            svgClone.insertBefore(styleEl, svgClone.firstChild);
+        }
+
+        // Serialize the SVG to string
+        const serializer = new XMLSerializer();
+        const svgData = serializer.serializeToString(svgClone);
+        
+        // Trigger a browser file download
+        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        
+        const downloadLink = doc.createElement("a");
+        downloadLink.href = svgUrl;
+        downloadLink.download = "tikz_diagram.svg";
+        doc.body.appendChild(downloadLink);
+        downloadLink.click();
+        doc.body.removeChild(downloadLink);
+        
+        URL.revokeObjectURL(svgUrl);
+        
+        new Notice("TikZ diagram exported as SVG successfully.");
     }
 
     public destroy() {
