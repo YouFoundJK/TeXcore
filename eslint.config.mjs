@@ -65,8 +65,7 @@ export default tseslint.config(
             globals: {
                 ...globals.browser,
                 ...globals.node,
-                React: 'readonly',
-                Electron: 'readonly'
+                React: 'readonly'
             },
             parserOptions: {
                 ecmaFeatures: {
@@ -80,67 +79,49 @@ export default tseslint.config(
             obsidianmd: obsidianmd
         },
         rules: {
-            '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/no-unsafe-assignment': 'off',
-            '@typescript-eslint/no-unsafe-member-access': 'off',
-            '@typescript-eslint/no-unsafe-call': 'off',
-            '@typescript-eslint/no-unsafe-argument': 'off',
-            '@typescript-eslint/no-unsafe-return': 'off',
-            '@typescript-eslint/no-unused-vars': 'off',
+            '@typescript-eslint/no-explicit-any': 'error',
+            '@typescript-eslint/no-unused-vars': 'error',
             '@typescript-eslint/explicit-module-boundary-types': 'off',
-            '@typescript-eslint/no-non-null-assertion': 'off',
-            '@typescript-eslint/no-floating-promises': 'off',
-            '@typescript-eslint/no-misused-promises': 'off',
-            '@typescript-eslint/await-thenable': 'off',
-            '@typescript-eslint/no-deprecated': 'off',
-            '@typescript-eslint/restrict-template-expressions': 'off',
-            '@typescript-eslint/only-throw-error': 'off',
-            '@typescript-eslint/no-this-alias': 'off',
-            'no-undef': 'off',
+            '@typescript-eslint/no-non-null-assertion': 'warn',
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'warn',
             'no-console': 'off',
             'no-debugger': 'error',
             'prefer-const': 'error',
             'no-var': 'error',
-            'no-restricted-syntax': 'off',
-            'no-alert': 'off',
-            'no-unsanitized/property': 'off',
-            '@microsoft/sdl/no-inner-html': 'off',
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: "NewExpression[callee.name='Notice']",
+                    message: 'Use showNotice(...) instead of new Notice(...).'
+                }
+            ],
             // Upgrade the Obsidian trash rule from warn to error.
             'obsidianmd/prefer-file-manager-trash-file': 'error',
-            'obsidianmd/no-static-styles-assignment': 'off',
-            'obsidianmd/ui/sentence-case': 'off',
-            'obsidianmd/no-tfile-tfolder-cast': 'off',
-            'obsidianmd/rule-custom-message': 'off',
-            'obsidianmd/prefer-active-doc': 'off',
-            'preserve-caught-error': 'off',
-            'no-useless-escape': 'off',
 
             // Type assertions
             '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
             '@typescript-eslint/prefer-as-const': 'warn',
 
             // Code style
-            eqeqeq: 'off',
+            eqeqeq: ['error', 'always'], // Require === and !== instead of == and !=
             'prefer-template': 'warn', // Use template literals instead of string concatenation
             '@typescript-eslint/array-type': ['warn', { default: 'array' }], // Prefer T[] over Array<T>
             'prefer-object-spread': 'warn', // Use {...obj} instead of Object.assign()
             curly: ['warn', 'multi-line'], // Require curly braces for multi-line blocks
-            'no-else-return': 'warn'
+            'no-else-return': 'warn', // Remove unnecessary else after return
+            'obsidianmd/ui/sentence-case': [
+                'warn',
+                {
+                    acronyms: ['RRGGBB', 'RRGGBBAA']
+                }
+            ]
         }
     },
     {
         files: ['src/utils/eventActions.ts'],
         rules: {
             'no-restricted-syntax': 'off'
-        }
-    },
-    {
-        files: ['src/features/export-pdf/**', 'src/utils/debug.ts', 'src/utils/file-io.ts', 'src/main.ts'],
-        rules: {
-            'import/no-nodejs-modules': 'off',
-            'obsidianmd/no-nodejs-modules': 'off'
         }
     }
 );

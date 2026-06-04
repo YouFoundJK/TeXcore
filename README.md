@@ -1,8 +1,8 @@
-# LaTeX Equation Referencer for Obsidian
+# ObsiTeXcore for Obsidian
 
-> **LaTeX Equation Referencer** is a minimalistic [Obsidian.md](https://obsidian.md/) plugin for automatic equation numbering and referencing. It is a streamlined fork of the original [LaTeX-like Theorem & Equation Referencer](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/) by Ryota Ushio.
+> **ObsiTeXcore** is a minimalistic [Obsidian.md](https://obsidian.md/) plugin for automatic equation numbering and referencing. It is a streamlined fork of the original [LaTeX-like Theorem & Equation Referencer](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/) by Ryota Ushio.
 
-📚 **[Full Documentation](https://youfoundjk.github.io/obsidian-latex-eq-refer/)**
+📚 **[Full Documentation](https://youfoundjk.github.io/ObsiTeXcore/)**
 
 ## Key Differences from Original
 
@@ -75,13 +75,13 @@ Use the "Fix callout equations" command to repair broken indentation.
 ### From Community Plugins
 
 1. Open Obsidian Settings → **Community plugins**
-2. Click **Browse** and search for "LaTeX Equation Referencer"
+2. Click **Browse** and search for "ObsiTeXcore"
 3. Click **Install**, then **Enable**
 
 ### Manual Installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YouFoundJK/obsidian-latex-eq-refer/releases)
-2. Create folder: `<vault>/.obsidian/plugins/math-booster/`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YouFoundJK/ObsiTeXcore/releases)
+2. Create folder: `<vault>/.obsidian/plugins/obsitexcore/`
 3. Copy the files into this folder
 4. Restart Obsidian and enable the plugin
 
@@ -104,7 +104,7 @@ Use the "Fix callout equations" command to repair broken indentation.
 
 ## Configuration
 
-See the [Settings Reference](https://youfoundjk.github.io/obsidian-latex-eq-refer/configuration/settings/) for all configuration options.
+See the [Settings Reference](https://youfoundjk.github.io/ObsiTeXcore/configuration/settings/) for all configuration options.
 
 ## Credits
 

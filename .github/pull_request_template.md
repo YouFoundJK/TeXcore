@@ -41,7 +41,7 @@ Acceptance Criteria:
 - [ ] Chore / maintenance <!-- Add `Related Issue / Discussion #__ if applicable-->
 
 ## Code Quality Checklist (MANDATORY)
-*Please read and verify you have adhered to all guidelines outlined in [CONTRIBUTING.md](https://github.com/YouFoundJK/obsidian-latex-eq-refer/blob/master/CONTRIBUTING.md).*
+*Please read and verify you have adhered to all guidelines outlined in [CONTRIBUTING.md](https://github.com/YouFoundJK/ObsiTeXcore/blob/master/CONTRIBUTING.md).*
 
 - **[SOLID](https://en.wikipedia.org/wiki/SOLID), [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)**:
   - [ ] Designed polymorphically where appropriate.

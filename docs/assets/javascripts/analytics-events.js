@@ -2,7 +2,7 @@
 window.cleanUmamiUrl = function (type, payload) {
     if (payload && payload.url) {
         // Strip the repository name from the URL prefix for cleaner dashboard visibility
-        payload.url = payload.url.replace('/obsidian-latex-eq-refer', '') || '/';
+        payload.url = payload.url.replace('/ObsiTeXcore', '') || '/';
     }
     return payload;
 };
@@ -33,7 +33,7 @@ function investigateUmamiEvent(eventName, eventData) {
 
         // Ensure the repository subdirectory name is stripped from custom events too
         if (eventData && eventData.page) {
-            eventData.page = eventData.page.replace('/obsidian-latex-eq-refer', '') || '/';
+            eventData.page = eventData.page.replace('/ObsiTeXcore', '') || '/';
         }
 
         window.umami.track(eventName, eventData);

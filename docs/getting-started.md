@@ -5,13 +5,13 @@
 ### From Community Plugins
 
 1. Open Obsidian Settings → **Community plugins**
-2. Click **Browse** and search for "LaTeX Equation Referencer"
+2. Click **Browse** and search for "ObsiTeXcore"
 3. Click **Install**, then **Enable**
 
 ### Manual Installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YouFoundJK/obsidian-latex-eq-refer/releases)
-2. Create folder: `<vault>/.obsidian/plugins/math-booster/`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YouFoundJK/ObsiTeXcore/releases)
+2. Create folder: `<vault>/.obsidian/plugins/obsitexcore/`
 3. Copy the downloaded files into this folder
 4. Restart Obsidian and enable the plugin
 

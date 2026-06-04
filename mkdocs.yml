@@ -1,8 +1,8 @@
-site_name: LaTeX Equation Referencer
+site_name: ObsiTeXcore
 site_description: A powerful indexing & referencing system for theorems & equations in your vault.
-site_url: https://youfoundjk.github.io/obsidian-latex-eq-refer/
-repo_name: YouFoundJK/obsidian-latex-eq-refer
-repo_url: https://github.com/YouFoundJK/obsidian-latex-eq-refer
+site_url: https://youfoundjk.github.io/ObsiTeXcore/
+repo_name: YouFoundJK/ObsiTeXcore
+repo_url: https://github.com/YouFoundJK/ObsiTeXcore
 
 theme:
     name: material
@@ -86,9 +86,9 @@ plugins:
           enable_creation_date: true
           type: datetime
     - git-committers:
-          repository: YouFoundJK/obsidian-latex-eq-refer
+          repository: YouFoundJK/ObsiTeXcore
           cache_dir: .cache/plugin/git-committers
-          branch: master
+          branch: main
 
 extra:
     analytics:
@@ -106,7 +106,7 @@ extra:
                   note: Thanks for your feedback!
     social:
         - icon: fontawesome/brands/github
-          link: https://github.com/YouFoundJK/obsidian-latex-eq-refer
+          link: https://github.com/YouFoundJK/ObsiTeXcore
 
 nav:
     - Home: index.md

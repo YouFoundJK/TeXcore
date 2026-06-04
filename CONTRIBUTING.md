@@ -1,6 +1,6 @@
-# 🎉 Contributing to LaTeX Equation Referencer
+# 🎉 Contributing to ObsiTeXcore
 
-LaTeX Equation Referencer is open to contributions, and we’re excited to have you here! This guide will help you get set up for local development.
+ObsiTeXcore is open to contributions, and we’re excited to have you here! This guide will help you get set up for local development.
 
 > We welcome any and all types of PR, including ones assisted by AI. To ensure the codebase is clean and up to standard, we strictly adhere to the following principles.
 
@@ -51,4 +51,4 @@ All build output will appear in the root directory (`main.js` and `styles.css`) 
 
 > 💡 **Recommended:** Use the [Hot Reload plugin](https://github.com/pjeby/hot-reload) to make development smoother — it auto-reloads your plugin changes.
 
-Thanks for helping improve LaTeX Equation Referencer! 🎨📝
+Thanks for helping improve ObsiTeXcore! 🎨📝

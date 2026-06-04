@@ -16,8 +16,7 @@ export default defineConfig([
       // Obsidian CSS variables are defined by the host app/theme and are not local declarations.
       'css/no-invalid-properties': 'off',
       'css/no-important': 'warn',
-      'css/use-baseline': 'warn',
-      'css/font-family-fallbacks': 'off'
+      'css/use-baseline': 'warn'
     }
   }
 ]);

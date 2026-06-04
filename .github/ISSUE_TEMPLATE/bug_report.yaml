@@ -1,12 +1,12 @@
 name: Bug Report
-description: Create a bug report to help us improve LaTeX Equation Referencer
+description: Create a bug report to help us improve ObsiTeXcore
 labels: ["bug"]
 body:
     - type: markdown
       attributes:
           value: |
               ## Before you start
-              Please **make sure you are on the latest version of LaTeX Equation Referencer.**
+              Please **make sure you are on the latest version of ObsiTeXcore.**
               If you encountered the issue after you installed, updated, or reloaded the plugin, **please try restarting Obsidian before reporting the bug**.
 
     - type: checkboxes
@@ -15,7 +15,7 @@ body:
           label: "Please check that this issue hasn't been reported before."
           description: "The **Label filters** may help make your search more focused."
           options:
-              - label: "I searched previous [Bug Reports](https://github.com/YouFoundJK/obsidian-latex-eq-refer/issues?q=state%3Aopen%20label%3Abug) and didn't find any similar reports."
+              - label: "I searched previous [Bug Reports](https://github.com/YouFoundJK/ObsiTeXcore/issues?q=state%3Aopen%20label%3Abug) and didn't find any similar reports."
                 required: true
 
     - type: textarea
@@ -86,7 +86,7 @@ body:
       id: plugin-version
       attributes:
           label: Plugin Version
-          description: Which LaTeX Equation Referencer version are you using?
+          description: Which ObsiTeXcore version are you using?
           placeholder: "Enter plugin version here."
       validations:
           required: true

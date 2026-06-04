@@ -1,4 +1,4 @@
-# LaTeX Equation Referencer
+# ObsiTeXcore
 
 A minimalistic Obsidian plugin for automatic equation numbering and referencing.
 
@@ -49,7 +49,7 @@ A minimalistic Obsidian plugin for automatic equation numbering and referencing.
 
 ## How It Differs from Original
 
-| Feature | Original Math Booster | LaTeX Equation Referencer |
+| Feature | Original Math Booster | ObsiTeXcore |
 |---------|----------------------|---------------------------|
 | Scope | Vault-wide scanning | Active note only |
 | Theorem Support | ✅ Full support | ❌ Removed |
