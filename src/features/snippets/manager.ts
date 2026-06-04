@@ -1,6 +1,6 @@
 import { Notice } from 'obsidian';
 import type LatexReferencer from '../../main';
-import { TextTransformSuggestModal } from './modal';
+import { TextTransformSuggestModal } from '../../ui/snippets/modal';
 
 export class SnippetManager {
   constructor(private plugin: LatexReferencer) {}

@@ -1,5 +1,5 @@
 import { App, TFile } from 'obsidian';
-import { PluginSettings } from '../features/settings/settings';
+import { PluginSettings } from '../settings/settings';
 
 const ROMAN = [
   '',

@@ -9,9 +9,9 @@ import {
   debounce
 } from 'obsidian';
 import * as path from 'path';
-import { PageSize } from './constant';
-import LatexReferencer from '../../main';
-import { exportToPDF, getOutputFile, getOutputPath } from './pdf';
+import { PageSize } from 'features/export-pdf/constant';
+import LatexReferencer from 'main';
+import { exportToPDF, getOutputFile, getOutputPath } from 'features/export-pdf/pdf';
 import {
   createWebview,
   fixDoc,
@@ -19,9 +19,16 @@ import {
   getPatchStyle,
   renderMarkdown,
   type ParamType
-} from './render';
-import { isNumber, mm2px, px2mm, safeParseFloat, safeParseInt, traverseFolder } from './utils';
-import Progress from './Progress.svelte';
+} from 'features/export-pdf/render';
+import {
+  isNumber,
+  mm2px,
+  px2mm,
+  safeParseFloat,
+  safeParseInt,
+  traverseFolder
+} from 'features/export-pdf/utils';
+import Progress from 'features/export-pdf/Progress.svelte';
 import { mount, unmount } from 'svelte';
 import pLimit from 'p-limit';
 export type PageSizeType = Electron.PrintToPDFOptions['pageSize'];

@@ -11,9 +11,9 @@ import {
   StandardFonts
 } from 'pdf-lib';
 
-import type { PluginSettings } from '../settings/settings';
+import type { PluginSettings } from '../../settings/settings';
 
-import type { DocType, PageSizeType, TConfig } from './modal';
+import type { DocType, PageSizeType, TConfig } from '../../ui/export-pdf/modal';
 import { TreeNode, getHeadingTree, safeParseFloat, safeParseInt } from './utils';
 
 interface TPosition {

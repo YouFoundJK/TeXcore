@@ -11,31 +11,29 @@ import {
 } from 'obsidian';
 import type { Extension } from '@codemirror/state';
 import { around } from 'monkey-around';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
-import { PluginSettings, DEFAULT_SETTINGS } from './features/settings/settings';
-import { MathSettingTab } from './features/settings/tab';
+import { PluginSettings, DEFAULT_SETTINGS } from './settings/settings';
+import { MathSettingTab } from './settings/tab';
 
-import { Provider } from './features/linker/provider-link-render';
-import { LatexLinkProvider } from 'latex-provider';
-import { createEquationNumberProcessor } from 'features/equations/reading-view-equations';
-import { CustomMathLinksProcessor } from './features/linker/reading-view-linker';
-import { setupDOMObserver } from './features/linker/dom-observer';
-import { createEquationNumberPlugin } from 'features/equations/live-preview-equations';
-import { createLivePreviewLinkRendererPlugin } from './features/linker/live-preview-link-renderer';
+import { Provider } from './core/linker/provider-link-render';
+import { LatexLinkProvider } from './core/linker/latex-provider';
+import { createEquationNumberProcessor } from 'core/equations/reading-view-equations';
+import { CustomMathLinksProcessor } from './core/linker/reading-view-linker';
+import { setupDOMObserver } from './core/linker/dom-observer';
+import { createEquationNumberPlugin } from 'core/equations/live-preview-equations';
+import { createLivePreviewLinkRendererPlugin } from './core/linker/live-preview-link-renderer';
 
 import { insertDisplayMath } from 'utils/plugin';
-import { LinkAutocomplete } from 'features/search/editor-suggest';
-import { MathSearchModal } from 'features/search/modal';
+import { LinkAutocomplete } from 'ui/search/editor-suggest';
+import { MathSearchModal } from 'ui/search/modal';
 import { EquationBlock } from 'types';
 
 // ADDED: Import our new internal patcher function
-import { patchSuggesterWithQuickPreview } from 'features/quick-preview/patcher';
-import { processActiveNoteEquations } from './features/equations/numbering';
-import { ExportConfigModal } from './features/export-pdf/modal';
+import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
+import { processActiveNoteEquations } from './core/equations/numbering';
+import { ExportConfigModal } from './ui/export-pdf/modal';
 import { checkAndFixCalloutMath } from 'utils/fixer';
-import { traverseFolder } from './features/export-pdf/utils';
+import { traverseFolder } from 'features/export-pdf/utils';
 import { SnippetManager } from 'features/snippets/manager';
 import { processZoteroCleanup } from 'features/zotero-cleanup';
 import { CustomNoteManager } from 'features/custom-notes/manager';
@@ -311,19 +309,22 @@ export default class LatexReferencer extends Plugin {
   }
 
   async generateToc(root: TFolder | TFile) {
-    // @ts-ignore
-    const basePath = this.app.vault.adapter.basePath;
-    const toc = path.join(basePath, root.path, '_TOC_.md');
-    const content = `---\ntoc: true\ntitle: ${root.name}\n---\n`;
-    await fs.writeFile(toc, content);
+    const tocPath = root.path === '/' || root.path === '.' ? '_TOC_.md' : `${root.path}/_TOC_.md`;
+    let content = `---\ntoc: true\ntitle: ${root.name || 'Root'}\n---\n`;
     if (root instanceof TFolder) {
       const files = traverseFolder(root);
       for (const file of files) {
-        if (file.name == '_TOC_.md') {
+        if (file.name === '_TOC_.md') {
           continue;
         }
-        await fs.appendFile(toc, `[[${file.path}]]\n`);
+        content += `[[${file.path}]]\n`;
       }
+    }
+    const abstractFile = this.app.vault.getAbstractFileByPath(tocPath);
+    if (abstractFile instanceof TFile) {
+      await this.app.vault.modify(abstractFile, content);
+    } else {
+      await this.app.vault.create(tocPath, content);
     }
   }
 }

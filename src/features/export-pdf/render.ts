@@ -7,7 +7,7 @@ import {
   Notice,
   TFile
 } from 'obsidian';
-import type { TConfig } from './modal';
+import type { TConfig } from '../../ui/export-pdf/modal';
 import { copyAttributes, fixAnchors, modifyDest } from './utils';
 import { checkAndFixCalloutMath } from '../../utils/fixer';
 

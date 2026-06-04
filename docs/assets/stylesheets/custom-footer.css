@@ -7,9 +7,9 @@
   gap: 1.1rem 2.1rem;
   grid-template-columns: minmax(220px, 1.25fr) minmax(220px, 1fr) minmax(260px, 1.2fr);
   align-items: start;
-  padding-top: 2.0rem;
-  padding-bottom: 2.0rem;
-  padding-left: 2.0rem;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  padding-left: 2rem;
 }
 
 .custom-footer__brand {

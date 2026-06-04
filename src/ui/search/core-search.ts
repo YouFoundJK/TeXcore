@@ -15,11 +15,11 @@ import {
 } from 'obsidian';
 import LatexReferencer from 'main';
 import { EquationBlock } from 'types';
-import { LEAF_OPTION_TO_ARGS } from '../settings/settings';
+import { LEAF_OPTION_TO_ARGS } from '../../settings/settings';
 import { getModifierNameInPlatform, openFileAndSelectPosition } from 'utils/obsidian';
 import { insertBlockIdIfNotExist } from 'utils/plugin';
 import { MathSearchModal } from './modal';
-import { ActiveNoteEquationProvider } from 'features/equations/provider-equation';
+import { ActiveNoteEquationProvider } from 'core/equations/provider-equation';
 
 export type ScoredEquationBlock = { match: SearchResult; block: EquationBlock };
 

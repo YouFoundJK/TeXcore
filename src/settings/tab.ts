@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting, TextAreaComponent } from 'obsidian';
-import LatexReferencer from '../../main';
+import LatexReferencer from 'main';
 import { NUMBER_STYLES } from './settings';
-import { NoteSuggestModal } from '../custom-notes/modal';
+import { NoteSuggestModal } from '../ui/custom-notes/modal';
 
 export class MathSettingTab extends PluginSettingTab {
   constructor(

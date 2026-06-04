@@ -1,6 +1,11 @@
+<div align="right">
+  <img src="https://img.shields.io/github/downloads/YouFoundJK/ObsiTeXcore/total?label=Downloads" alt="Downloads" />
+  <a href="https://youfoundjk.github.io/ObsiTeXcore/"><img src="https://img.shields.io/badge/Version-v_0.0.1-blue" alt="Version" /></a>
+</div>
+
 # ObsiTeXcore for Obsidian
 
-> **ObsiTeXcore** is a minimalistic [Obsidian.md](https://obsidian.md/) plugin for automatic equation numbering and referencing. It is a streamlined fork of the original [LaTeX-like Theorem & Equation Referencer](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/) by Ryota Ushio.
+A minimalistic [Obsidian.md](https://obsidian.md/) plugin for automatic equation numbering and referencing.
 
 📚 **[Full Documentation](https://youfoundjk.github.io/ObsiTeXcore/)**
 
@@ -106,10 +111,6 @@ Use the "Fix callout equations" command to repair broken indentation.
 
 See the [Settings Reference](https://youfoundjk.github.io/ObsiTeXcore/configuration/settings/) for all configuration options.
 
-## Credits
-
-- Original plugin by [Ryota Ushio](https://github.com/RyotaUshio)
-- PDF export based on [better-export-pdf](https://github.com/l1xnan/obsidian-better-export-pdf)
 
 ## License
 

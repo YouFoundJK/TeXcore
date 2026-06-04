@@ -2,7 +2,12 @@
   cursor: pointer;
 }
 
-.md-sidebar .md-nav--primary .md-nav__item--nested > nav.md-nav > ul.md-nav__list > li.md-nav__item.fc-nav-index-entry {
+.md-sidebar
+  .md-nav--primary
+  .md-nav__item--nested
+  > nav.md-nav
+  > ul.md-nav__list
+  > li.md-nav__item.fc-nav-index-entry {
   display: none;
 }
 

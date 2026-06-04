@@ -3,7 +3,7 @@ import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
-import type { PluginSettings } from 'features/settings/settings';
+import type { PluginSettings } from 'settings/settings';
 import { CALLOUT_PREFIX_REGEX, getCalloutPrefix, isStructuralCalloutLine } from 'utils/parse';
 
 /**

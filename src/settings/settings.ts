@@ -1,6 +1,6 @@
 import { Modifier } from 'obsidian';
-import type { TConfig } from '../export-pdf/modal';
-import { LeafArgs } from '../../declarations';
+import type { TConfig } from '../ui/export-pdf/modal';
+import { LeafArgs } from '../declarations';
 
 // Types
 export const NUMBER_STYLES = ['arabic', 'alph', 'Alph', 'roman', 'Roman'] as const;

@@ -1,9 +1,14 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
 type DebugCapablePlugin = {
   settings?: { debug?: boolean };
-  app?: { vault?: { adapter?: { basePath?: string } } };
+  app?: {
+    vault?: {
+      adapter?: {
+        basePath?: string;
+        append(path: string, data: string): Promise<void>;
+        write(path: string, data: string): Promise<void>;
+      };
+    };
+  };
 };
 
 let sequence = 0;
@@ -11,9 +16,9 @@ let sequence = 0;
 function getDefaultLogPath(plugin?: DebugCapablePlugin): string {
   const basePath = plugin?.app?.vault?.adapter?.basePath;
   if (typeof basePath === 'string' && basePath.length > 0) {
-    return path.join(basePath, 'latex-referencer-debug.log');
+    return `${basePath}/latex-referencer-debug.log`;
   }
-  return path.join(process.cwd(), 'latex-referencer-debug.log');
+  return 'latex-referencer-debug.log';
 }
 
 function canDebug(plugin?: DebugCapablePlugin): boolean {
@@ -22,7 +27,10 @@ function canDebug(plugin?: DebugCapablePlugin): boolean {
 
 function writeDebugLine(line: string, plugin?: DebugCapablePlugin) {
   try {
-    fs.appendFileSync(getDefaultLogPath(plugin), `${line}\n`, { encoding: 'utf-8' });
+    const adapter = plugin?.app?.vault?.adapter;
+    if (adapter && typeof adapter.append === 'function') {
+      adapter.append('latex-referencer-debug.log', `${line}\n`);
+    }
   } catch (_) {
     // Best-effort only. Console logging should still work.
   }
@@ -53,9 +61,11 @@ export function logDebugEvent(
 }
 
 export function clearDebugLog(plugin?: DebugCapablePlugin) {
-  const logPath = getDefaultLogPath(plugin);
   try {
-    fs.writeFileSync(logPath, '', { encoding: 'utf-8' });
+    const adapter = plugin?.app?.vault?.adapter;
+    if (adapter && typeof adapter.write === 'function') {
+      adapter.write('latex-referencer-debug.log', '');
+    }
   } catch (_) {
     // Ignore write failures.
   }

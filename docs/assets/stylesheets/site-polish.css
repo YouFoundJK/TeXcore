@@ -29,7 +29,9 @@
 
 .md-sidebar .md-nav__link {
   border-radius: var(--fc-nav-radius);
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .md-sidebar .md-nav__link:hover {

@@ -3,7 +3,7 @@ import {
   BUILTIN_TEXT_TRANSFORM_SNIPPETS,
   runTextTransformSnippet,
   TextTransformSnippet
-} from './transforms';
+} from '../../features/snippets/transforms';
 
 export class TextTransformSuggestModal extends FuzzySuggestModal<TextTransformSnippet> {
   constructor(

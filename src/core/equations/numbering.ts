@@ -2,8 +2,8 @@ import { TFile } from 'obsidian';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
 import { EquationBlock } from 'types';
 import LatexReferencer from 'main';
-import { ActiveNoteEquationProvider } from 'features/equations/provider-equation';
-import type { PluginSettings } from 'features/settings/settings';
+import { ActiveNoteEquationProvider } from 'core/equations/provider-equation';
+import type { PluginSettings } from 'settings/settings';
 
 interface ReferenceInfo {
   totalCount: number;

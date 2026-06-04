@@ -1,9 +1,8 @@
 # ObsiTeXcore
 
-A minimalistic Obsidian plugin for automatic equation numbering and referencing.
+A minimalistic Obsidian plugin for automatic equation numbering, referencing with support for PDE exports and .
 
-!!! info "Fork of Math Booster"
-    This plugin is a streamlined fork of the original [LaTeX-like Theorem & Equation Referencer](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/) by Ryota Ushio. It focuses solely on equation referencing with improved performance and reliability.
+
 
 ## Key Features
 
@@ -47,16 +46,6 @@ A minimalistic Obsidian plugin for automatic equation numbering and referencing.
 
 </div>
 
-## How It Differs from Original
-
-| Feature | Original Math Booster | ObsiTeXcore |
-|---------|----------------------|---------------------------|
-| Scope | Vault-wide scanning | Active note only |
-| Theorem Support | ✅ Full support | ❌ Removed |
-| Block References | Obsidian's built-in | Custom `% id:` comments |
-| Dependencies | Quick Preview, Math Links | Built-in (no dependencies) |
-| Performance | Slower (vault scans) | Faster (single file) |
-
 ## Quick Example
 
 Write your equation with an ID comment:
@@ -79,3 +68,8 @@ The equation will be automatically numbered as `(1)` and the link will display a
 ## Getting Started
 
 [:octicons-arrow-right-24: Installation Guide](getting-started.md)
+
+## Special Thanks to 
+- [LaTeX-like Theorem & Equation Referencer](https://ryotaushio.github.io/obsidian-latex-theorem-equation-referencer/) by Ryota Ushio on which this is inspired.
+- PDF export motivated by [better-export-pdf](https://github.com/l1xnan/obsidian-better-export-pdf)
+- [obsidian-tikzjax](https://github.com/artisticat1/obsidian-tikzjax) by [artisticat1](https://github.com/artisticat1)
