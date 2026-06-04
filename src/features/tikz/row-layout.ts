@@ -222,8 +222,7 @@ class RowLayoutWidget extends WidgetType {
     eq(other: RowLayoutWidget) {
         return this.widths.join("|") === other.widths.join("|") &&
                this.columnsMarkdown.join("---") === other.columnsMarkdown.join("---") &&
-               this.sourcePath === other.sourcePath &&
-               this.startPos === other.startPos;
+               this.sourcePath === other.sourcePath;
     }
 
     toDOM() {
@@ -274,8 +273,9 @@ class RowLayoutWidget extends WidgetType {
                 if (view) {
                     evt.preventDefault();
                     evt.stopPropagation();
+                    const pos = view.posAtDOM(rowEl);
                     view.dispatch({
-                        selection: { anchor: this.startPos },
+                        selection: { anchor: pos },
                         scrollIntoView: true
                     });
                     view.focus();
