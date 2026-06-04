@@ -88,16 +88,20 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
 
       mathLinkWrapper.onclick = (evt: MouseEvent) => {
         evt.preventDefault();
-        app.workspace.openLinkText(this.outLinkText, this.sourcePath, evt.ctrlKey || evt.metaKey);
+        void app.workspace.openLinkText(
+          this.outLinkText,
+          this.sourcePath,
+          evt.ctrlKey || evt.metaKey
+        );
       };
 
       mathLinkWrapper.onmousedown = (evt: MouseEvent) => {
-        if (evt.button == 1) evt.preventDefault();
+        if (evt.button === 1) evt.preventDefault();
       };
 
       mathLinkWrapper.onauxclick = (evt: MouseEvent) => {
-        if (evt.button == 1) {
-          app.workspace.openLinkText(this.outLinkText, this.sourcePath, true);
+        if (evt.button === 1) {
+          void app.workspace.openLinkText(this.outLinkText, this.sourcePath, true);
         }
       };
 
@@ -182,7 +186,7 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
 
         this.decorations = builder.finish();
         if (this.decorations.size > 0) {
-          finishRenderMath();
+          void finishRenderMath();
         }
       }
     },

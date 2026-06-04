@@ -1,5 +1,9 @@
 import { StateField } from '@codemirror/state';
 
+if (typeof window !== 'undefined' && !('require' in window)) {
+  (window as unknown as { require: unknown }).require = require;
+}
+
 const toForwardSlashes = (value: string): string => value.replace(/\\/g, '/');
 const joinPath = (...parts: string[]): string => {
   const normalizedParts = parts.map(toForwardSlashes).filter(part => part !== '' && part !== '.');

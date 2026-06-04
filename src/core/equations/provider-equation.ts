@@ -1,4 +1,4 @@
-import { TFile, App, CachedMetadata } from 'obsidian';
+import { TFile, App, CachedMetadata, Pos } from 'obsidian';
 import { EquationBlock } from 'types';
 import { trimMathText, parseMarkdownComment, parseYamlLike } from 'utils/parse';
 
@@ -53,7 +53,7 @@ export class ActiveNoteEquationProvider {
         $file: file.path,
         $type: 'equation' as const,
         $blockId: blockId,
-        $pos: position as any,
+        $pos: position as unknown as Pos,
         $position: { start: position.start.line, end: position.end.line },
         $mathText: trimmedMathText,
         $manualTag: manualTag,

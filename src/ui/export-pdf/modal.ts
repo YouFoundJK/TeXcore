@@ -31,7 +31,7 @@ import {
 import Progress from 'features/export-pdf/Progress.svelte';
 import { mount, unmount } from 'svelte';
 import pLimit from 'p-limit';
-export type PageSizeType = Electron.PrintToPDFOptions['pageSize'];
+export type PageSizeType = string | { width: number; height: number };
 
 export interface TConfig {
   pageSize: string;
@@ -74,8 +74,8 @@ export class ExportConfigModal extends Modal {
   multiplePdf?: boolean;
   callback!: Callback;
   file: TFile | TFolder;
-  preview: any;
-  webviews: any[];
+  preview: unknown;
+  webviews: unknown[];
   previewDiv!: HTMLDivElement;
   completed: boolean;
   docs: DocType[];

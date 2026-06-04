@@ -1,5 +1,6 @@
-import { Notice, TFile } from 'obsidian';
+import { Command, TFile } from 'obsidian';
 import type LatexReferencer from '../../main';
+import { showNotice } from 'utils/obsidian';
 
 export class CustomNoteManager {
   private registeredCommandIds: string[] = [];
@@ -12,7 +13,7 @@ export class CustomNoteManager {
 
   registerCommands() {
     // 1. Unregister all previously registered commands
-    const appCommands = (this.plugin.app as any).commands;
+    const appCommands = this.plugin.app.commands;
     if (appCommands && typeof appCommands.removeCommand === 'function') {
       for (const cmdId of this.registeredCommandIds) {
         try {
@@ -34,11 +35,11 @@ export class CustomNoteManager {
       const commandId = `open-custom-note-${item.id}`;
       const fullCommandId = `${this.plugin.manifest.id}:${commandId}`;
 
-      const commandConfig: any = {
+      const commandConfig: Command = {
         id: commandId,
         name: `Open custom note: ${displayName}`,
         callback: () => {
-          this.openCustomNote(item.notePath);
+          void this.openCustomNote(item.notePath);
         }
       };
 
@@ -66,7 +67,7 @@ export class CustomNoteManager {
       const leaf = this.plugin.app.workspace.getLeaf('tab');
       await leaf.openFile(file);
     } else {
-      new Notice(
+      showNotice(
         `Custom note not found at path: ${notePath}. Please verify your configuration in settings.`
       );
     }

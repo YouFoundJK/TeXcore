@@ -24,14 +24,14 @@ export class TreeNode {
  *   h2 1.3
  */
 
-export function getHeadingTree(doc = document) {
+export function getHeadingTree(doc = activeDocument) {
   const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
   const root = new TreeNode('', 'Root', 0);
   let prev = root;
 
   headings.forEach((el: Element) => {
     const heading = el as HTMLElement;
-    if (heading.style.display == 'none') {
+    if (heading.style.display === 'none') {
       return;
     }
     const level = parseInt(heading.tagName.slice(1));
@@ -56,16 +56,16 @@ export function getHeadingTree(doc = document) {
 }
 
 // modify heading/block, and get heading/block flag
-export function modifyDest(doc: Document) {
-  const data = new Map();
+export function modifyDest(doc: Document): Map<string, string> {
+  const data = new Map<string, string>();
   doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el: Element, i) => {
     const heading = el as HTMLElement;
-    const link = document.createElement('a');
+    const link = activeDocument.createElement('a');
     const flag = `${heading.tagName.toLowerCase()}-${i}`;
     link.href = `af://${flag}`;
     link.className = 'md-print-anchor';
     heading.appendChild(link);
-    data.set(heading.dataset.heading, flag);
+    data.set(heading.dataset.heading ?? '', flag);
   });
 
   return data;
@@ -87,7 +87,7 @@ export function fixAnchors(doc: Document, dest: Map<string, string>, basename: s
     }
 
     if (anchor?.length > 0) {
-      if (title?.length > 0 && title != basename) {
+      if (title?.length > 0 && title !== basename) {
         return;
       }
 
@@ -135,14 +135,16 @@ export const mm2px = (mm: number) => {
 
 export function traverseFolder(path: TFolder | TFile): TFile[] {
   if (path instanceof TFile) {
-    if (path.extension == 'md') {
+    if (path.extension === 'md') {
       return [path];
     }
     return [];
   }
   const arr = [];
   for (const item of path.children) {
-    arr.push(...traverseFolder(item as TFolder));
+    if (item instanceof TFolder || item instanceof TFile) {
+      arr.push(...traverseFolder(item));
+    }
   }
   return arr;
 }
@@ -155,7 +157,7 @@ export function copyAttributes(node: HTMLElement, attributes: NamedNodeMap) {
 }
 
 export function render(tpl: string, data: Record<string, string>) {
-  return tpl.replace(/\{\{(.*?)\}\}/g, (match, key) => data[key.trim()]);
+  return tpl.replace(/\{\{(.*?)\}\}/g, (match: string, key: string) => data[key.trim()]);
 }
 
 export function isNumber(str: string) {
@@ -164,9 +166,9 @@ export function isNumber(str: string) {
 
 export function safeParseInt(str?: string, default_ = 0) {
   try {
-    const num = parseInt(String(str));
+    const num = parseInt(String(str), 10);
     return isNaN(num) ? default_ : num;
-  } catch (e) {
+  } catch {
     return default_;
   }
 }
@@ -174,7 +176,7 @@ export function safeParseFloat(str?: string, default_ = 0.0) {
   try {
     const num = parseFloat(String(str));
     return isNaN(num) ? default_ : num;
-  } catch (e) {
+  } catch {
     return default_;
   }
 }

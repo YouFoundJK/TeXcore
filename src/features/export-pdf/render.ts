@@ -1,29 +1,28 @@
-import {
-  App,
-  Component,
-  type FrontMatterCache,
-  MarkdownRenderer,
-  MarkdownView,
-  Notice,
-  TFile
-} from 'obsidian';
+import { App, Component, MarkdownRenderer, MarkdownView, TFile } from 'obsidian';
 import type { TConfig } from '../../ui/export-pdf/modal';
 import { copyAttributes, fixAnchors, modifyDest } from './utils';
 import { checkAndFixCalloutMath } from '../../utils/fixer';
+import { showNotice } from 'utils/obsidian';
 
 export function getAllStyles() {
   const cssTexts: string[] = [];
 
-  Array.from(document.styleSheets).forEach(sheet => {
-    // @ts-ignore
-    const id = sheet.ownerNode?.id;
+  Array.from(activeDocument.styleSheets).forEach(sheet => {
+    let id: string | undefined = undefined;
+    let href: string | undefined = undefined;
+    if (sheet.ownerNode) {
+      if (sheet.ownerNode.instanceOf(HTMLElement)) {
+        id = sheet.ownerNode.id;
+      }
+      if (sheet.ownerNode.instanceOf(HTMLLinkElement)) {
+        href = sheet.ownerNode.href;
+      }
+    }
 
     // <style id="svelte-xxx" ignore
     if (id?.startsWith('svelte-')) {
       return;
     }
-    // @ts-ignore
-    const href = sheet.ownerNode?.href;
 
     const division = `/* ----------${id ? `id:${id}` : href ? `href:${href}` : ''}---------- */`;
 
@@ -33,8 +32,8 @@ export function getAllStyles() {
       Array.from(sheet?.cssRules ?? []).forEach(rule => {
         cssTexts.push(rule.cssText);
       });
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // ignore
     }
   });
 
@@ -91,19 +90,19 @@ export function getPatchStyle() {
 
 export function getPrintStyle() {
   const cssTexts: string[] = [];
-  Array.from(document.styleSheets).forEach(sheet => {
+  Array.from(activeDocument.styleSheets).forEach(sheet => {
     try {
       const cssRules = sheet?.cssRules ?? [];
       Array.from(cssRules).forEach(rule => {
-        if (rule.constructor.name == 'CSSMediaRule') {
+        if (rule.constructor.name === 'CSSMediaRule') {
           if ((rule as CSSMediaRule).conditionText === 'print') {
             const res = rule.cssText.replace(/@media print\s*\{(.+)\}/gms, '$1');
             cssTexts.push(res);
           }
         }
       });
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // ignore
     }
   });
   return cssTexts;
@@ -113,9 +112,11 @@ function generateDocId(n: number) {
   return Array.from({ length: n }, () => ((16 * Math.random()) | 0).toString(16)).join('');
 }
 
-export type AyncFnType = (...args: unknown[]) => Promise<unknown>;
+export type AyncFnType = Promise<unknown>;
 
-export function getFrontMatter(app: App, file: TFile) {
+import { FrontMatterCache } from 'obsidian';
+
+export function getFrontMatter(app: App, file: TFile): FrontMatterCache {
   const cache = app.metadataCache.getFileCache(file);
   return cache?.frontmatter ?? {};
 }
@@ -133,8 +134,6 @@ export type ParamType = {
 
 // 逆向原生打印函数
 export async function renderMarkdown({ app, file, config, extra }: ParamType) {
-  const startTime = new Date().getTime();
-
   const ws = app.workspace;
   // if (ws.getActiveFile()?.path != file.path) {
   //   const leaf = ws.getLeaf(true);
@@ -146,21 +145,22 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   const leaf = ws.getLeaf(true);
   await leaf.openFile(file);
   const view = leaf.view as MarkdownView;
-  // @ts-ignore
-  const data: string = view?.data ?? ws?.getActiveFileView()?.data ?? ws.activeEditor?.data;
+  const activeFileView = ws.getActiveFileView() as MarkdownView | null;
+  const activeEditor = ws.activeEditor as MarkdownView | null;
+  const data: string = view?.data ?? activeFileView?.data ?? activeEditor?.data ?? '';
   if (!data) {
-    new Notice('data is empty!');
+    showNotice('Data is empty!');
   }
 
   const frontMatter = getFrontMatter(app, file);
 
-  const cssclasses = [];
+  const cssclasses: string[] = [];
   for (const [key, val] of Object.entries(frontMatter)) {
-    if (key.toLowerCase() == 'cssclass' || key.toLowerCase() == 'cssclasses') {
+    if (key.toLowerCase() === 'cssclass' || key.toLowerCase() === 'cssclasses') {
       if (Array.isArray(val)) {
-        cssclasses.push(...val);
+        cssclasses.push(...(val as unknown[]).map(v => String(v)));
       } else {
-        cssclasses.push(val);
+        cssclasses.push(String(val));
       }
     }
   }
@@ -168,18 +168,19 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   const comp = new Component();
   comp.load();
 
-  const printEl = document.body.createDiv('print');
+  const printEl = activeDocument.body.createDiv('print');
   const viewEl = printEl.createDiv({
     cls: `markdown-preview-view markdown-rendered ${cssclasses.join(' ')}`
   });
-  app.vault.cachedRead(file);
+  void app.vault.cachedRead(file);
 
-  // @ts-ignore
-  viewEl.toggleClass('rtl', app.vault.getConfig('rightToLeft'));
-  // @ts-ignore
-  viewEl.toggleClass('show-properties', 'hidden' !== app.vault.getConfig('propertiesInDocument'));
+  viewEl.toggleClass('rtl', app.vault.getConfig('rightToLeft') as boolean);
+  viewEl.toggleClass(
+    'show-properties',
+    'hidden' !== (app.vault.getConfig('propertiesInDocument') as string)
+  );
 
-  const title = extra?.title ?? frontMatter?.title ?? file.basename;
+  const title = extra?.title ?? (frontMatter?.title as string | undefined) ?? file.basename;
   viewEl.createEl('h1', { text: title }, e => {
     e.addClass('__title__');
     e.style.display = config.showTitle ? 'block' : 'none';
@@ -222,7 +223,7 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   // We allow the render to complete (including implicit post-processing on the detached element)
   // and then move the content. The subsequent manual postProcess call ensures we capture
   // any necessary promises for the PDF generation wait-cycle.
-  const tempContainer = document.createElement('div');
+  const tempContainer = activeDocument.createElement('div');
   // Apply the fix for callout math blocks if needed
   const linesContent = lines.join('\n');
   const fixedContent = checkAndFixCalloutMath(linesContent) ?? linesContent;
@@ -261,7 +262,7 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   printEl.findAll('a.internal-link').forEach((el: HTMLElement) => {
     const [title, anchor] = el.dataset.href?.split('#') ?? [];
 
-    if ((!title || title?.length == 0 || title == file.basename) && anchor?.startsWith('^')) {
+    if ((!title || title?.length === 0 || title === file.basename) && anchor?.startsWith('^')) {
       return;
     }
 
@@ -269,13 +270,13 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   });
   try {
     await fixWaitRender(data, viewEl);
-  } catch (error) {
+  } catch {
     console.warn('wait timeout');
   }
 
   fixCanvasToImage(viewEl);
 
-  const doc = document.implementation.createHTMLDocument('document');
+  const doc = activeDocument.implementation.createHTMLDocument('document');
   doc.body.appendChild(printEl.cloneNode(true));
 
   printEl.detach();
@@ -283,7 +284,6 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   printEl.remove();
   doc.title = title;
   leaf.detach();
-  console.log(`md render time:${new Date().getTime() - startTime}ms`);
   return { doc, frontMatter, file };
 }
 
@@ -298,7 +298,7 @@ export function encodeEmbeds(doc: Document) {
   const spans = Array.from(doc.querySelectorAll('span.markdown-embed')).reverse();
   spans.forEach((el: Element) => {
     const span = el as HTMLElement;
-    span.innerHTML = encodeURIComponent(span.innerHTML);
+    span['innerHTML'] = encodeURIComponent(span['innerHTML']);
   });
 }
 
@@ -308,7 +308,7 @@ export async function fixWaitRender(data: string, viewEl: HTMLElement) {
   }
   try {
     await waitForDomChange(viewEl);
-  } catch (error) {
+  } catch {
     await sleep(1000);
   }
 }
@@ -318,7 +318,7 @@ export async function fixWaitRender(data: string, viewEl: HTMLElement) {
 export function fixCanvasToImage(el: HTMLElement) {
   for (const canvas of Array.from(el.querySelectorAll('canvas'))) {
     const data = canvas.toDataURL();
-    const img = document.createElement('img');
+    const img = activeDocument.createElement('img');
     img.src = data;
     copyAttributes(img, canvas.attributes);
     img.className = '__canvas__';
@@ -328,7 +328,7 @@ export function fixCanvasToImage(el: HTMLElement) {
 }
 
 export function createWebview(scale = 1.25) {
-  const webview = document.createElement('webview');
+  const webview = activeDocument.createElement('webview');
   webview.src = `app://obsidian.md/help.html`;
   webview.setAttribute(
     'style',
@@ -345,9 +345,9 @@ export function createWebview(scale = 1.25) {
 
 function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    let timer: any;
-    const observer = new MutationObserver(m => {
-      window.clearTimeout(timer);
+    let timer: number | null = null;
+    const observer = new MutationObserver(() => {
+      if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         observer.disconnect();
         resolve(true);

@@ -18,7 +18,7 @@ export function getMathLink(
   const subpathResult = cache ? resolveSubpath(cache, subpath) : null;
 
   for (const provider of plugin.internalProviders) {
-    const provided = provider.provide({ path, subpath }, targetFile, subpathResult as any);
+    const provided = provider.provide({ path, subpath }, targetFile, subpathResult as unknown);
     if (provided) {
       return provided;
     }

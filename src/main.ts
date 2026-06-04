@@ -133,7 +133,7 @@ export default class LatexReferencer extends Plugin {
 
     // Menu items for file export
     this.registerEvent(
-      (this.app.workspace as any).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
+      (this.app.workspace as unknown).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
         let title = file instanceof TFolder ? 'Export folder to PDF' : 'Better Export PDF';
         if (isDev) {
           title = `${title} (dev)`;
@@ -152,7 +152,7 @@ export default class LatexReferencer extends Plugin {
     );
 
     this.registerEvent(
-      (this.app.workspace as any).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
+      (this.app.workspace as unknown).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
         if (file instanceof TFolder) {
           let title = 'Export to PDF...';
           if (isDev) {
@@ -254,14 +254,14 @@ export default class LatexReferencer extends Plugin {
     const plugin = this;
 
     const uninstaller = around(instance, {
-      onLinkHover(old: any) {
+      onLinkHover(old: unknown) {
         return function (
-          this: any,
-          hoverParent: any,
-          targetEl: any,
+          this: unknown,
+          hoverParent: unknown,
+          targetEl: unknown,
           linktext: string,
           sourcePath: string,
-          state: any
+          state: unknown
         ) {
           const { path, subpath } = parseLinktext(linktext);
 

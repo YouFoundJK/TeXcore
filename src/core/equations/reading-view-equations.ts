@@ -14,7 +14,7 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
 
     // In reading view, we need to read the file content directly.
     // We cannot rely on an active editor being open.
-    plugin.app.vault.cachedRead(file).then(content => {
+    void plugin.app.vault.cachedRead(file).then(content => {
       const equations = processActiveNoteEquations(plugin, file, content);
       if (equations.size === 0) return;
 

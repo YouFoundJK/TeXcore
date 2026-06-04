@@ -60,7 +60,7 @@ describe('format.ts tests', () => {
     const dummyFile = {} as TFile;
     const settings = {
       eqNumberPrefix: 'Prefix-'
-    } as any;
+    } as unknown;
     expect(getEqNumberPrefix(dummyApp, dummyFile, settings)).toBe('Prefix-');
   });
 });

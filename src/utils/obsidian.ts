@@ -1,4 +1,4 @@
-import { App, MarkdownView, Modifier, Platform, Pos, TFile } from 'obsidian';
+import { App, MarkdownView, Modifier, Notice, Platform, Pos, TFile } from 'obsidian';
 import { locToEditorPosition } from 'utils/editor';
 import { LeafArgs } from '../declarations';
 
@@ -34,16 +34,16 @@ export async function openFileAndSelectPosition(
 ////////////
 
 export function getModifierNameInPlatform(mod: Modifier): string {
-  if (mod == 'Mod') {
+  if (mod === 'Mod') {
     return Platform.isMacOS || Platform.isIosApp ? '⌘' : 'ctrl';
   }
-  if (mod == 'Shift') {
+  if (mod === 'Shift') {
     return 'shift';
   }
-  if (mod == 'Alt') {
+  if (mod === 'Alt') {
     return Platform.isMacOS || Platform.isIosApp ? '⌥' : 'alt';
   }
-  if (mod == 'Meta') {
+  if (mod === 'Meta') {
     return Platform.isMacOS || Platform.isIosApp ? '⌘' : Platform.isWin ? 'win' : 'meta';
   }
   return 'ctrl';
@@ -56,4 +56,9 @@ export function generateEqId(length: number = 8): string {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
+}
+
+export function showNotice(message: string): Notice {
+  const NoticeConstructor = Notice;
+  return new NoticeConstructor(message);
 }

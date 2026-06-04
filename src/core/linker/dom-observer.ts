@@ -75,7 +75,7 @@ function processEquationLinksInElement(node: HTMLElement, plugin: LatexReference
  * (e.g., on initial page load).
  */
 function scanExistingCallouts(plugin: LatexReferencer): void {
-  const calloutBlocks = document.querySelectorAll('.cm-embed-block.cm-callout');
+  const calloutBlocks = activeDocument.querySelectorAll('.cm-embed-block.cm-callout');
   for (const block of calloutBlocks) {
     if (block.instanceOf(HTMLElement)) {
       processEquationLinksInElement(block, plugin);
@@ -84,7 +84,7 @@ function scanExistingCallouts(plugin: LatexReferencer): void {
 }
 
 /**
- * Sets up a MutationObserver on document.body to detect callout rendering
+ * Sets up a MutationObserver on activeDocument.body to detect callout rendering
  * and reprocess equation links within them. Also performs an initial scan
  * after a delay to catch callouts rendered before the cache was ready.
  *
@@ -97,7 +97,6 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
       if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
           if (node.instanceOf(HTMLElement)) {
-            if (!node.querySelector && !node.matches) continue;
             processEquationLinksInElement(node, plugin);
           }
         }
@@ -105,7 +104,7 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(activeDocument.body, { childList: true, subtree: true });
 
   // Initial scan: process callouts that were rendered before the observer
   // started or before the equation cache was ready. We use onLayoutReady

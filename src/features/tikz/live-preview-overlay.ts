@@ -1,13 +1,17 @@
-import { Extension, Prec } from '@codemirror/state';
+import { Extension, Prec, EditorState } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { Notice } from 'obsidian';
+import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../main';
+
+interface CleanableDiv extends HTMLDivElement {
+  _cleanup?: () => void;
+}
 
 class TikzLivePreviewOverlay {
   private overlayEl: HTMLDivElement | null = null;
   private containerEl: HTMLDivElement | null = null;
   private currentSource: string = '';
-  private debounceTimeout: any = null;
+  private debounceTimeout: number | null = null;
   private isDragging = false;
   private startX = 0;
   private startY = 0;
@@ -46,34 +50,34 @@ class TikzLivePreviewOverlay {
     this.overlayEl.classList.add('tikz-live-preview-overlay');
 
     // CSS Styles for floating overlay
-    this.overlayEl.style.position = 'fixed';
-    this.overlayEl.style.zIndex = '1000';
-    this.overlayEl.style.top = '100px';
-    this.overlayEl.style.right = '50px';
-    this.overlayEl.style.width = '320px';
-    this.overlayEl.style.height = '320px';
-    this.overlayEl.style.backgroundColor = 'var(--background-primary-alt)';
-    this.overlayEl.style.border = '1px solid var(--border-color)';
-    this.overlayEl.style.borderRadius = '8px';
-    this.overlayEl.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-    this.overlayEl.style.display = 'flex';
-    this.overlayEl.style.flexDirection = 'column';
-    this.overlayEl.style.overflow = 'hidden';
+    this.overlayEl.style.setProperty('position', 'fixed');
+    this.overlayEl.style.setProperty('z-index', '1000');
+    this.overlayEl.style.setProperty('top', '100px');
+    this.overlayEl.style.setProperty('right', '50px');
+    this.overlayEl.style.setProperty('width', '320px');
+    this.overlayEl.style.setProperty('height', '320px');
+    this.overlayEl.style.setProperty('background-color', 'var(--background-primary-alt)');
+    this.overlayEl.style.setProperty('border', '1px solid var(--border-color)');
+    this.overlayEl.style.setProperty('border-radius', '8px');
+    this.overlayEl.style.setProperty('box-shadow', '0 4px 12px rgba(0, 0, 0, 0.15)');
+    this.overlayEl.style.setProperty('display', 'flex');
+    this.overlayEl.style.setProperty('flex-direction', 'column');
+    this.overlayEl.style.setProperty('overflow', 'hidden');
 
     // Drag Handle / Header Container
     const handleEl = doc.createElement('div');
     handleEl.classList.add('tikz-live-preview-handle');
-    handleEl.style.cursor = 'move';
-    handleEl.style.padding = '6px 10px';
-    handleEl.style.backgroundColor = 'var(--background-secondary-alt)';
-    handleEl.style.borderBottom = '1px solid var(--border-color)';
-    handleEl.style.fontSize = '0.85em';
-    handleEl.style.fontWeight = 'bold';
-    handleEl.style.color = 'var(--text-muted)';
-    handleEl.style.userSelect = 'none';
-    handleEl.style.display = 'flex';
-    handleEl.style.justifyContent = 'space-between';
-    handleEl.style.alignItems = 'center';
+    handleEl.style.setProperty('cursor', 'move');
+    handleEl.style.setProperty('padding', '6px 10px');
+    handleEl.style.setProperty('background-color', 'var(--background-secondary-alt)');
+    handleEl.style.setProperty('border-bottom', '1px solid var(--border-color)');
+    handleEl.style.setProperty('font-size', '0.85em');
+    handleEl.style.setProperty('font-weight', 'bold');
+    handleEl.style.setProperty('color', 'var(--text-muted)');
+    handleEl.style.setProperty('user-select', 'none');
+    handleEl.style.setProperty('display', 'flex');
+    handleEl.style.setProperty('justify-content', 'space-between');
+    handleEl.style.setProperty('align-items', 'center');
 
     const titleEl = doc.createElement('span');
     titleEl.textContent = 'TikZ Live Preview';
@@ -81,14 +85,14 @@ class TikzLivePreviewOverlay {
 
     const exportBtn = doc.createElement('button');
     exportBtn.textContent = 'Export SVG';
-    exportBtn.style.padding = '2px 8px';
-    exportBtn.style.fontSize = '0.8em';
-    exportBtn.style.borderRadius = '4px';
-    exportBtn.style.border = '1px solid var(--border-color)';
-    exportBtn.style.backgroundColor = 'var(--interactive-accent)';
-    exportBtn.style.color = 'var(--text-on-accent)';
-    exportBtn.style.cursor = 'pointer';
-    exportBtn.style.fontWeight = 'bold';
+    exportBtn.style.setProperty('padding', '2px 8px');
+    exportBtn.style.setProperty('font-size', '0.8em');
+    exportBtn.style.setProperty('border-radius', '4px');
+    exportBtn.style.setProperty('border', '1px solid var(--border-color)');
+    exportBtn.style.setProperty('background-color', 'var(--interactive-accent)');
+    exportBtn.style.setProperty('color', 'var(--text-on-accent)');
+    exportBtn.style.setProperty('cursor', 'pointer');
+    exportBtn.style.setProperty('font-weight', 'bold');
 
     // Prevent drag events when clicking button
     exportBtn.onmousedown = (e: MouseEvent) => {
@@ -107,13 +111,13 @@ class TikzLivePreviewOverlay {
     this.containerEl = doc.createElement('div');
     this.containerEl.classList.add('tikz-live-preview-container');
     this.containerEl.classList.add('block-language-tikz');
-    this.containerEl.style.flex = '1';
-    this.containerEl.style.overflow = 'auto';
-    this.containerEl.style.display = 'flex';
-    this.containerEl.style.justifyContent = 'center';
-    this.containerEl.style.alignItems = 'center';
-    this.containerEl.style.padding = '10px';
-    this.containerEl.style.backgroundColor = 'transparent';
+    this.containerEl.style.setProperty('flex', '1');
+    this.containerEl.style.setProperty('overflow', 'auto');
+    this.containerEl.style.setProperty('display', 'flex');
+    this.containerEl.style.setProperty('justify-content', 'center');
+    this.containerEl.style.setProperty('align-items', 'center');
+    this.containerEl.style.setProperty('padding', '10px');
+    this.containerEl.style.setProperty('background-color', 'transparent');
     this.overlayEl.appendChild(this.containerEl);
 
     // Drag functionality
@@ -140,9 +144,9 @@ class TikzLivePreviewOverlay {
       newLeft = Math.max(0, Math.min(newLeft, maxLeft));
       newTop = Math.max(0, Math.min(newTop, maxTop));
 
-      this.overlayEl.style.left = `${newLeft}px`;
-      this.overlayEl.style.top = `${newTop}px`;
-      this.overlayEl.style.right = 'auto';
+      this.overlayEl.style.setProperty('left', `${newLeft}px`);
+      this.overlayEl.style.setProperty('top', `${newTop}px`);
+      this.overlayEl.style.setProperty('right', 'auto');
     };
 
     const mouseUpHandler = () => {
@@ -153,7 +157,7 @@ class TikzLivePreviewOverlay {
     doc.addEventListener('mouseup', mouseUpHandler);
 
     // Save reference to clean up event listeners later
-    (this.overlayEl as any)._cleanup = () => {
+    (this.overlayEl as CleanableDiv)._cleanup = () => {
       doc.removeEventListener('mousemove', mouseMoveHandler);
       doc.removeEventListener('mouseup', mouseUpHandler);
     };
@@ -193,7 +197,7 @@ class TikzLivePreviewOverlay {
 
     const svgEl = this.containerEl.querySelector('svg');
     if (!svgEl) {
-      new Notice('No rendered TikZ SVG found to export yet.');
+      showNotice('No rendered TikZ svg found to export yet.');
       return;
     }
 
@@ -232,7 +236,7 @@ class TikzLivePreviewOverlay {
 
     URL.revokeObjectURL(svgUrl);
 
-    new Notice('TikZ diagram exported as SVG successfully.');
+    showNotice('TikZ diagram exported as svg successfully.');
   }
 
   public destroy() {
@@ -240,8 +244,9 @@ class TikzLivePreviewOverlay {
       window.clearTimeout(this.debounceTimeout);
     }
     if (this.overlayEl) {
-      if (typeof (this.overlayEl as any)._cleanup === 'function') {
-        (this.overlayEl as any)._cleanup();
+      const cleanable = this.overlayEl as CleanableDiv;
+      if (typeof cleanable._cleanup === 'function') {
+        cleanable._cleanup();
       }
       this.overlayEl.remove();
       this.overlayEl = null;
@@ -278,7 +283,7 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
           }
         }
 
-        private getTikzBlockAtPos(state: any, pos: number): { source: string } | null {
+        private getTikzBlockAtPos(state: EditorState, pos: number): { source: string } | null {
           try {
             const doc = state.doc;
             const curLine = doc.lineAt(pos).number;

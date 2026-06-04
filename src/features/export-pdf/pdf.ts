@@ -1,6 +1,36 @@
-import * as electron from 'electron';
-import * as fs from 'fs/promises';
-import { type FrontMatterCache, Notice } from 'obsidian';
+import { type FrontMatterCache } from 'obsidian';
+import { showNotice } from 'utils/obsidian';
+
+interface ElectronModule {
+  remote: {
+    shell: {
+      openPath(path: string): Promise<boolean>;
+    };
+    dialog: {
+      showSaveDialog(
+        options: Record<string, unknown>
+      ): Promise<{ canceled: boolean; filePath?: string }>;
+      showOpenDialog(
+        options: Record<string, unknown>
+      ): Promise<{ canceled: boolean; filePaths: string[] }>;
+    };
+  };
+}
+
+interface FsModule {
+  writeFile(path: string, data: Uint8Array): Promise<void>;
+}
+
+const getRequire = (): ((id: string) => unknown) | null => {
+  if (typeof window !== 'undefined' && 'require' in window) {
+    return (window as unknown as { require: (id: string) => unknown }).require;
+  }
+  return null;
+};
+
+const req = getRequire();
+const fs = req ? (req('fs/promises') as FsModule) : null;
+const electron = req ? (req('electron') as ElectronModule) : null;
 import {
   PDFArray,
   PDFDict,
@@ -337,11 +367,11 @@ export async function editPDF(
   const pdfDoc = await PDFDocument.load(data);
   const posistions = await getDestPosition(pdfDoc);
 
-  setAnchors(pdfDoc, posistions);
+  await setAnchors(pdfDoc, posistions);
 
   const outlines = generateOutlines(headings, posistions, maxLevel);
 
-  setOutline(pdfDoc, outlines);
+  await setOutline(pdfDoc, outlines);
   if (displayMetadata) {
     setMetadata(pdfDoc, frontMatter ?? {});
   }
@@ -354,37 +384,44 @@ export function setMetadata(
   pdfDoc: PDFDocument,
   { title, author, keywords, subject, creator, created_at, updated_at }: FrontMatterCache
 ) {
-  if (title) {
+  if (title && typeof title === 'string') {
     pdfDoc.setTitle(title, { showInWindowTitleBar: true });
   }
   if (author) {
     if (Array.isArray(author)) {
-      pdfDoc.setAuthor(author.join(', '));
+      pdfDoc.setAuthor(author.map(a => String(a)).join(', '));
     } else {
-      pdfDoc.setAuthor(author.toString());
+      pdfDoc.setAuthor(String(author));
     }
   }
   if (keywords) {
-    pdfDoc.setKeywords(typeof keywords == 'string' ? [keywords] : keywords);
+    const kwList = Array.isArray(keywords)
+      ? keywords.map(k => String(k))
+      : typeof keywords === 'string'
+        ? [keywords]
+        : [String(keywords)];
+    pdfDoc.setKeywords(kwList);
   }
-  if (subject) {
+  if (subject && typeof subject === 'string') {
     pdfDoc.setSubject(subject);
   }
-  pdfDoc.setCreator(creator ?? 'Obsidian');
+  const creatorStr = typeof creator === 'string' ? creator : 'Obsidian';
+  pdfDoc.setCreator(creatorStr);
   pdfDoc.setProducer('Obsidian');
-  pdfDoc.setCreationDate(new Date(created_at ?? new Date()));
-  pdfDoc.setModificationDate(new Date(updated_at ?? new Date()));
+  const creationDate = created_at ? new Date(created_at as string | number | Date) : new Date();
+  pdfDoc.setCreationDate(creationDate);
+  const modDate = updated_at ? new Date(updated_at as string | number | Date) : new Date();
+  pdfDoc.setModificationDate(modDate);
 }
 
 export async function exportToPDF(
   outputFile: string,
   config: TConfig & PluginSettings, // Changed from BetterExportPdfPluginSettings
-  w: any,
+  w: { printToPDF(options: Record<string, unknown>): Promise<ArrayBuffer> },
   { doc, frontMatter }: DocType
 ) {
-  console.log('output pdf:', outputFile);
   let pageSize = config['pageSize'] as PageSizeType;
-  if (config['pageSize'] == 'Custom' && config['pageWidth'] && config['pageHeight']) {
+  if (config['pageSize'] === 'Custom' && config['pageWidth'] && config['pageHeight']) {
     pageSize = {
       width: safeParseFloat(config['pageWidth'], 210) / 25.4,
       height: safeParseFloat(config['pageHeight'], 297) / 25.4
@@ -395,7 +432,7 @@ export async function exportToPDF(
   if (scale > 200 || scale < 10) {
     scale = 100;
   }
-  const printOptions: any = {
+  const printOptions: Record<string, unknown> = {
     landscape: config?.['landscape'],
     printBackground: config?.['printBackground'],
     generateTaggedPDF: config?.['generateTaggedPDF'],
@@ -413,7 +450,7 @@ export async function exportToPDF(
       : '<span></span>'
   };
 
-  if (config.marginType == '0') {
+  if (config.marginType === '0') {
     printOptions['margins'] = {
       marginType: 'custom',
       top: 0,
@@ -421,11 +458,11 @@ export async function exportToPDF(
       left: 0,
       right: 0
     };
-  } else if (config.marginType == '1') {
+  } else if (config.marginType === '1') {
     printOptions['margins'] = {
       marginType: 'default'
     };
-  } else if (config.marginType == '2') {
+  } else if (config.marginType === '2') {
     printOptions['margins'] = {
       marginType: 'custom',
       top: 0.1,
@@ -433,7 +470,7 @@ export async function exportToPDF(
       left: 0.1,
       right: 0.1
     };
-  } else if (config.marginType == '3') {
+  } else if (config.marginType === '3') {
     // Custom Margin
     printOptions['margins'] = {
       marginType: 'custom',
@@ -455,21 +492,22 @@ export async function exportToPDF(
       maxLevel: safeParseInt(config?.maxLevel, 6)
     });
 
-    await fs.writeFile(outputFile, data);
+    if (fs) {
+      await fs.writeFile(outputFile, data);
+    }
 
-    if (config.open) {
-      // @ts-ignore
-      electron.remote.shell.openPath(outputFile);
+    if (config.open && electron) {
+      void electron.remote.shell.openPath(outputFile);
     }
   } catch (error) {
     console.error(error);
-    new Notice(`Export to PDF failed: ${error}`);
+    showNotice(`Export to PDF failed: ${String(error)}`);
   }
 }
 
 export async function getOutputFile(filename: string, isTimestamp?: boolean) {
-  // @ts-ignore
-  const result: Electron.SaveDialogReturnValue = await electron.remote.dialog.showSaveDialog({
+  if (!electron) return;
+  const result = await electron.remote.dialog.showSaveDialog({
     title: 'Export to PDF',
     defaultPath: `${filename + (isTimestamp ? `-${Date.now()}` : '')}.pdf`,
     filters: [
@@ -477,7 +515,7 @@ export async function getOutputFile(filename: string, isTimestamp?: boolean) {
       { name: 'PDF', extensions: ['pdf'] }
     ],
     properties: ['showOverwriteConfirmation', 'createDirectory']
-  } as any);
+  });
 
   if (result.canceled) {
     return;
@@ -486,8 +524,8 @@ export async function getOutputFile(filename: string, isTimestamp?: boolean) {
 }
 
 export async function getOutputPath(filename: string, isTimestamp?: boolean) {
-  // @ts-ignore
-  const result: Electron.OpenDialogReturnValue = await electron.remote.dialog.showOpenDialog({
+  if (!electron) return;
+  const result = await electron.remote.dialog.showOpenDialog({
     title: 'Export to PDF',
     defaultPath: filename,
     properties: ['openDirectory']

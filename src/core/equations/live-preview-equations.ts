@@ -184,7 +184,7 @@ function createTagManagerPlugin(
 ): ViewPlugin<object> {
   return ViewPlugin.fromClass(
     class {
-      timeout: any = null;
+      timeout: number | null = null;
       blockedBySelection = false;
 
       constructor(view: EditorView) {

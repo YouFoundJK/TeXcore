@@ -67,8 +67,8 @@ function cleanZoteroHighlightLine(input: string): string {
   return input.replace(
     /<mark[^>]*>\s*[\u0022\u201C\u201D]?(.*?)[\u0022\u201C\u201D]?\s*<\/mark>\s*(.*)/g,
     (_match, highlightedText: string, trailingText: string) => {
-      const normalized = highlightedText.replace(/[\.,]$/, '');
-      return `\"${normalized}.\" \u2014 ${trailingText}`;
+      const normalized = highlightedText.replace(/[.,]$/, '');
+      return `"${normalized}." \u2014 ${trailingText}`;
     }
   );
 }

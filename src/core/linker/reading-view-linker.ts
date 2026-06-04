@@ -61,7 +61,7 @@ export class LatexRenderChild extends MarkdownRenderChild {
       const linkEl = this.containerEl;
       setMathLink(mathLink, linkEl);
     }
-    finishRenderMath();
+    void finishRenderMath();
   }
 }
 

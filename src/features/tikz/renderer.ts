@@ -41,7 +41,7 @@ export class TikzRenderer {
   }
 
   private async fetchWithFallback(urls: string[]): Promise<string> {
-    let lastError: any = null;
+    let lastError: unknown = null;
     for (const url of urls) {
       try {
         const res = await requestUrl({
@@ -213,11 +213,11 @@ export class TikzRenderer {
 
   private unloadTikZJax(doc: Document) {
     // Trigger the cleanup function in the document's window context if it exists
-    const win = doc.defaultView as any;
+    const win = doc.defaultView as unknown;
     if (win && typeof win.TikzJaxCleanup === 'function') {
       win
         .TikzJaxCleanup()
-        .catch((err: any) => console.error('Latex Referencer: Error cleaning up TikZJax', err));
+        .catch((err: unknown) => console.error('Latex Referencer: Error cleaning up TikZJax', err));
     }
 
     doc.getElementById('tikzjax')?.remove();
@@ -245,7 +245,7 @@ export class TikzRenderer {
     }
 
     // Retrieve pop-out windows from workspace
-    const workspace = this.plugin.app.workspace as any;
+    const workspace = this.plugin.app.workspace as unknown;
     const floatingSplit = workspace.floatingSplit;
     if (floatingSplit && floatingSplit.children) {
       for (const child of floatingSplit.children) {

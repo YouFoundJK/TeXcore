@@ -93,7 +93,7 @@ describe('MockVault API tests', () => {
 
     // copy folder error (not supported)
     const fakeFolderAsFile = new TFolder();
-    await expect(vault.copy(fakeFolderAsFile as any, 'copied_folder')).rejects.toThrow(
+    await expect(vault.copy(fakeFolderAsFile as unknown, 'copied_folder')).rejects.toThrow(
       'MockVault.copy only supports TFile in this mock.'
     );
 
@@ -164,7 +164,7 @@ describe('MockVault API tests', () => {
     }
 
     // rename invalid type error
-    const fakeObject = { path: 'fake' } as any;
+    const fakeObject = { path: 'fake' } as unknown;
     expect(() => vault.rename(fakeObject, 'renamed')).toThrow('File is not a file or folder');
   });
 
@@ -184,9 +184,9 @@ describe('MockVault API tests', () => {
     expect(() => cache.fileToLinktext(file, 'source')).toThrow('Method not implemented.');
     expect(() => cache.on('changed', () => {})).toThrow('Method not implemented.');
     expect(() => cache.off('changed', () => {})).toThrow('Method not implemented.');
-    expect(() => cache.offref({} as any)).toThrow('Method not implemented.');
+    expect(() => cache.offref({})).toThrow('Method not implemented.');
     expect(() => cache.trigger('changed')).toThrow('Method not implemented.');
-    expect(() => cache.tryTrigger({} as any, [])).toThrow('Method not implemented.');
+    expect(() => cache.tryTrigger({}, [])).toThrow('Method not implemented.');
 
     // MockVault unimplemented methods
     expect(() => vault.append(file, 'data')).toThrow('Method not implemented.');
@@ -199,9 +199,9 @@ describe('MockVault API tests', () => {
     expect(() => vault.getResourcePath(file)).toThrow('Method not implemented.');
     expect(() => vault.on('create', () => {})).toThrow('Method not implemented.');
     expect(() => vault.off('create', () => {})).toThrow('Method not implemented.');
-    expect(() => vault.offref({} as any)).toThrow('Method not implemented.');
+    expect(() => vault.offref({})).toThrow('Method not implemented.');
     expect(() => vault.trigger('create')).toThrow('Method not implemented.');
-    expect(() => vault.tryTrigger({} as any, [])).toThrow('Method not implemented.');
+    expect(() => vault.tryTrigger({}, [])).toThrow('Method not implemented.');
     expect(() => vault.process(file, d => d)).toThrow('Method not implemented.');
     vault.loadLocalStorage();
     vault.saveLocalStorage();

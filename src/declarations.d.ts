@@ -1,4 +1,4 @@
-import { PaneType, SplitDirection, UserEvent } from 'obsidian';
+import { PaneType, SplitDirection, UserEvent, Scope, View, MarkdownFileInfo } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 
 declare module 'obsidian' {
@@ -12,16 +12,26 @@ declare module 'obsidian' {
     setSelectedItem(index: number, event: UserEvent | null): void;
   }
 
+  interface Workspace {
+    getActiveFileView(): View | null;
+    activeEditor?: MarkdownFileInfo | null;
+  }
+
   interface App {
+    workspace: Workspace;
+    commands: {
+      commands: Record<string, unknown>;
+      removeCommand(id: string): void;
+    };
     plugins: {
       enabledPlugins: Set<string>;
       plugins: {
-        [id: string]: any;
+        [id: string]: unknown;
       };
       getPlugin: (id: string) => Plugin | null;
     };
     internalPlugins: {
-      getPluginById(id: string): Plugin & { instance: any };
+      getPluginById(id: string): Plugin & { instance: unknown };
     };
   }
   interface Editor {
@@ -38,6 +48,12 @@ declare module 'obsidian' {
   interface SuggestModal<T> {
     // 3. USE the complete interface here as well
     chooser: Suggestions<T>;
+  }
+  interface Vault {
+    getConfig(key: string): unknown;
+  }
+  namespace MarkdownRenderer {
+    function postProcess(app: App, context: unknown): Promise<void>;
   }
 }
 
