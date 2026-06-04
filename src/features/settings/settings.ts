@@ -66,6 +66,10 @@ export interface PluginSettings {
 
     // Custom Note Hotkeys
     customNoteHotkeys: CustomNoteHotkey[];
+
+    // TikZJax Settings
+    enableTikzjax: boolean;
+    invertColorsInDarkMode: boolean;
 }
 
 export interface CustomNoteHotkey {
@@ -136,4 +140,8 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
 
     // Custom Note Hotkeys
     customNoteHotkeys: [],
+
+    // TikZJax Settings
+    enableTikzjax: true,
+    invertColorsInDarkMode: true,
 };

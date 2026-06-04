@@ -29,6 +29,7 @@ import { traverseFolder } from "./features/export-pdf/utils";
 import { SnippetManager } from 'features/snippets/manager';
 import { processZoteroCleanup } from 'features/zotero-cleanup';
 import { CustomNoteManager } from 'features/custom-notes/manager';
+import { TikzRenderer } from "./features/tikz/renderer";
 
 
 const isDev = process.env.NODE_ENV === "development";
@@ -39,6 +40,7 @@ export default class LatexReferencer extends Plugin {
 	internalProviders: Provider[] = [];
 	snippetManager: SnippetManager;
 	customNoteManager: CustomNoteManager;
+	tikzRenderer: TikzRenderer;
 
 	async onload() {
 		await this.loadSettings();
@@ -52,6 +54,10 @@ export default class LatexReferencer extends Plugin {
 		// Custom Notes
 		this.customNoteManager = new CustomNoteManager(this);
 		this.customNoteManager.onLoad();
+
+		// TikZJax Rendering
+		this.tikzRenderer = new TikzRenderer(this);
+		await this.tikzRenderer.onLoad();
 
 		this.addSettingTab(new MathSettingTab(this.app, this));
 
@@ -190,6 +196,10 @@ export default class LatexReferencer extends Plugin {
 
 		this.patchPagePreview();
 		this.register(setupDOMObserver(this));
+	}
+
+	onunload() {
+		this.tikzRenderer.onUnload();
 	}
 
 	async loadSettings() {

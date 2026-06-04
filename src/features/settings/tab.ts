@@ -274,6 +274,30 @@ export class MathSettingTab extends PluginSettingTab {
                 });
             });
 
+        containerEl.createEl("h2", { text: "TikZJax Rendering" });
+
+        new Setting(containerEl)
+            .setName("Enable TikZ rendering")
+            .setDesc("Renders ```tikz code blocks into diagrams using TikZJax (requires an internet connection on first run to fetch WebAssembly resources).")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableTikzjax)
+                .onChange(async value => {
+                    this.plugin.settings.enableTikzjax = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName("Invert dark colors in dark mode")
+            .setDesc("Automatically maps hardcoded dark colors (like black) to currentColor so they adapt to Obsidian's dark theme.")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.invertColorsInDarkMode)
+                .onChange(async value => {
+                    this.plugin.settings.invertColorsInDarkMode = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
         containerEl.createEl("h2", { text: "Zotero Cleanup" });
 
         new Setting(containerEl)
