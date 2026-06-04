@@ -117,7 +117,7 @@ export type AyncFnType = (...args: unknown[]) => Promise<unknown>;
 
 export function getFrontMatter(app: App, file: TFile) {
   const cache = app.metadataCache.getFileCache(file);
-  return cache?.frontmatter ?? ({} as FrontMatterCache);
+  return cache?.frontmatter ?? {};
 }
 
 export type ParamType = {
@@ -170,7 +170,7 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
 
   const printEl = document.body.createDiv('print');
   const viewEl = printEl.createDiv({
-    cls: 'markdown-preview-view markdown-rendered ' + cssclasses.join(' ')
+    cls: `markdown-preview-view markdown-rendered ${cssclasses.join(' ')}`
   });
   app.vault.cachedRead(file);
 
@@ -211,7 +211,7 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
 
   [...blocks.values()].forEach(({ id, position: { start, end } }) => {
     const idx = start.line;
-    lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n` + lines[idx];
+    lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n${lines[idx]}`;
   });
 
   const promises: AyncFnType[] = [];
@@ -258,7 +258,7 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   });
   await Promise.all(promises);
 
-  printEl.findAll('a.internal-link').forEach((el: HTMLAnchorElement) => {
+  printEl.findAll('a.internal-link').forEach((el: HTMLElement) => {
     const [title, anchor] = el.dataset.href?.split('#') ?? [];
 
     if ((!title || title?.length == 0 || title == file.basename) && anchor?.startsWith('^')) {
@@ -296,7 +296,10 @@ export function fixDoc(doc: Document, title: string) {
 
 export function encodeEmbeds(doc: Document) {
   const spans = Array.from(doc.querySelectorAll('span.markdown-embed')).reverse();
-  spans.forEach((span: HTMLElement) => (span.innerHTML = encodeURIComponent(span.innerHTML)));
+  spans.forEach((el: Element) => {
+    const span = el as HTMLElement;
+    span.innerHTML = encodeURIComponent(span.innerHTML);
+  });
 }
 
 export async function fixWaitRender(data: string, viewEl: HTMLElement) {
@@ -342,10 +345,10 @@ export function createWebview(scale = 1.25) {
 
 function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    let timer: NodeJS.Timeout;
+    let timer: any;
     const observer = new MutationObserver(m => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
         observer.disconnect();
         resolve(true);
       }, interval);
@@ -358,7 +361,7 @@ function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): 
       characterData: true
     });
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       observer.disconnect();
       reject(new Error(`timeout ${timeout}ms`));
     }, timeout);

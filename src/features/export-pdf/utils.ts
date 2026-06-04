@@ -6,7 +6,7 @@ export class TreeNode {
   title: string;
   level: number;
   children: TreeNode[] = [];
-  parent: TreeNode;
+  parent!: TreeNode;
   constructor(key: string, title: string, level: number) {
     this.key = key;
     this.title = title;
@@ -29,7 +29,8 @@ export function getHeadingTree(doc = document) {
   const root = new TreeNode('', 'Root', 0);
   let prev = root;
 
-  headings.forEach((heading: HTMLElement) => {
+  headings.forEach((el: Element) => {
+    const heading = el as HTMLElement;
     if (heading.style.display == 'none') {
       return;
     }
@@ -57,8 +58,9 @@ export function getHeadingTree(doc = document) {
 // modify heading/block, and get heading/block flag
 export function modifyDest(doc: Document) {
   const data = new Map();
-  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading: HTMLElement, i) => {
-    const link = document.createElement('a') as HTMLAnchorElement;
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el: Element, i) => {
+    const heading = el as HTMLElement;
+    const link = document.createElement('a');
     const flag = `${heading.tagName.toLowerCase()}-${i}`;
     link.href = `af://${flag}`;
     link.className = 'md-print-anchor';
@@ -76,11 +78,12 @@ function convertMapKeysToLowercase(map: Map<string, string>) {
 export function fixAnchors(doc: Document, dest: Map<string, string>, basename: string) {
   const lowerDest = convertMapKeysToLowercase(dest);
 
-  doc.querySelectorAll('a.internal-link').forEach((el: HTMLAnchorElement, i) => {
-    const [title, anchor] = el.dataset.href?.split('#') ?? [];
+  doc.querySelectorAll('a.internal-link').forEach((el: Element, i) => {
+    const anchorEl = el as HTMLAnchorElement;
+    const [title, anchor] = anchorEl.dataset.href?.split('#') ?? [];
 
     if (anchor?.startsWith('^')) {
-      el.href = el.dataset.href?.toLowerCase() as string;
+      anchorEl.href = anchorEl.dataset.href?.toLowerCase() as string;
     }
 
     if (anchor?.length > 0) {
@@ -90,7 +93,7 @@ export function fixAnchors(doc: Document, dest: Map<string, string>, basename: s
 
       const flag = dest.get(anchor) || lowerDest.get(anchor?.toLowerCase());
       if (flag && !anchor.startsWith('^')) {
-        el.href = `an://${flag}`;
+        anchorEl.href = `an://${flag}`;
       }
     }
   });
@@ -113,7 +116,7 @@ export function waitFor(cond: (...args: unknown[]) => boolean, timeout = 0) {
       } else if (timeout > 0 && Date.now() - startTime >= timeout) {
         reject(new Error('Timeout exceeded'));
       } else {
-        setTimeout(poll, 100);
+        window.setTimeout(poll, 100);
       }
     };
 
@@ -121,7 +124,7 @@ export function waitFor(cond: (...args: unknown[]) => boolean, timeout = 0) {
   });
 }
 
-export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const sleep = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
 
 export const px2mm = (px: number) => {
   return Math.round(px * 0.26458333333719);
@@ -134,9 +137,8 @@ export function traverseFolder(path: TFolder | TFile): TFile[] {
   if (path instanceof TFile) {
     if (path.extension == 'md') {
       return [path];
-    } else {
-      return [];
     }
+    return [];
   }
   const arr = [];
   for (const item of path.children) {

@@ -40,7 +40,7 @@ export const processZoteroCleanup = async (plugin: LatexReferencer, activeView: 
   // Find all markdown files that match the directories, excluding the active file
   const otherFiles = app.vault.getMarkdownFiles().filter(file => {
     if (file.path === activeFile.path) return false;
-    return directories.some(dir => file.path === dir || file.path.startsWith(dir + '/'));
+    return directories.some(dir => file.path === dir || file.path.startsWith(`${dir}/`));
   });
 
   if (otherFiles.length === 0) {

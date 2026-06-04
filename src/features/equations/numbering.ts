@@ -76,7 +76,7 @@ export function processActiveNoteEquations(
       } else if (!settings.numberOnlyReferencedEquations || backlinkCount > 0) {
         eq.$index = equationCount;
         const num = settings.eqNumberInit + equationCount;
-        const numberStyle = settings.eqNumberStyle as keyof typeof CONVERTER;
+        const numberStyle = settings.eqNumberStyle;
         const convertedNum = CONVERTER[numberStyle](num);
         printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
         equationCount++;

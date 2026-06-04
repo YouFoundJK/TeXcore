@@ -445,7 +445,7 @@ export async function exportToPDF(
   }
 
   try {
-    const buffer = await (w as any).printToPDF(printOptions);
+    const buffer = await w.printToPDF(printOptions);
     let data: Uint8Array = new Uint8Array(buffer);
 
     data = await editPDF(data, {
@@ -463,7 +463,7 @@ export async function exportToPDF(
     }
   } catch (error) {
     console.error(error);
-    new Notice('Export to PDF failed: ' + error);
+    new Notice(`Export to PDF failed: ${error}`);
   }
 }
 
@@ -471,7 +471,7 @@ export async function getOutputFile(filename: string, isTimestamp?: boolean) {
   // @ts-ignore
   const result: Electron.SaveDialogReturnValue = await electron.remote.dialog.showSaveDialog({
     title: 'Export to PDF',
-    defaultPath: filename + (isTimestamp ? '-' + Date.now() : '') + '.pdf',
+    defaultPath: `${filename + (isTimestamp ? `-${Date.now()}` : '')}.pdf`,
     filters: [
       { name: 'All Files', extensions: ['*'] },
       { name: 'PDF', extensions: ['pdf'] }

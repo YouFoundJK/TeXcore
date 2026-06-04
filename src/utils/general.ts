@@ -3,6 +3,6 @@ export function splitIntoLines(text: string): string[] {
   return text.split(/\r?\n/);
 }
 
-export function insertAt<Type>(array: Array<Type>, item: Type, index: number) {
+export function insertAt<Type>(array: Type[], item: Type, index: number) {
   array.splice(index, 0, item);
 }

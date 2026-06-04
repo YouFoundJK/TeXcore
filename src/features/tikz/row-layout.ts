@@ -34,7 +34,7 @@ function selectionAndRangeOverlap(
 function formatWidth(w: string): string {
   w = w.trim();
   if (/^\d+(\.\d+)?$/.test(w)) {
-    return w + '%';
+    return `${w}%`;
   }
   return w;
 }
@@ -44,7 +44,7 @@ function splitParagraphAtNodeBoundary(p: HTMLParagraphElement, delimiterNode: No
   if (!parent) return;
 
   const newP = document.createElement('p');
-  for (let attr of Array.from(p.attributes)) {
+  for (const attr of Array.from(p.attributes)) {
     newP.setAttribute(attr.name, attr.value);
   }
 
@@ -62,10 +62,12 @@ function splitParagraphAtNodeBoundary(p: HTMLParagraphElement, delimiterNode: No
   }
 
   const cleanupBr = (el: HTMLElement) => {
-    while (el.firstChild && el.firstChild.nodeName.toLowerCase() === 'br')
+    while (el.firstChild && el.firstChild.nodeName.toLowerCase() === 'br') {
       el.removeChild(el.firstChild);
-    while (el.lastChild && el.lastChild.nodeName.toLowerCase() === 'br')
+    }
+    while (el.lastChild && el.lastChild.nodeName.toLowerCase() === 'br') {
       el.removeChild(el.lastChild);
+    }
   };
   cleanupBr(p);
   cleanupBr(newP);
@@ -115,7 +117,7 @@ function preprocessContainerRows(container: HTMLElement) {
               // Split the paragraph before the delimiter node if it's not the first child
               if (delimNode.previousSibling) {
                 const newP = document.createElement('p');
-                for (let attr of Array.from(p.attributes)) {
+                for (const attr of Array.from(p.attributes)) {
                   newP.setAttribute(attr.name, attr.value);
                 }
 
@@ -133,10 +135,12 @@ function preprocessContainerRows(container: HTMLElement) {
                 }
 
                 const cleanupBr = (el: HTMLElement) => {
-                  while (el.firstChild && el.firstChild.nodeName.toLowerCase() === 'br')
+                  while (el.firstChild && el.firstChild.nodeName.toLowerCase() === 'br') {
                     el.removeChild(el.firstChild);
-                  while (el.lastChild && el.lastChild.nodeName.toLowerCase() === 'br')
+                  }
+                  while (el.lastChild && el.lastChild.nodeName.toLowerCase() === 'br') {
                     el.removeChild(el.lastChild);
+                  }
                 };
                 cleanupBr(p);
                 cleanupBr(newP);
@@ -174,7 +178,8 @@ function tightenColumn(colEl: HTMLElement) {
 
   const selectors =
     'p, .math, .math-block, pre, code, .block-language-tikz, mjx-container, svg, .cm-embed-block';
-  colEl.querySelectorAll(selectors).forEach((el: HTMLElement) => {
+  colEl.querySelectorAll(selectors).forEach((item: Element) => {
+    const el = item as HTMLElement;
     el.style.setProperty('margin-top', '0', 'important');
     el.style.setProperty('margin-bottom', '0', 'important');
     el.style.setProperty('padding-top', '0', 'important');
@@ -246,7 +251,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
       const text = startP.textContent?.trim() || '';
 
       // Defer DOM operations slightly to ensure siblings are attached
-      setTimeout(() => {
+      window.setTimeout(() => {
         const parent = startP.parentElement;
         if (!parent) return;
 
@@ -356,9 +361,9 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
           colEls.forEach(item => colEl.appendChild(item));
 
           tightenColumn(colEl);
-          setTimeout(() => tightenColumn(colEl), 50);
-          setTimeout(() => tightenColumn(colEl), 150);
-          setTimeout(() => tightenColumn(colEl), 500);
+          window.setTimeout(() => tightenColumn(colEl), 50);
+          window.setTimeout(() => tightenColumn(colEl), 150);
+          window.setTimeout(() => tightenColumn(colEl), 500);
         });
 
         // Replace start element and remove all old intermediate DOM nodes
@@ -367,7 +372,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
         }
 
         delimitersToRemove.forEach(sib => sib.remove());
-        if (closingElement) (closingElement as HTMLElement).remove();
+        if (closingElement) closingElement.remove();
       }, 0);
     });
   };
@@ -431,9 +436,9 @@ class RowLayoutWidget extends WidgetType {
       MarkdownRenderer.render(this.plugin.app, colMarkdown, colEl, this.sourcePath, comp)
         .then(() => {
           tightenColumn(colEl);
-          setTimeout(() => tightenColumn(colEl), 50);
-          setTimeout(() => tightenColumn(colEl), 150);
-          setTimeout(() => tightenColumn(colEl), 500);
+          window.setTimeout(() => tightenColumn(colEl), 50);
+          window.setTimeout(() => tightenColumn(colEl), 150);
+          window.setTimeout(() => tightenColumn(colEl), 500);
         })
         .catch(err =>
           console.error('Latex Referencer: Failed to render Live Preview column markdown', err)

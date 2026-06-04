@@ -304,7 +304,7 @@ export class TikzRenderer {
       let code = this.tidyTikzSource(source);
       // Wrap in LaTeX document template if not already present
       if (!code.includes('\\begin{document}')) {
-        code = '\\begin{document}\n' + code + '\n\\end{document}';
+        code = `\\begin{document}\n${code}\n\\end{document}`;
       }
 
       const script = el.createEl('script');

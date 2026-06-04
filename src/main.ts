@@ -6,7 +6,8 @@ import {
   Menu,
   TFolder,
   Editor,
-  Notice
+  Notice,
+  MarkdownFileInfo
 } from 'obsidian';
 import type { Extension } from '@codemirror/state';
 import { around } from 'monkey-around';
@@ -49,11 +50,11 @@ const isDev = process.env.NODE_ENV === 'development';
 
 export default class LatexReferencer extends Plugin {
   declare settings: PluginSettings;
-  editorExtensions: Extension[];
+  editorExtensions!: Extension[];
   internalProviders: Provider[] = [];
-  snippetManager: SnippetManager;
-  customNoteManager: CustomNoteManager;
-  tikzRenderer: TikzRenderer;
+  snippetManager!: SnippetManager;
+  customNoteManager!: CustomNoteManager;
+  tikzRenderer!: TikzRenderer;
 
   async onload() {
     await this.loadSettings();
@@ -78,15 +79,17 @@ export default class LatexReferencer extends Plugin {
     this.addCommand({
       id: 'remove-duplicate-zotero-annotations',
       name: 'Remove duplicate Zotero annotations',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        processZoteroCleanup(this, view);
+      editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
+        if (ctx instanceof MarkdownView) {
+          processZoteroCleanup(this, ctx);
+        }
       }
     });
 
     this.addCommand({
       id: 'fix-callout-equations',
       name: 'Fix callout equations in active note',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
+      editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
         const content = editor.getValue();
         const fixed = checkAndFixCalloutMath(content);
         if (fixed) {
@@ -132,7 +135,7 @@ export default class LatexReferencer extends Plugin {
 
     // Menu items for file export
     this.registerEvent(
-      this.app.workspace.on('file-menu', (menu, file: TFile | TFolder) => {
+      (this.app.workspace as any).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
         let title = file instanceof TFolder ? 'Export folder to PDF' : 'Better Export PDF';
         if (isDev) {
           title = `${title} (dev)`;
@@ -151,7 +154,7 @@ export default class LatexReferencer extends Plugin {
     );
 
     this.registerEvent(
-      this.app.workspace.on('file-menu', (menu, file: TFile | TFolder) => {
+      (this.app.workspace as any).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
         if (file instanceof TFolder) {
           let title = 'Export to PDF...';
           if (isDev) {
@@ -193,7 +196,7 @@ export default class LatexReferencer extends Plugin {
     // REPLACED: The old external plugin logic is gone.
     // We now call our internal patcher directly.
     const itemNormalizer = (item: EquationBlock) => ({
-      linktext: item.$file + '#^' + item.$blockId, // Use the block ID for more precise linking
+      linktext: `${item.$file}#^${item.$blockId}`, // Use the block ID for more precise linking
       sourcePath: item.$file,
       line: item.$position.start
     });
@@ -216,7 +219,7 @@ export default class LatexReferencer extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
   }
 
   async saveSettings() {
@@ -234,7 +237,7 @@ export default class LatexReferencer extends Plugin {
   }
 
   forceRerender() {
-    setTimeout(async () => {
+    window.setTimeout(async () => {
       for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
         const view = leaf.view as MarkdownView;
         view.previewMode.rerender(true);
@@ -255,6 +258,7 @@ export default class LatexReferencer extends Plugin {
     const uninstaller = around(instance, {
       onLinkHover(old: any) {
         return function (
+          this: any,
           hoverParent: any,
           targetEl: any,
           linktext: string,

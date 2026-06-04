@@ -163,7 +163,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
   for (const info of equationInfos) {
     if (!settings.numberOnlyReferencedEquations || info.refCount > 0) {
       const num = settings.eqNumberInit + equationCount;
-      const numberStyle = settings.eqNumberStyle as keyof typeof CONVERTER;
+      const numberStyle = settings.eqNumberStyle;
       const convertedNum = CONVERTER[numberStyle](num);
       info.printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
       equationCount++;
@@ -184,7 +184,7 @@ function createTagManagerPlugin(
 ): ViewPlugin<object> {
   return ViewPlugin.fromClass(
     class {
-      timeout: NodeJS.Timeout | null = null;
+      timeout: any = null;
       blockedBySelection = false;
 
       constructor(view: EditorView) {
@@ -205,8 +205,8 @@ function createTagManagerPlugin(
         }
       }
       scheduleCheck(view: EditorView) {
-        if (this.timeout) clearTimeout(this.timeout);
-        this.timeout = setTimeout(() => this.runCheck(view), 300);
+        if (this.timeout) window.clearTimeout(this.timeout);
+        this.timeout = window.setTimeout(() => this.runCheck(view), 300);
       }
 
       // equations/live-preview.ts (inside ViewPlugin.fromClass)
@@ -241,7 +241,7 @@ function createTagManagerPlugin(
 
           // 4. Robust Line-Based Trimming
           // Split into lines to inspect them individually.
-          let mathLines = mathPart.split(/\r?\n/);
+          const mathLines = mathPart.split(/\r?\n/);
 
           // We want to remove trailing lines that contain ONLY the prefix (or whitespace).
           // These are "structural" lines that shouldn't be treated as math content.
@@ -278,10 +278,9 @@ function createTagManagerPlugin(
                 const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
                 const environment = endEnvMatch[0];
                 const after = cleanedRow.substring(endEnvMatch.index + environment.length);
-                return before + newTag + ' ' + environment + after;
-              } else {
-                return cleanedRow.trimEnd() + newTag;
+                return `${before + newTag} ${environment}${after}`;
               }
+              return cleanedRow.trimEnd() + newTag;
             });
 
             if (hasContent) {

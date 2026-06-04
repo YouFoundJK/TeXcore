@@ -59,7 +59,7 @@ export class CustomNoteManager {
   async openCustomNote(notePath: string) {
     let file = this.plugin.app.vault.getAbstractFileByPath(notePath);
     if (!file && !notePath.endsWith('.md')) {
-      file = this.plugin.app.vault.getAbstractFileByPath(notePath + '.md');
+      file = this.plugin.app.vault.getAbstractFileByPath(`${notePath}.md`);
     }
 
     if (file instanceof TFile) {

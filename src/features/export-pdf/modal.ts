@@ -65,15 +65,15 @@ export class ExportConfigModal extends Modal {
   config: TConfig;
   canceled: boolean;
   multiplePdf?: boolean;
-  callback: Callback;
+  callback!: Callback;
   file: TFile | TFolder;
   preview: any;
   webviews: any[];
-  previewDiv: HTMLDivElement;
+  previewDiv!: HTMLDivElement;
   completed: boolean;
   docs: DocType[];
-  title: string;
-  frontMatter: FrontMatterCache;
+  title!: string;
+  frontMatter!: FrontMatterCache;
   scale: number;
   // @ts-ignore
   svelte: Progress;
@@ -107,7 +107,7 @@ export class ExportConfigModal extends Modal {
       displayFooter: plugin.settings.displayHeader ?? true,
       cssSnippet: '0',
       ...(plugin.settings?.prevConfig ?? {})
-    } as TConfig;
+    };
   }
 
   getFileCache(file: TFile) {
@@ -223,9 +223,9 @@ export class ExportConfigModal extends Modal {
   calcPageSize(element?: HTMLDivElement, config?: TConfig) {
     const { pageSize, pageWidth, pageHeight } = config ?? this.config;
     const el = element ?? this.previewDiv;
-    const [w, h] = PageSize?.[pageSize as string] ?? [
-      safeParseFloat(pageWidth as string, 210),
-      safeParseFloat(pageHeight as string, 297)
+    const [w, h] = PageSize?.[pageSize] ?? [
+      safeParseFloat(pageWidth, 210),
+      safeParseFloat(pageHeight, 297)
     ];
 
     // Scale is ratio of PDF Page Width in Pixels to Container Width in Pixels
@@ -255,7 +255,8 @@ export class ExportConfigModal extends Modal {
   }
 
   async togglePrintSize() {
-    document.querySelectorAll('.print-size')?.forEach((sizeEl: HTMLDivElement) => {
+    document.querySelectorAll('.print-size')?.forEach((el: Element) => {
+      const sizeEl = el as HTMLDivElement;
       if (this.config['pageSize'] == 'Custom') {
         sizeEl.style.visibility = 'visible';
       } else {
@@ -484,7 +485,7 @@ export class ExportConfigModal extends Modal {
     new Setting(contentEl).setName('Page Size').addDropdown(dropdown => {
       dropdown
         .addOptions(Object.fromEntries(pageSizes.map(size => [size, size])))
-        .setValue(this.config.pageSize as string)
+        .setValue(this.config.pageSize)
         .onChange(async (value: string) => {
           this.config['pageSize'] = value;
           if (value == 'Custom') {
@@ -597,7 +598,7 @@ export class ExportConfigModal extends Modal {
     new Setting(contentEl).setName('Downscale Percent').addSlider(slider => {
       slider
         .setLimits(0, 100, 1)
-        .setValue(this.config['scale'] as number)
+        .setValue(this.config['scale'])
         .onChange(async value => {
           this.config['scale'] = value;
           slider.showTooltip();
@@ -673,7 +674,7 @@ export class ExportConfigModal extends Modal {
       snippets
         ?.filter((item: string) => !enabledSnippets.has(item))
         .map((name: string) => {
-          const file = path.join(basePath, '.obsidian/snippets', name + '.css');
+          const file = path.join(basePath, this.app.vault.configDir, 'snippets', `${name}.css`);
           return [file, name];
         })
     );

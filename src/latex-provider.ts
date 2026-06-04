@@ -51,13 +51,13 @@ export class LatexLinkProvider extends Provider {
 
       if (subIndex !== undefined) {
         const baseName = targetEquation.$printName.slice(1, -1);
-        result = settings.eqRefPrefix + `(${baseName}.${subIndex})` + settings.eqRefSuffix;
+        result = `${settings.eqRefPrefix}(${baseName}.${subIndex})${settings.eqRefSuffix}`;
       } else {
         result = targetEquation.$refName ?? targetEquation.$printName;
       }
 
       if (settings.noteTitleInEquationLink && parsedLinktext.path) {
-        result = targetFile.basename + ' > ' + result;
+        result = `${targetFile.basename} > ${result}`;
       }
       return result;
     }

@@ -29,9 +29,9 @@ class TikzLivePreviewOverlay {
 
     // Debounce compilation to prevent excessive UI lag/compiles
     if (this.debounceTimeout) {
-      clearTimeout(this.debounceTimeout);
+      window.clearTimeout(this.debounceTimeout);
     }
-    this.debounceTimeout = setTimeout(() => {
+    this.debounceTimeout = window.setTimeout(() => {
       this.renderTikz();
     }, 300);
   }
@@ -179,7 +179,7 @@ class TikzLivePreviewOverlay {
       .join('\n');
 
     if (!code.includes('\\begin{document}')) {
-      code = '\\begin{document}\n' + code + '\n\\end{document}';
+      code = `\\begin{document}\n${code}\n\\end{document}`;
     }
 
     const script = this.containerEl.createEl('script');
@@ -237,7 +237,7 @@ class TikzLivePreviewOverlay {
 
   public destroy() {
     if (this.debounceTimeout) {
-      clearTimeout(this.debounceTimeout);
+      window.clearTimeout(this.debounceTimeout);
     }
     if (this.overlayEl) {
       if (typeof (this.overlayEl as any)._cleanup === 'function') {

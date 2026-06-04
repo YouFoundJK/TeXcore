@@ -17,12 +17,11 @@ import LatexReferencer from 'main';
 function setMathLink(source: string, mathLinkEl: HTMLElement) {
   mathLinkEl.replaceChildren();
   const mathPattern = /\$(.*?[^\s])\$/g;
-  let textFrom = 0,
-    textTo = 0;
+  let textFrom = 0;
   let result;
   while ((result = mathPattern.exec(source)) !== null) {
     const mathString = result[1];
-    textTo = result.index;
+    const textTo = result.index;
     if (textTo > textFrom) mathLinkEl.createSpan().replaceWith(source.slice(textFrom, textTo));
 
     const mathEl = renderMath(mathString, false);
@@ -59,7 +58,7 @@ export class LatexRenderChild extends MarkdownRenderChild {
 
     if (mathLink) {
       // The containerEl is now the link element itself
-      const linkEl = this.containerEl as HTMLElement;
+      const linkEl = this.containerEl;
       setMathLink(mathLink, linkEl);
     }
     finishRenderMath();

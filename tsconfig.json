@@ -1,5 +1,7 @@
 {
 	"compilerOptions": {
+		"ignoreDeprecations": "6.0",
+		"rootDir": ".",
 		"baseUrl": "./src",
 		"inlineSourceMap": true,
 		"inlineSources": true,
@@ -30,6 +32,8 @@
 		"node_modules",
 		"dist",
 		"build",
-		"main.js"
+		"main.js",
+		"test_helpers",
+		"__mocks__"
 	]
 }

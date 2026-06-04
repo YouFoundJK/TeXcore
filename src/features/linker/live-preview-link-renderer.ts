@@ -35,12 +35,11 @@ function selectionAndRangeOverlap(
 function setMathLink(source: string, mathLinkEl: HTMLElement) {
   mathLinkEl.replaceChildren();
   const mathPattern = /\$(.*?[^\s])\$/g;
-  let textFrom = 0,
-    textTo = 0;
+  let textFrom = 0;
   let result;
   while ((result = mathPattern.exec(source)) !== null) {
     const mathString = result[1];
-    textTo = result.index;
+    const textTo = result.index;
     if (textTo > textFrom) mathLinkEl.createSpan().replaceWith(source.slice(textFrom, textTo));
 
     const mathEl = renderMath(mathString, false);
@@ -108,7 +107,7 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
 
   const viewPlugin = ViewPlugin.fromClass(
     class implements PluginValue {
-      decorations: DecorationSet;
+      decorations!: DecorationSet;
 
       constructor(view: EditorView) {
         this.buildDecorations(view);

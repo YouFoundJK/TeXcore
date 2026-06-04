@@ -41,7 +41,7 @@ function processEquationLinksInElement(node: HTMLElement, plugin: LatexReference
     }
   };
 
-  const equationLinks = node.querySelectorAll?.('a.internal-link') as NodeListOf<HTMLAnchorElement>;
+  const equationLinks = node.querySelectorAll?.('a.internal-link');
   if (equationLinks && equationLinks.length > 0) {
     for (let i = 0; i < equationLinks.length; i++) {
       const link = equationLinks[i];
@@ -50,7 +50,7 @@ function processEquationLinksInElement(node: HTMLElement, plugin: LatexReference
         link.classList.remove('math-link-processed');
         resolveSourcePath();
         if (sourcePath) {
-          processInternalLink(link, plugin, sourcePath);
+          processInternalLink(link as HTMLAnchorElement, plugin, sourcePath);
         }
       }
     }
@@ -77,7 +77,7 @@ function processEquationLinksInElement(node: HTMLElement, plugin: LatexReference
 function scanExistingCallouts(plugin: LatexReferencer): void {
   const calloutBlocks = document.querySelectorAll('.cm-embed-block.cm-callout');
   for (const block of calloutBlocks) {
-    if (block instanceof HTMLElement) {
+    if (block.instanceOf(HTMLElement)) {
       processEquationLinksInElement(block, plugin);
     }
   }
@@ -96,7 +96,7 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
     for (const mutation of mutations) {
       if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
-          if (node instanceof HTMLElement) {
+          if (node.instanceOf(HTMLElement)) {
             if (!node.querySelector && !node.matches) continue;
             processEquationLinksInElement(node, plugin);
           }
@@ -112,7 +112,7 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
   // to ensure the DOM is fully initialized, plus a small delay to ensure
   // the equation cache has been built.
   plugin.app.workspace.onLayoutReady(() => {
-    setTimeout(() => scanExistingCallouts(plugin), 1000);
+    window.setTimeout(() => scanExistingCallouts(plugin), 1000);
   });
 
   return () => observer.disconnect();

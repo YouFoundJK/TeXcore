@@ -105,8 +105,8 @@ export class MockApp implements App {
     fileManager: FileManager = {} as FileManager;
     metadataCache: MetadataCache;
     vault: MockVault;
-    plugins: any = {} as any;
-    internalPlugins: any = {} as any;
+    plugins: unknown = {};
+    internalPlugins: unknown = {};
     isDarkMode(): boolean {
         return false;
     }

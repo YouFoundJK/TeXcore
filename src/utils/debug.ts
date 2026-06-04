@@ -22,7 +22,7 @@ function canDebug(plugin?: DebugCapablePlugin): boolean {
 
 function writeDebugLine(line: string, plugin?: DebugCapablePlugin) {
   try {
-    fs.appendFileSync(getDefaultLogPath(plugin), line + '\n', { encoding: 'utf-8' });
+    fs.appendFileSync(getDefaultLogPath(plugin), `${line}\n`, { encoding: 'utf-8' });
   } catch (_) {
     // Best-effort only. Console logging should still work.
   }

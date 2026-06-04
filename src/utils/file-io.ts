@@ -42,7 +42,7 @@ export class ActiveNoteIO extends FileIO {
   }
 
   async insertLine(lineNumber: number, text: string): Promise<void> {
-    this.editor.replaceRange(text + '\n', { line: lineNumber, ch: 0 });
+    this.editor.replaceRange(`${text}\n`, { line: lineNumber, ch: 0 });
   }
 
   async getLine(lineNumber: number): Promise<string> {
@@ -118,7 +118,6 @@ export function getIO(
   activeMarkdownView = activeMarkdownView ?? plugin.app.workspace.getActiveViewOfType(MarkdownView);
   if (activeMarkdownView && activeMarkdownView.file == file && isEditingView(activeMarkdownView)) {
     return new ActiveNoteIO(plugin, file, activeMarkdownView.editor);
-  } else {
-    return new NonActiveNoteIO(plugin, file);
   }
+  return new NonActiveNoteIO(plugin, file);
 }

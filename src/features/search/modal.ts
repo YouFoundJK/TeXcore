@@ -32,7 +32,7 @@ export class MathSearchModal extends SuggestModal<EquationBlock> implements Sugg
   }
 
   getSelectedItem(): EquationBlock {
-    return this.chooser.values![this.chooser.selectedItem];
+    return this.chooser.values[this.chooser.selectedItem];
   }
 
   getSuggestions(query: string) {

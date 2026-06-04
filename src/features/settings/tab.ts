@@ -15,7 +15,7 @@ export class MathSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Equation Numbering & Referencing' });
+    new Setting(containerEl).setName('Equation Numbering & Referencing').setHeading();
 
     new Setting(containerEl)
       .setName('Number only referenced equations')
@@ -87,7 +87,7 @@ export class MathSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl('h2', { text: 'Autocomplete & Search' });
+    new Setting(containerEl).setName('Autocomplete & Search').setHeading();
 
     new Setting(containerEl).setName('Enable autocompletion').addToggle(toggle =>
       toggle.setValue(this.plugin.settings.enableSuggest).onChange(async value => {
@@ -110,7 +110,7 @@ export class MathSettingTab extends PluginSettingTab {
       })
     );
 
-    containerEl.createEl('h2', { text: 'PDF Export' });
+    new Setting(containerEl).setName('PDF Export').setHeading();
 
     new Setting(containerEl).setName('Add file name as title').addToggle(toggle =>
       toggle
@@ -259,7 +259,7 @@ export class MathSettingTab extends PluginSettingTab {
         });
       });
 
-    containerEl.createEl('h2', { text: 'TikZJax Rendering' });
+    new Setting(containerEl).setName('TikZJax Rendering').setHeading();
 
     new Setting(containerEl)
       .setName('Enable TikZ rendering')
@@ -285,7 +285,7 @@ export class MathSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl('h2', { text: 'Zotero Cleanup' });
+    new Setting(containerEl).setName('Zotero Cleanup').setHeading();
 
     new Setting(containerEl)
       .setName('Directories to search')
@@ -300,7 +300,7 @@ export class MathSettingTab extends PluginSettingTab {
         textArea.inputEl.setAttr('rows', 3);
       });
 
-    containerEl.createEl('h2', { text: 'Custom Note Hotkeys' });
+    new Setting(containerEl).setName('Custom Note Hotkeys').setHeading();
     containerEl.createEl('p', {
       text: "Configure hotkeys to quickly open specific notes in your vault. You can define optional default hotkeys here, and further customize or rebind them within Obsidian's global 'Hotkeys' settings.",
       cls: 'setting-item-description'

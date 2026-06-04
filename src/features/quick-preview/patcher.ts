@@ -5,7 +5,7 @@ import { PatchedSuggester, PreviewInfo, Suggester } from './types';
 
 export function patchSuggesterWithQuickPreview<T>(
   plugin: LatexReferencer,
-  suggesterClass: new (...args: unknown[]) => Suggester<T>,
+  suggesterClass: new (...args: any[]) => Suggester<T>,
   itemNormalizer: (item: T) => PreviewInfo | null
 ) {
   const uninstaller = around(suggesterClass.prototype, {
