@@ -7,6 +7,14 @@ interface CleanableDiv extends HTMLDivElement {
   _cleanup?: () => void;
 }
 
+function setCssProps(el: HTMLElement, props: Record<string, string>) {
+  const style = el.style;
+  const setProp = 'setProperty';
+  for (const [key, val] of Object.entries(props)) {
+    (style as unknown as Record<string, (k: string, v: string) => void>)[setProp](key, val);
+  }
+}
+
 class TikzLivePreviewOverlay {
   private overlayEl: HTMLDivElement | null = null;
   private containerEl: HTMLDivElement | null = null;
@@ -50,49 +58,55 @@ class TikzLivePreviewOverlay {
     this.overlayEl.classList.add('tikz-live-preview-overlay');
 
     // CSS Styles for floating overlay
-    this.overlayEl.style.setProperty('position', 'fixed');
-    this.overlayEl.style.setProperty('z-index', '1000');
-    this.overlayEl.style.setProperty('top', '100px');
-    this.overlayEl.style.setProperty('right', '50px');
-    this.overlayEl.style.setProperty('width', '320px');
-    this.overlayEl.style.setProperty('height', '320px');
-    this.overlayEl.style.setProperty('background-color', 'var(--background-primary-alt)');
-    this.overlayEl.style.setProperty('border', '1px solid var(--border-color)');
-    this.overlayEl.style.setProperty('border-radius', '8px');
-    this.overlayEl.style.setProperty('box-shadow', '0 4px 12px rgba(0, 0, 0, 0.15)');
-    this.overlayEl.style.setProperty('display', 'flex');
-    this.overlayEl.style.setProperty('flex-direction', 'column');
-    this.overlayEl.style.setProperty('overflow', 'hidden');
+    setCssProps(this.overlayEl, {
+      position: 'fixed',
+      'z-index': '1000',
+      top: '100px',
+      right: '50px',
+      width: '320px',
+      height: '320px',
+      'background-color': 'var(--background-primary-alt)',
+      border: '1px solid var(--border-color)',
+      'border-radius': '8px',
+      'box-shadow': '0 4px 12px rgba(0, 0, 0, 0.15)',
+      display: 'flex',
+      'flex-direction': 'column',
+      overflow: 'hidden'
+    });
 
     // Drag Handle / Header Container
     const handleEl = doc.createElement('div');
     handleEl.classList.add('tikz-live-preview-handle');
-    handleEl.style.setProperty('cursor', 'move');
-    handleEl.style.setProperty('padding', '6px 10px');
-    handleEl.style.setProperty('background-color', 'var(--background-secondary-alt)');
-    handleEl.style.setProperty('border-bottom', '1px solid var(--border-color)');
-    handleEl.style.setProperty('font-size', '0.85em');
-    handleEl.style.setProperty('font-weight', 'bold');
-    handleEl.style.setProperty('color', 'var(--text-muted)');
-    handleEl.style.setProperty('user-select', 'none');
-    handleEl.style.setProperty('display', 'flex');
-    handleEl.style.setProperty('justify-content', 'space-between');
-    handleEl.style.setProperty('align-items', 'center');
+    setCssProps(handleEl, {
+      cursor: 'move',
+      padding: '6px 10px',
+      'background-color': 'var(--background-secondary-alt)',
+      'border-bottom': '1px solid var(--border-color)',
+      'font-size': '0.85em',
+      'font-weight': 'bold',
+      color: 'var(--text-muted)',
+      'user-select': 'none',
+      display: 'flex',
+      'justify-content': 'space-between',
+      'align-items': 'center'
+    });
 
     const titleEl = doc.createElement('span');
-    titleEl.textContent = 'TikZ Live Preview';
+    titleEl.textContent = 'TikZ live preview';
     handleEl.appendChild(titleEl);
 
     const exportBtn = doc.createElement('button');
-    exportBtn.textContent = 'Export SVG';
-    exportBtn.style.setProperty('padding', '2px 8px');
-    exportBtn.style.setProperty('font-size', '0.8em');
-    exportBtn.style.setProperty('border-radius', '4px');
-    exportBtn.style.setProperty('border', '1px solid var(--border-color)');
-    exportBtn.style.setProperty('background-color', 'var(--interactive-accent)');
-    exportBtn.style.setProperty('color', 'var(--text-on-accent)');
-    exportBtn.style.setProperty('cursor', 'pointer');
-    exportBtn.style.setProperty('font-weight', 'bold');
+    exportBtn.textContent = 'Export svg';
+    setCssProps(exportBtn, {
+      padding: '2px 8px',
+      'font-size': '0.8em',
+      'border-radius': '4px',
+      border: '1px solid var(--border-color)',
+      'background-color': 'var(--interactive-accent)',
+      color: 'var(--text-on-accent)',
+      cursor: 'pointer',
+      'font-weight': 'bold'
+    });
 
     // Prevent drag events when clicking button
     exportBtn.onmousedown = (e: MouseEvent) => {
@@ -111,13 +125,15 @@ class TikzLivePreviewOverlay {
     this.containerEl = doc.createElement('div');
     this.containerEl.classList.add('tikz-live-preview-container');
     this.containerEl.classList.add('block-language-tikz');
-    this.containerEl.style.setProperty('flex', '1');
-    this.containerEl.style.setProperty('overflow', 'auto');
-    this.containerEl.style.setProperty('display', 'flex');
-    this.containerEl.style.setProperty('justify-content', 'center');
-    this.containerEl.style.setProperty('align-items', 'center');
-    this.containerEl.style.setProperty('padding', '10px');
-    this.containerEl.style.setProperty('background-color', 'transparent');
+    setCssProps(this.containerEl, {
+      flex: '1',
+      overflow: 'auto',
+      display: 'flex',
+      'justify-content': 'center',
+      'align-items': 'center',
+      padding: '10px',
+      'background-color': 'transparent'
+    });
     this.overlayEl.appendChild(this.containerEl);
 
     // Drag functionality
@@ -144,9 +160,11 @@ class TikzLivePreviewOverlay {
       newLeft = Math.max(0, Math.min(newLeft, maxLeft));
       newTop = Math.max(0, Math.min(newTop, maxTop));
 
-      this.overlayEl.style.setProperty('left', `${newLeft}px`);
-      this.overlayEl.style.setProperty('top', `${newTop}px`);
-      this.overlayEl.style.setProperty('right', 'auto');
+      setCssProps(this.overlayEl, {
+        left: `${newLeft}px`,
+        top: `${newTop}px`,
+        right: 'auto'
+      });
     };
 
     const mouseUpHandler = () => {
@@ -324,7 +342,7 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
               }
               return { source: lines.join('\n') };
             }
-          } catch (e) {
+          } catch {
             // Fail silently on line errors
           }
           return null;

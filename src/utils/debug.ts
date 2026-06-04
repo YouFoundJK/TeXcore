@@ -29,9 +29,9 @@ function writeDebugLine(line: string, plugin?: DebugCapablePlugin) {
   try {
     const adapter = plugin?.app?.vault?.adapter;
     if (adapter && typeof adapter.append === 'function') {
-      adapter.append('latex-referencer-debug.log', `${line}\n`);
+      void adapter.append('latex-referencer-debug.log', `${line}\n`);
     }
-  } catch (_) {
+  } catch {
     // Best-effort only. Console logging should still work.
   }
 }
@@ -64,9 +64,9 @@ export function clearDebugLog(plugin?: DebugCapablePlugin) {
   try {
     const adapter = plugin?.app?.vault?.adapter;
     if (adapter && typeof adapter.write === 'function') {
-      adapter.write('latex-referencer-debug.log', '');
+      void adapter.write('latex-referencer-debug.log', '');
     }
-  } catch (_) {
+  } catch {
     // Ignore write failures.
   }
 }

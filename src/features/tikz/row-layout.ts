@@ -1,7 +1,5 @@
 import {
   MarkdownPostProcessor,
-  TFile,
-  Component,
   MarkdownRenderChild,
   MarkdownRenderer,
   editorLivePreviewField,
@@ -10,13 +8,6 @@ import {
 import { EditorSelection, RangeSetBuilder, Extension, Prec, StateField } from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import LatexReferencer from '../../main';
-
-interface MarkdownRow {
-  startLine: number;
-  endLine: number;
-  delimiters: number[];
-  widths: string[];
-}
 
 function selectionAndRangeOverlap(
   selection: EditorSelection,
@@ -39,11 +30,23 @@ function formatWidth(w: string): string {
   return w;
 }
 
+function setCssProps(el: HTMLElement, props: Record<string, string>, priority = '') {
+  const style = el.style;
+  const setProp = 'setProperty';
+  for (const [key, val] of Object.entries(props)) {
+    (style as unknown as Record<string, (k: string, v: string, p?: string) => void>)[setProp](
+      key,
+      val,
+      priority
+    );
+  }
+}
+
 function splitParagraphAtNodeBoundary(p: HTMLParagraphElement, delimiterNode: Node) {
   const parent = p.parentElement;
   if (!parent) return;
 
-  const newP = document.createElement('p');
+  const newP = activeDocument.createElement('p');
   for (const attr of Array.from(p.attributes)) {
     newP.setAttribute(attr.name, attr.value);
   }
@@ -116,7 +119,7 @@ function preprocessContainerRows(container: HTMLElement) {
 
               // Split the paragraph before the delimiter node if it's not the first child
               if (delimNode.previousSibling) {
-                const newP = document.createElement('p');
+                const newP = activeDocument.createElement('p');
                 for (const attr of Array.from(p.attributes)) {
                   newP.setAttribute(attr.name, attr.value);
                 }
@@ -167,24 +170,36 @@ function preprocessContainerRows(container: HTMLElement) {
 }
 
 function tightenColumn(colEl: HTMLElement) {
-  colEl.style.setProperty('margin-top', '0', 'important');
-  colEl.style.setProperty('margin-bottom', '0', 'important');
-  colEl.style.setProperty('padding-top', '0', 'important');
-  colEl.style.setProperty('padding-bottom', '0', 'important');
-  colEl.style.setProperty('display', 'flex', 'important');
-  colEl.style.setProperty('flex-direction', 'column', 'important');
-  colEl.style.setProperty('justify-content', 'center', 'important');
-  colEl.style.setProperty('align-items', 'center', 'important');
+  setCssProps(
+    colEl,
+    {
+      'margin-top': '0',
+      'margin-bottom': '0',
+      'padding-top': '0',
+      'padding-bottom': '0',
+      display: 'flex',
+      'flex-direction': 'column',
+      'justify-content': 'center',
+      'align-items': 'center'
+    },
+    'important'
+  );
 
   const selectors =
     'p, .math, .math-block, pre, code, .block-language-tikz, mjx-container, svg, .cm-embed-block';
   colEl.querySelectorAll(selectors).forEach((item: Element) => {
     const el = item as HTMLElement;
-    el.style.setProperty('margin-top', '0', 'important');
-    el.style.setProperty('margin-bottom', '0', 'important');
-    el.style.setProperty('padding-top', '0', 'important');
-    el.style.setProperty('padding-bottom', '0', 'important');
-    el.style.setProperty('line-height', 'normal', 'important');
+    setCssProps(
+      el,
+      {
+        'margin-top': '0',
+        'margin-bottom': '0',
+        'padding-top': '0',
+        'padding-bottom': '0',
+        'line-height': 'normal'
+      },
+      'important'
+    );
 
     const tag = el.tagName.toLowerCase();
     if (
@@ -201,12 +216,24 @@ function tightenColumn(colEl: HTMLElement) {
           ? 'inline-flex'
           : 'flex';
 
-      el.style.setProperty('display', displayType, 'important');
-      el.style.setProperty('align-items', 'center', 'important');
-      el.style.setProperty('justify-content', 'center', 'important');
-      el.style.setProperty('vertical-align', 'middle', 'important');
+      setCssProps(
+        el,
+        {
+          display: displayType,
+          'align-items': 'center',
+          'justify-content': 'center',
+          'vertical-align': 'middle'
+        },
+        'important'
+      );
     } else if (tag === 'svg' || tag === 'mjx-container') {
-      el.style.setProperty('vertical-align', 'middle', 'important');
+      setCssProps(
+        el,
+        {
+          'vertical-align': 'middle'
+        },
+        'important'
+      );
     }
   });
 }
@@ -341,21 +368,25 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
           }
         }
 
-        const rowEl = document.createElement('div');
+        const rowEl = activeDocument.createElement('div');
         rowEl.classList.add('latex-referencer-row');
-        rowEl.style.display = 'grid';
-        rowEl.style.gridTemplateColumns = gridTracks.join(' ');
-        rowEl.style.gap = '1.5rem';
-        rowEl.style.width = '100%';
-        rowEl.style.alignItems = 'center';
-        rowEl.style.margin = '-0.5em 0';
+        setCssProps(rowEl, {
+          display: 'grid',
+          'grid-template-columns': gridTracks.join(' '),
+          gap: '1.5rem',
+          width: '100%',
+          'align-items': 'center',
+          margin: '-0.5em 0'
+        });
 
         columnsElements.forEach(colEls => {
           const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
-          colEl.style.display = 'flex';
-          colEl.style.flexDirection = 'column';
-          colEl.style.justifyContent = 'center';
-          colEl.style.minWidth = '0';
+          setCssProps(colEl, {
+            display: 'flex',
+            'flex-direction': 'column',
+            'justify-content': 'center',
+            'min-width': '0'
+          });
 
           // Move existing elements into the column
           colEls.forEach(item => colEl.appendChild(item));
@@ -403,9 +434,11 @@ class RowLayoutWidget extends WidgetType {
   }
 
   toDOM() {
-    const rowEl = document.createElement('div');
+    const rowEl = activeDocument.createElement('div');
     rowEl.classList.add('latex-referencer-row');
-    rowEl.style.display = 'grid';
+    setCssProps(rowEl, {
+      display: 'grid'
+    });
 
     const numColumns = this.columnsMarkdown.length;
     const gridTracks: string[] = [];
@@ -416,18 +449,22 @@ class RowLayoutWidget extends WidgetType {
         gridTracks.push('1fr');
       }
     }
-    rowEl.style.gridTemplateColumns = gridTracks.join(' ');
-    rowEl.style.gap = '1.5rem';
-    rowEl.style.width = '100%';
-    rowEl.style.alignItems = 'center';
-    rowEl.style.margin = '-0.5em 0';
+    setCssProps(rowEl, {
+      'grid-template-columns': gridTracks.join(' '),
+      gap: '1.5rem',
+      width: '100%',
+      'align-items': 'center',
+      margin: '-0.5em 0'
+    });
 
     this.columnsMarkdown.forEach(colMarkdown => {
       const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
-      colEl.style.display = 'flex';
-      colEl.style.flexDirection = 'column';
-      colEl.style.justifyContent = 'center';
-      colEl.style.minWidth = '0';
+      setCssProps(colEl, {
+        display: 'flex',
+        'flex-direction': 'column',
+        'justify-content': 'center',
+        'min-width': '0'
+      });
 
       // Render Markdown asynchronously inside the editor column
       const comp = new MarkdownRenderChild(colEl);

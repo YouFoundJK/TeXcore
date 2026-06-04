@@ -1,9 +1,9 @@
-import LatexReferencer from 'main';
-import { Editor, TFile, CachedMetadata, Notice } from 'obsidian';
+import LatexReferencer from '../main';
+import { Editor, TFile, CachedMetadata } from 'obsidian';
 import { getIO } from './file-io';
 import { getCalloutPrefix, isStructuralCalloutLine } from './parse';
 import { EquationBlock } from 'types';
-import { generateEqId } from './obsidian';
+import { generateEqId, showNotice } from './obsidian';
 
 export function insertDisplayMath(editor: Editor) {
   const cursorPos = editor.getCursor();
@@ -41,7 +41,7 @@ export async function insertBlockIdIfNotExist(
   const insertOffsetInBlock = originalText.lastIndexOf('$$');
   if (insertOffsetInBlock === -1) {
     // This should not be reached if the block is a valid math block.
-    new Notice(`${plugin.manifest.name}: Could not find closing $$ in the math block.`);
+    showNotice(`${plugin.manifest.name}: Could not find closing $$ in the math block.`);
     return;
   }
 

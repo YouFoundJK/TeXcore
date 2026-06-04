@@ -328,7 +328,7 @@ export function fixCanvasToImage(el: HTMLElement) {
 }
 
 export function createWebview(scale = 1.25) {
-  const webview = activeDocument.createElement('webview');
+  const webview = activeDocument.createElement('webview') as HTMLElement & { src: string };
   webview.src = `app://obsidian.md/help.html`;
   webview.setAttribute(
     'style',

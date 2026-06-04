@@ -4,7 +4,6 @@ import {
   KeymapEventHandler,
   PopoverSuggest,
   SuggestModal,
-  UserEvent,
   Suggestions
 } from 'obsidian';
 
@@ -105,12 +104,20 @@ export class PopoverManager<T> extends Component {
     const info = this.itemNormalizer(item);
 
     if (info) {
-      // @ts-ignore - Using internal API
-      const self = this.plugin.app.internalPlugins.getPluginById('page-preview').instance;
-      // @ts-ignore - Using internal API
-      self.onLinkHover(this.currentHoverParent, this.doc.body, info.linktext, info.sourcePath, {
-        scroll: info.line
-      });
+      const self = this.plugin.app.internalPlugins.getPluginById('page-preview')?.instance as {
+        onLinkHover(
+          parent: unknown,
+          body: HTMLElement,
+          linktext: string,
+          sourcePath: string,
+          state: { scroll?: number }
+        ): void;
+      } | null;
+      if (self) {
+        self.onLinkHover(this.currentHoverParent, this.doc.body, info.linktext, info.sourcePath, {
+          scroll: info.line
+        });
+      }
     }
   }
 

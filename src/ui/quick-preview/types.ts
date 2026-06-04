@@ -1,4 +1,4 @@
-import { PopoverSuggest, SuggestModal } from 'obsidian';
+import { PopoverSuggest, SuggestModal, Suggestions, HoverParent } from 'obsidian';
 import { PopoverManager } from './popoverManager';
 
 export type Suggester<T> = PopoverSuggest<T> | SuggestModal<T>;
@@ -20,6 +20,7 @@ declare module 'obsidian' {
 
   interface SuggestModal<T> {
     isOpen: boolean;
+    chooser: Suggestions<T>;
   }
 
   interface HoverPopover {

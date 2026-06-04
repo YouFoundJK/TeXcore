@@ -1,5 +1,5 @@
-import * as fs from 'fs/promises';
 import {
+  App,
   ButtonComponent,
   type FrontMatterCache,
   Modal,
@@ -8,10 +8,36 @@ import {
   TFolder,
   debounce
 } from 'obsidian';
-import * as path from 'path';
 import { PageSize } from 'features/export-pdf/constant';
 import LatexReferencer from 'main';
 import { exportToPDF, getOutputFile, getOutputPath } from 'features/export-pdf/pdf';
+import { showNotice, setCssProps } from 'utils/obsidian';
+
+interface FsPromisesModule {
+  readFile(path: string, options: { encoding: string }): Promise<string>;
+}
+
+interface PathModule {
+  join(...paths: string[]): string;
+}
+
+interface ElectronWebView extends HTMLIFrameElement {
+  executeJavaScript(script: string): Promise<[number, number]>;
+  insertCSS(css: string): Promise<void>;
+  openDevTools(): void;
+  printToPDF(options: Record<string, unknown>): Promise<ArrayBuffer>;
+}
+
+const getRequire = (): ((id: string) => unknown) | null => {
+  if (typeof window !== 'undefined' && 'require' in window) {
+    return (window as unknown as { require: (id: string) => unknown }).require;
+  }
+  return null;
+};
+
+const req = getRequire();
+const fs = req ? (req('fs/promises') as FsPromisesModule) : null;
+const path = req ? (req('path') as PathModule) : null;
 import {
   createWebview,
   fixDoc,
@@ -61,11 +87,28 @@ export type DocType = { doc: Document; frontMatter?: FrontMatterCache; file: TFi
 type Callback = (conf: TConfig) => void;
 
 function fullWidthButton(button: ButtonComponent) {
-  button.buttonEl.setAttribute('style', `margin: "0 auto"; width: -webkit-fill-available`);
+  setCssProps(button.buttonEl, {
+    margin: '0 auto',
+    width: '-webkit-fill-available'
+  });
 }
 
 function setInputWidth(inputEl: HTMLInputElement) {
-  inputEl.setAttribute('style', `width: 100px;`);
+  setCssProps(inputEl, {
+    width: '100px'
+  });
+}
+
+interface CustomCssApp {
+  customCss?: {
+    snippets?: string[];
+    enabledSnippets?: Set<string>;
+  };
+  vault: App['vault'] & {
+    adapter: {
+      basePath: string;
+    };
+  };
 }
 
 export class ExportConfigModal extends Modal {
@@ -74,16 +117,19 @@ export class ExportConfigModal extends Modal {
   multiplePdf?: boolean;
   callback!: Callback;
   file: TFile | TFolder;
-  preview: unknown;
-  webviews: unknown[];
+  preview: ElectronWebView | null = null;
+  webviews: ElectronWebView[];
   previewDiv!: HTMLDivElement;
   completed: boolean;
   docs: DocType[];
   title!: string;
   frontMatter!: FrontMatterCache;
-  scale: number;
+  scale!: number;
   // @ts-ignore
-  svelte: Progress;
+  svelte: {
+    initRenderStates(data: ParamType[]): void;
+    updateRenderStates(i: number): void;
+  } | null = null;
 
   constructor(
     public plugin: LatexReferencer,
@@ -182,23 +228,30 @@ export class ExportConfigModal extends Modal {
     });
   }
   parseToc(doc: Document) {
-    const cache = this.getFileCache(this.file as TFile);
-    const files =
+    if (!(this.file instanceof TFile)) return [];
+    const cache = this.getFileCache(this.file);
+    const results =
       cache?.links
         ?.map(({ link, displayText }) => {
-          const id = crypto.randomUUID();
+          const id: string = crypto.randomUUID();
           const elem = doc.querySelector(`a[data-href="${link}"]`) as HTMLAnchorElement;
           if (elem) {
             elem.href = `#${id}`;
           }
+          const target = this.plugin.app.metadataCache.getFirstLinkpathDest(link, this.file.path);
+          if (!(target instanceof TFile)) {
+            return null;
+          }
           return {
             title: displayText,
-            file: this.app.metadataCache.getFirstLinkpathDest(link, this.file.path) as TFile,
+            file: target,
             id
           };
         })
-        .filter(item => item.file instanceof TFile) ?? [];
-    return files;
+        .filter(
+          (item): item is { title: string | undefined; file: TFile; id: string } => item !== null
+        ) ?? [];
+    return results;
   }
 
   mergeDoc(docs: DocType[]) {
@@ -240,9 +293,11 @@ export class ExportConfigModal extends Modal {
     const scale = Math.floor((mm2px(width) / el.offsetWidth) * 100) / 100;
 
     this.webviews.forEach(wb => {
-      wb.style.transform = `scale(${1 / scale},${1 / scale})`;
-      wb.style.width = `calc(${scale} * 100%)`;
-      wb.style.height = `${mm2px(h)}px`;
+      setCssProps(wb, {
+        transform: `scale(${1 / scale},${1 / scale})`,
+        width: `calc(${scale} * 100%)`,
+        height: `${mm2px(h)}px`
+      });
     });
     this.scale = scale;
     return scale;
@@ -250,24 +305,27 @@ export class ExportConfigModal extends Modal {
 
   async calcWebviewSize() {
     await sleep(500);
-    this.webviews.forEach(async (e, i) => {
+    for (let i = 0; i < this.webviews.length; i++) {
+      const e = this.webviews[i];
       const [width, height] = await e.executeJavaScript(
         '[document.body.offsetWidth, document.body.offsetHeight]'
       );
       const sizeEl = e.parentNode?.querySelector('.print-size');
       if (sizeEl) {
-        sizeEl.innerHTML = `${width}×${height}px\n${px2mm(width)}×${px2mm(height)}mm`;
+        sizeEl.empty();
+        sizeEl.createDiv({ text: `${width}×${height}px` });
+        sizeEl.createDiv({ text: `${px2mm(width)}×${px2mm(height)}mm` });
       }
-    });
+    }
   }
 
   async togglePrintSize() {
-    document.querySelectorAll('.print-size')?.forEach((el: Element) => {
+    activeDocument.querySelectorAll('.print-size')?.forEach((el: Element) => {
       const sizeEl = el as HTMLDivElement;
-      if (this.config['pageSize'] == 'Custom') {
-        sizeEl.style.visibility = 'visible';
+      if (this.config['pageSize'] === 'Custom') {
+        setCssProps(sizeEl, { visibility: 'visible' });
       } else {
-        sizeEl.style.visibility = 'hidden';
+        setCssProps(sizeEl, { visibility: 'hidden' });
       }
     });
   }
@@ -275,7 +333,7 @@ export class ExportConfigModal extends Modal {
   makeWebviewJs(doc: Document) {
     return `
       document.body.innerHTML = decodeURIComponent(\`${encodeURIComponent(doc.body.innerHTML)}\`);
-      document.head.innerHTML = decodeURIComponent(\`${encodeURIComponent(document.head.innerHTML)}\`);
+      document.head.innerHTML = decodeURIComponent(\`${encodeURIComponent(activeDocument.head.innerHTML)}\`);
       
       // Function to recursively decode and replace innerHTML of span.markdown-embed elements
       function decodeAndReplaceEmbed(element) {
@@ -288,9 +346,9 @@ export class ExportConfigModal extends Modal {
       
       // Start the process with all span.markdown-embed elements in the document
       document.querySelectorAll("span.markdown-embed").forEach(decodeAndReplaceEmbed);
-
-      document.body.setAttribute("class", \`${document.body.getAttribute('class')}\`)
-      document.body.setAttribute("style", \`${document.body.getAttribute('style')}\`)
+ 
+      document.body.setAttribute("class", \`${activeDocument.body.getAttribute('class')}\`)
+      document.body.setAttribute("style", \`${activeDocument.body.getAttribute('style')}\`)
       document.body.addClass("theme-light");
       document.body.removeClass("theme-dark");
       document.title = \`${doc.title}\`;
@@ -302,30 +360,36 @@ export class ExportConfigModal extends Modal {
    * @param render Rerender or not
    */
   async appendWebview(e: HTMLDivElement, doc: Document) {
-    const webview = createWebview(this.scale);
+    const webview = createWebview(this.scale) as unknown as ElectronWebView;
     const preview = e.appendChild(webview);
     this.webviews.push(preview);
     this.preview = preview;
-    preview.addEventListener('dom-ready', async e => {
-      this.completed = true;
-      getAllStyles().forEach(async css => {
-        await preview.insertCSS(css);
-      });
-      if (this.config.cssSnippet && this.config.cssSnippet != '0') {
-        try {
-          const cssSnippet = await fs.readFile(this.config.cssSnippet, { encoding: 'utf8' });
-          // remove `@media print { ... }`
-          const printCss = cssSnippet.replaceAll(/@media print\s*{([^}]+)}/g, '$1');
-          await preview.insertCSS(printCss);
-          await preview.insertCSS(cssSnippet);
-        } catch (error) {
-          console.warn(error);
+    preview.addEventListener('dom-ready', () => {
+      void (async () => {
+        this.completed = true;
+        const styles = getAllStyles();
+        for (const css of styles) {
+          await preview.insertCSS(css);
         }
-      }
-      await preview.executeJavaScript(this.makeWebviewJs(doc));
-      getPatchStyle().forEach(async css => {
-        await preview.insertCSS(css);
-      });
+        if (this.config.cssSnippet && this.config.cssSnippet !== '0') {
+          try {
+            if (fs) {
+              const cssSnippet = await fs.readFile(this.config.cssSnippet, { encoding: 'utf8' });
+              // remove `@media print { ... }`
+              const printCss = cssSnippet.replaceAll(/@media print\s*{([^}]+)}/g, '$1');
+              await preview.insertCSS(printCss);
+              await preview.insertCSS(cssSnippet);
+            }
+          } catch {
+            // Ignore snippet loading issues
+          }
+        }
+        await preview.executeJavaScript(this.makeWebviewJs(doc));
+        const patchStyles = getPatchStyle();
+        for (const css of patchStyles) {
+          await preview.insertCSS(css);
+        }
+      })();
     });
   }
   async appendWebviews(el: HTMLDivElement, render = true) {
@@ -340,8 +404,10 @@ export class ExportConfigModal extends Modal {
         }
       });
       const { data, docs } = await this.getAllFiles();
-      this.svelte.initRenderStates(data);
-      await this.renderFiles(data, docs, this.svelte.updateRenderStates);
+      if (this.svelte) {
+        this.svelte.initRenderStates(data);
+        await this.renderFiles(data, docs, i => this.svelte?.updateRenderStates(i));
+      }
     }
     el.empty();
     await Promise.all(
@@ -362,29 +428,33 @@ export class ExportConfigModal extends Modal {
   async onOpen() {
     this.contentEl.empty();
     this.modalEl.addClass('better-export-pdf-modal');
-    this.containerEl.style.setProperty('--dialog-width', '90vw');
-    this.containerEl.style.setProperty('--dialog-height', '90vh');
+    setCssProps(this.containerEl, {
+      '--dialog-width': '90vw',
+      '--dialog-height': '90vh'
+    });
 
-    this.titleEl.setText('Export to PDF');
+    this.titleEl.setText('Export to pdf');
     const wrapper = this.contentEl.createDiv({ attr: { id: 'better-export-pdf' } });
 
-    const title = (this.file as TFile)?.basename ?? this.file?.name;
+    const title = this.file instanceof TFile ? this.file.basename : this.file.name;
 
-    this.previewDiv = wrapper.createDiv({ attr: { class: 'pdf-preview' } }, async el => {
+    this.previewDiv = wrapper.createDiv({ attr: { class: 'pdf-preview' } }, el => {
       el.empty();
       const resizeObserver = new ResizeObserver(() => {
         this.calcPageSize(el);
       });
       resizeObserver.observe(el);
-      await this.appendWebviews(el);
-      this.calcPageSize(el);
-      this.togglePrintSize();
+      void (async () => {
+        await this.appendWebviews(el);
+        this.calcPageSize(el);
+        await this.togglePrintSize();
+      })();
     });
 
     const contentEl = wrapper.createDiv({ attr: { class: 'setting-wrapper' } });
     contentEl.addEventListener('keyup', event => {
       if (event.key === 'Enter') {
-        handleExport();
+        void handleExport();
       }
     });
     this.generateForm(contentEl);
@@ -392,19 +462,18 @@ export class ExportConfigModal extends Modal {
     const handleExport = async () => {
       this.plugin.settings.prevConfig = this.config;
       await this.plugin.saveSettings();
-      if (this.config['pageSize'] == 'Custom') {
+      if (this.config['pageSize'] === 'Custom') {
         if (
           !isNumber(this.config['pageWidth'] ?? '') ||
           !isNumber(this.config['pageHeight'] ?? '')
         ) {
-          alert('When the page size is Custom, the Width/Height cannot be empty.');
+          showNotice('When the page size is Custom, the Width/Height cannot be empty.');
           return;
         }
       }
 
       if (this.multiplePdf) {
         const outputPath = await getOutputPath(title);
-        console.log('output:', outputPath);
         if (outputPath) {
           await Promise.all(
             this.webviews.map(async (wb, i) => {
@@ -433,21 +502,27 @@ export class ExportConfigModal extends Modal {
     };
 
     new Setting(contentEl).setHeading().addButton(button => {
-      button.setButtonText('Export').onClick(handleExport);
+      button.setButtonText('Export').onClick(() => {
+        void handleExport();
+      });
       button.setCta();
       fullWidthButton(button);
     });
 
     new Setting(contentEl).setHeading().addButton(button => {
-      button.setButtonText('Refresh').onClick(async () => {
-        await this.appendWebviews(this.previewDiv);
+      button.setButtonText('Refresh').onClick(() => {
+        void (async () => {
+          await this.appendWebviews(this.previewDiv);
+        })();
       });
       fullWidthButton(button);
     });
 
     const debugEl = new Setting(contentEl).setHeading().addButton(button => {
-      button.setButtonText('Debug').onClick(async () => {
-        this.preview?.openDevTools();
+      button.setButtonText('Debug').onClick(() => {
+        void (async () => {
+          this.preview?.openDevTools();
+        })();
       });
       fullWidthButton(button);
     });
@@ -462,7 +537,7 @@ export class ExportConfigModal extends Modal {
         .onChange(async value => {
           this.config['showTitle'] = value;
           this.webviews.forEach((wv, i) => {
-            wv.executeJavaScript(`
+            void wv.executeJavaScript(`
               var _title = document.querySelector("h1.__title__");
               if (_title) {
               	_title.style.display = "${value ? 'block' : 'none'}";
@@ -470,7 +545,7 @@ export class ExportConfigModal extends Modal {
               `);
             const _title = this.docs[i]?.doc?.querySelector('h1.__title__') as HTMLHeadingElement;
             if (_title) {
-              _title.style.display = value ? 'block' : 'none';
+              setCssProps(_title, { display: value ? 'block' : 'none' });
             }
           });
         })
@@ -489,36 +564,40 @@ export class ExportConfigModal extends Modal {
       'Ledger',
       'Custom'
     ];
-    new Setting(contentEl).setName('Page Size').addDropdown(dropdown => {
+    new Setting(contentEl).setName('Page size').addDropdown(dropdown => {
       dropdown
         .addOptions(Object.fromEntries(pageSizes.map(size => [size, size])))
         .setValue(this.config.pageSize)
-        .onChange(async (value: string) => {
-          this.config['pageSize'] = value;
-          if (value == 'Custom') {
-            sizeEl.settingEl.hidden = false;
-          } else {
-            sizeEl.settingEl.hidden = true;
-          }
-          this.togglePrintSize();
-          this.calcPageSize();
-          await this.calcWebviewSize();
+        .onChange((value: string) => {
+          void (async () => {
+            this.config['pageSize'] = value;
+            if (value === 'Custom') {
+              sizeEl.settingEl.hidden = false;
+            } else {
+              sizeEl.settingEl.hidden = true;
+            }
+            void this.togglePrintSize();
+            this.calcPageSize();
+            await this.calcWebviewSize();
+          })();
         });
     });
 
     const sizeEl = new Setting(contentEl)
-      .setName('Width/Height')
+      .setName('Width/height')
       .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder('width')
+          .setPlaceholder('Width')
           .setValue(this.config['pageWidth'] as string)
           .onChange(
             debounce(
-              async value => {
-                this.config['pageWidth'] = value;
-                this.calcPageSize();
-                await this.calcWebviewSize();
+              value => {
+                void (async () => {
+                  this.config['pageWidth'] = value;
+                  this.calcPageSize();
+                  await this.calcWebviewSize();
+                })();
               },
               500,
               true
@@ -528,7 +607,7 @@ export class ExportConfigModal extends Modal {
       .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder('height')
+          .setPlaceholder('Height')
           .setValue(this.config['pageHeight'] as string)
           .onChange(value => {
             this.config['pageHeight'] = value;
@@ -547,9 +626,9 @@ export class ExportConfigModal extends Modal {
           .addOption('2', 'Small')
           .addOption('3', 'Custom')
           .setValue(this.config['marginType'])
-          .onChange(async (value: string) => {
+          .onChange((value: string) => {
             this.config['marginType'] = value;
-            if (value == '3') {
+            if (value === '3') {
               topEl.settingEl.hidden = false;
               btmEl.settingEl.hidden = false;
             } else {
@@ -560,11 +639,11 @@ export class ExportConfigModal extends Modal {
       });
 
     const topEl = new Setting(contentEl)
-      .setName('Top/Bottom')
+      .setName('Top/bottom')
       .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder('margin top')
+          .setPlaceholder('Margin top')
           .setValue(this.config['marginTop'] as string)
           .onChange(value => {
             this.config['marginTop'] = value;
@@ -573,19 +652,19 @@ export class ExportConfigModal extends Modal {
       .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder('margin bottom')
+          .setPlaceholder('Margin bottom')
           .setValue(this.config['marginBottom'] as string)
           .onChange(value => {
             this.config['marginBottom'] = value;
           });
       });
-    topEl.settingEl.hidden = this.config['marginType'] != '3';
+    topEl.settingEl.hidden = this.config['marginType'] !== '3';
     const btmEl = new Setting(contentEl)
-      .setName('Left/Right')
+      .setName('Left/right')
       .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder('margin left')
+          .setPlaceholder('Margin left')
           .setValue(this.config['marginLeft'] as string)
           .onChange(value => {
             this.config['marginLeft'] = value;
@@ -594,15 +673,15 @@ export class ExportConfigModal extends Modal {
       .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder('margin right')
+          .setPlaceholder('Margin right')
           .setValue(this.config['marginRight'] as string)
           .onChange(value => {
             this.config['marginRight'] = value;
           });
       });
-    btmEl.settingEl.hidden = this.config['marginType'] != '3';
+    btmEl.settingEl.hidden = this.config['marginType'] !== '3';
 
-    new Setting(contentEl).setName('Downscale Percent').addSlider(slider => {
+    new Setting(contentEl).setName('Downscale percent').addSlider(slider => {
       slider
         .setLimits(0, 100, 1)
         .setValue(this.config['scale'])
@@ -613,14 +692,14 @@ export class ExportConfigModal extends Modal {
     });
     new Setting(contentEl).setName('Landscape').addToggle(toggle =>
       toggle
-        .setTooltip('landscape')
+        .setTooltip('Landscape')
         .setValue(this.config['landscape'])
         .onChange(async value => {
           this.config['landscape'] = value;
         })
     );
 
-    new Setting(contentEl).setName('Display Header').addToggle(toggle =>
+    new Setting(contentEl).setName('Display header').addToggle(toggle =>
       toggle
         .setTooltip('Display header')
         .setValue(this.config['displayHeader'])
@@ -629,7 +708,7 @@ export class ExportConfigModal extends Modal {
         })
     );
 
-    new Setting(contentEl).setName('Display Footer').addToggle(toggle =>
+    new Setting(contentEl).setName('Display footer').addToggle(toggle =>
       toggle
         .setTooltip('Display footer')
         .setValue(this.config['displayFooter'])
@@ -650,14 +729,16 @@ export class ExportConfigModal extends Modal {
     const snippets = this.cssSnippets();
 
     if (Object.keys(snippets).length > 0 && this.plugin.settings.enabledCss) {
-      new Setting(contentEl).setName('CSS snippets').addDropdown(dropdown => {
+      new Setting(contentEl).setName('Css snippets').addDropdown(dropdown => {
         dropdown
           .addOption('0', 'Not select')
           .addOptions(snippets)
           .setValue(this.config['cssSnippet'] as string)
-          .onChange(async (value: string) => {
-            this.config['cssSnippet'] = value;
-            await this.appendWebviews(this.previewDiv, false);
+          .onChange((value: string) => {
+            void (async () => {
+              this.config['cssSnippet'] = value;
+              await this.appendWebviews(this.previewDiv, false);
+            })();
           });
       });
     }
@@ -668,22 +749,21 @@ export class ExportConfigModal extends Modal {
     contentEl.empty();
     if (this.svelte) {
       // Remove the Counter from the ItemView.
-      unmount(this.svelte);
+      void unmount(this.svelte);
     }
   }
 
   cssSnippets(): Record<string, string> {
-    // @ts-ignore
-    const { snippets, enabledSnippets } = this.app?.customCss ?? {};
-    // @ts-ignore
-    const basePath = this.app.vault.adapter.basePath;
-    return Object.fromEntries(
-      snippets
-        ?.filter((item: string) => !enabledSnippets.has(item))
-        .map((name: string) => {
-          const file = path.join(basePath, this.app.vault.configDir, 'snippets', `${name}.css`);
-          return [file, name];
-        })
-    );
+    const customApp = this.app as unknown as CustomCssApp;
+    const { snippets, enabledSnippets } = customApp.customCss ?? {};
+    const basePath = customApp.vault.adapter.basePath;
+    if (!path || !snippets || !enabledSnippets) return {};
+    const entries = snippets
+      .filter((item: string) => !enabledSnippets.has(item))
+      .map((name: string): [string, string] => {
+        const file = path.join(basePath, this.app.vault.configDir, 'snippets', `${name}.css`);
+        return [file, name];
+      });
+    return Object.fromEntries(entries);
   }
 }

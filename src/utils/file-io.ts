@@ -69,7 +69,7 @@ export class NonActiveNoteIO extends FileIO {
   }
 
   async setLine(lineNumber: number, text: string): Promise<void> {
-    this.plugin.app.vault.process(this.file, (data: string): string => {
+    await this.plugin.app.vault.process(this.file, (data: string): string => {
       const lines = splitIntoLines(data);
       lines[lineNumber] = text;
       return lines.join('\n');
@@ -77,7 +77,7 @@ export class NonActiveNoteIO extends FileIO {
   }
 
   async setRange(position: Pos, text: string): Promise<void> {
-    this.plugin.app.vault.process(this.file, (data: string): string => {
+    await this.plugin.app.vault.process(this.file, (data: string): string => {
       return (
         data.slice(0, position.start.offset) +
         text +
@@ -87,7 +87,7 @@ export class NonActiveNoteIO extends FileIO {
   }
 
   async insertLine(lineNumber: number, text: string): Promise<void> {
-    this.plugin.app.vault.process(this.file, (data: string): string => {
+    await this.plugin.app.vault.process(this.file, (data: string): string => {
       const lines = splitIntoLines(data);
       insertAt(lines, text, lineNumber);
       return lines.join('\n');
@@ -116,7 +116,7 @@ export function getIO(
   activeMarkdownView?: MarkdownView | null
 ) {
   activeMarkdownView = activeMarkdownView ?? plugin.app.workspace.getActiveViewOfType(MarkdownView);
-  if (activeMarkdownView && activeMarkdownView.file == file && isEditingView(activeMarkdownView)) {
+  if (activeMarkdownView && activeMarkdownView.file === file && isEditingView(activeMarkdownView)) {
     return new ActiveNoteIO(plugin, file, activeMarkdownView.editor);
   }
   return new NonActiveNoteIO(plugin, file);

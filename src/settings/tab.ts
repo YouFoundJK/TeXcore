@@ -2,6 +2,7 @@ import { App, PluginSettingTab, Setting, TextAreaComponent } from 'obsidian';
 import LatexReferencer from 'main';
 import { NUMBER_STYLES } from './settings';
 import { NoteSuggestModal } from '../ui/custom-notes/modal';
+import { setCssProps } from 'utils/obsidian';
 
 export class MathSettingTab extends PluginSettingTab {
   constructor(
@@ -15,7 +16,7 @@ export class MathSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName('Equation Numbering & Referencing').setHeading();
+    new Setting(containerEl).setName('Equation numbering & referencing').setHeading();
 
     new Setting(containerEl)
       .setName('Number only referenced equations')
@@ -79,7 +80,7 @@ export class MathSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Show note title in equation link')
-      .setDesc('If turned on, a link to an equation will be like "Note title > (1.1)".')
+      .setDesc('If turned on, a link to an equation will be like "note title > (1.1)".')
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.noteTitleInEquationLink).onChange(async value => {
           this.plugin.settings.noteTitleInEquationLink = value;
@@ -87,7 +88,7 @@ export class MathSettingTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl).setName('Autocomplete & Search').setHeading();
+    new Setting(containerEl).setName('Autocomplete & search').setHeading();
 
     new Setting(containerEl).setName('Enable autocompletion').addToggle(toggle =>
       toggle.setValue(this.plugin.settings.enableSuggest).onChange(async value => {
@@ -110,7 +111,7 @@ export class MathSettingTab extends PluginSettingTab {
       })
     );
 
-    new Setting(containerEl).setName('PDF Export').setHeading();
+    new Setting(containerEl).setName('Pdf export').setHeading();
 
     new Setting(containerEl).setName('Add file name as title').addToggle(toggle =>
       toggle
@@ -118,7 +119,7 @@ export class MathSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.showTitle)
         .onChange(async value => {
           this.plugin.settings.showTitle = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         })
     );
     new Setting(containerEl).setName('Display headers').addToggle(toggle =>
@@ -127,7 +128,7 @@ export class MathSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.displayHeader)
         .onChange(async value => {
           this.plugin.settings.displayHeader = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         })
     );
     new Setting(containerEl).setName('Display footer').addToggle(toggle =>
@@ -136,7 +137,7 @@ export class MathSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.displayFooter)
         .onChange(async value => {
           this.plugin.settings.displayFooter = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         })
     );
 
@@ -146,19 +147,19 @@ export class MathSettingTab extends PluginSettingTab {
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.printBackground).onChange(async value => {
           this.plugin.settings.printBackground = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         })
       );
 
     new Setting(containerEl)
-      .setName('Generate tagged PDF')
+      .setName('Generate tagged pdf')
       .setDesc(
-        'Whether or not to generate a tagged (accessible) PDF. Defaults to false. As this property is experimental, the generated PDF may not adhere fully to PDF/UA and WCAG standards.'
+        'Whether or not to generate a tagged (accessible) pdf. Defaults to false. As this property is experimental, the generated pdf may not adhere fully to pdf/ua and wcag standards.'
       )
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.generateTaggedPDF).onChange(async value => {
           this.plugin.settings.generateTaggedPDF = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         })
       );
 
@@ -170,29 +171,29 @@ export class MathSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.maxLevel)
         .onChange(async (value: string) => {
           this.plugin.settings.maxLevel = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         });
     });
 
     new Setting(containerEl)
-      .setName('PDF metadata')
+      .setName('Pdf metadata')
       .setDesc('Add frontMatter(title, author, keywords, subject creator, etc) to pdf metadata')
       .addToggle(toggle =>
         toggle.setValue(this.plugin.settings.displayMetadata).onChange(async value => {
           this.plugin.settings.displayMetadata = value;
-          this.plugin.saveSettings();
+          await this.plugin.saveSettings();
         })
       );
 
     new Setting(containerEl).setName('Advanced').setHeading();
 
     const headerContentAreaSetting = new Setting(containerEl);
-    headerContentAreaSetting.settingEl.setAttribute(
-      'style',
-      'display: grid; grid-template-columns: 1fr;'
-    );
+    setCssProps(headerContentAreaSetting.settingEl, {
+      display: 'grid',
+      'grid-template-columns': '1fr'
+    });
     headerContentAreaSetting
-      .setName('Header Template')
+      .setName('Header template')
       .setDesc(
         'HTML template for the print header. ' +
           'Should be valid HTML markup with following classes used to inject printing values into them: ' +
@@ -200,32 +201,36 @@ export class MathSettingTab extends PluginSettingTab {
       );
     const hederContentArea = new TextAreaComponent(headerContentAreaSetting.controlEl);
 
-    setAttributes(hederContentArea.inputEl, {
-      style: 'margin-top: 12px; width: 100%; height: 6vh;'
+    setCssProps(hederContentArea.inputEl, {
+      'margin-top': '12px',
+      width: '100%',
+      height: '6vh'
     });
     hederContentArea.setValue(this.plugin.settings.headerTemplate).onChange(async value => {
       this.plugin.settings.headerTemplate = value;
-      this.plugin.saveSettings();
+      await this.plugin.saveSettings();
     });
 
     const footerContentAreaSetting = new Setting(containerEl);
-    footerContentAreaSetting.settingEl.setAttribute(
-      'style',
-      'display: grid; grid-template-columns: 1fr;'
-    );
+    setCssProps(footerContentAreaSetting.settingEl, {
+      display: 'grid',
+      'grid-template-columns': '1fr'
+    });
     footerContentAreaSetting
-      .setName('Footer Template')
+      .setName('Footer template')
       .setDesc(
-        'HTML template for the print footer. Should use the same format as the headerTemplate.'
+        'Html template for the print footer. Should use the same format as the headerTemplate.'
       );
     const footerContentArea = new TextAreaComponent(footerContentAreaSetting.controlEl);
 
-    setAttributes(footerContentArea.inputEl, {
-      style: 'margin-top: 12px; width: 100%; height: 6vh;'
+    setCssProps(footerContentArea.inputEl, {
+      'margin-top': '12px',
+      width: '100%',
+      height: '6vh'
     });
     footerContentArea.setValue(this.plugin.settings.footerTemplate).onChange(async value => {
       this.plugin.settings.footerTemplate = value;
-      this.plugin.saveSettings();
+      await this.plugin.saveSettings();
     });
 
     new Setting(containerEl)
@@ -259,7 +264,7 @@ export class MathSettingTab extends PluginSettingTab {
         });
       });
 
-    new Setting(containerEl).setName('TikZJax Rendering').setHeading();
+    new Setting(containerEl).setName('TikZJax rendering').setHeading();
 
     new Setting(containerEl)
       .setName('Enable TikZ rendering')
@@ -285,12 +290,12 @@ export class MathSettingTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl).setName('Zotero Cleanup').setHeading();
+    new Setting(containerEl).setName('Zotero cleanup').setHeading();
 
     new Setting(containerEl)
       .setName('Directories to search')
       .setDesc(
-        "Comma-separated list of directories to search recursively for Zotero annotations (e.g. 'Zotero,Notes/Readings')."
+        "Comma-separated list of directories to search recursively for Zotero annotations (e.g. 'Zotero,notes/readings')."
       )
       .addTextArea(textArea => {
         textArea.setValue(this.plugin.settings.zoteroCleanDirectories).onChange(async value => {
@@ -300,9 +305,9 @@ export class MathSettingTab extends PluginSettingTab {
         textArea.inputEl.setAttr('rows', 3);
       });
 
-    new Setting(containerEl).setName('Custom Note Hotkeys').setHeading();
+    new Setting(containerEl).setName('Custom note hotkeys').setHeading();
     containerEl.createEl('p', {
-      text: "Configure hotkeys to quickly open specific notes in your vault. You can define optional default hotkeys here, and further customize or rebind them within Obsidian's global 'Hotkeys' settings.",
+      text: "Configure hotkeys to quickly open specific notes in your vault. You can define optional default hotkeys here, and further customize or rebind them within Obsidian's global 'hotkeys' settings.",
       cls: 'setting-item-description'
     });
 
@@ -310,64 +315,68 @@ export class MathSettingTab extends PluginSettingTab {
       .setName('Add new hotkey mapping')
       .setDesc('Create a new shortcut command to open a specific note.')
       .addButton(btn =>
-        btn
-          .setButtonText('+ Add hotkey mapping')
-          .setCta()
-          .onClick(async () => {
-            if (!this.plugin.settings.customNoteHotkeys) {
-              this.plugin.settings.customNoteHotkeys = [];
-            }
-            this.plugin.settings.customNoteHotkeys.push({
-              id: Date.now().toString(),
-              notePath: '',
-              name: '',
-              hotkeyModifiers: ['Mod'],
-              hotkeyKey: ''
-            });
-            await this.plugin.saveSettings();
-            this.plugin.customNoteManager.registerCommands();
-            this.display();
-          })
+        btn.onClick(async () => {
+          if (!this.plugin.settings.customNoteHotkeys) {
+            this.plugin.settings.customNoteHotkeys = [];
+          }
+          this.plugin.settings.customNoteHotkeys.push({
+            id: Date.now().toString(),
+            notePath: '',
+            name: '',
+            hotkeyModifiers: ['Mod'],
+            hotkeyKey: ''
+          });
+          await this.plugin.saveSettings();
+          this.plugin.customNoteManager.registerCommands();
+          (this as unknown as { display(): void }).display();
+        })
       );
 
     const hotkeys = this.plugin.settings.customNoteHotkeys || [];
     hotkeys.forEach((item, index) => {
       const hotkeyContainer = containerEl.createEl('div', {
-        cls: 'custom-note-hotkey-item',
-        attr: {
-          style:
-            'border: 1px solid var(--background-modifier-border); padding: 15px; margin-bottom: 15px; border-radius: 8px; background-color: var(--background-primary-alt);'
-        }
+        cls: 'custom-note-hotkey-item'
+      });
+      setCssProps(hotkeyContainer, {
+        border: '1px solid var(--background-modifier-border)',
+        padding: '15px',
+        'margin-bottom': '15px',
+        'border-radius': '8px',
+        'background-color': 'var(--background-primary-alt)'
       });
 
-      const titleRow = hotkeyContainer.createEl('div', {
-        attr: {
-          style:
-            'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;'
-        }
+      const titleRow = hotkeyContainer.createEl('div');
+      setCssProps(titleRow, {
+        display: 'flex',
+        'justify-content': 'space-between',
+        'align-items': 'center',
+        'margin-bottom': '10px'
       });
       titleRow.createEl('strong', { text: `Hotkey Mapping #${index + 1}` });
 
       const deleteBtn = titleRow.createEl('button', {
         text: 'Delete',
-        cls: 'mod-warning',
-        attr: {
-          style: 'background-color: var(--background-modifier-error); color: var(--text-on-accent);'
-        }
+        cls: 'mod-warning'
       });
-      deleteBtn.addEventListener('click', async () => {
-        hotkeys.splice(index, 1);
-        await this.plugin.saveSettings();
-        this.plugin.customNoteManager.registerCommands();
-        this.display();
+      setCssProps(deleteBtn, {
+        'background-color': 'var(--background-modifier-error)',
+        color: 'var(--text-on-accent)'
+      });
+      deleteBtn.addEventListener('click', () => {
+        void (async () => {
+          hotkeys.splice(index, 1);
+          await this.plugin.saveSettings();
+          this.plugin.customNoteManager.registerCommands();
+          (this as unknown as { display(): void }).display();
+        })();
       });
 
       new Setting(hotkeyContainer)
         .setName('Friendly name')
-        .setDesc("A clear label for the Obsidian command (e.g. 'Daily Planner').")
+        .setDesc("A clear label for the Obsidian command (e.g. 'daily planner').")
         .addText(text =>
           text
-            .setPlaceholder('e.g. My Note')
+            .setPlaceholder('E.g. My note')
             .setValue(item.name)
             .onChange(async value => {
               item.name = value;
@@ -378,7 +387,7 @@ export class MathSettingTab extends PluginSettingTab {
 
       const pathSetting = new Setting(hotkeyContainer)
         .setName('Note path')
-        .setDesc('The relative vault path to the target markdown note.');
+        .setDesc('The relative vault path to the target Markdown note.');
 
       pathSetting.addText(text => {
         text
@@ -393,13 +402,15 @@ export class MathSettingTab extends PluginSettingTab {
         pathSetting.addButton(btn =>
           btn
             .setIcon('search')
-            .setTooltip('Browse/Search vault notes')
+            .setTooltip('Browse/search vault notes')
             .onClick(() => {
-              new NoteSuggestModal(this.app, async file => {
-                text.setValue(file.path);
-                item.notePath = file.path;
-                await this.plugin.saveSettings();
-                this.plugin.customNoteManager.registerCommands();
+              new NoteSuggestModal(this.app, file => {
+                void (async () => {
+                  text.setValue(file.path);
+                  item.notePath = file.path;
+                  await this.plugin.saveSettings();
+                  this.plugin.customNoteManager.registerCommands();
+                })();
               }).open();
             })
         );
@@ -415,7 +426,7 @@ export class MathSettingTab extends PluginSettingTab {
 
       hotkeySetting.addToggle(toggle =>
         toggle
-          .setTooltip('Ctrl / Cmd (Mod)')
+          .setTooltip('Ctrl / cmd (mod)')
           .setValue(isMod)
           .onChange(async value => {
             if (value) {
@@ -427,10 +438,10 @@ export class MathSettingTab extends PluginSettingTab {
             this.plugin.customNoteManager.registerCommands();
           })
       );
-      hotkeySetting.controlEl.createSpan({
-        text: 'Ctrl/Cmd ',
-        attr: { style: 'margin-right: 15px; font-size: 0.9em;' }
+      const span1 = hotkeySetting.controlEl.createSpan({
+        text: 'Ctrl/Cmd '
       });
+      setCssProps(span1, { 'margin-right': '15px', 'font-size': '0.9em' });
 
       hotkeySetting.addToggle(toggle =>
         toggle
@@ -446,10 +457,10 @@ export class MathSettingTab extends PluginSettingTab {
             this.plugin.customNoteManager.registerCommands();
           })
       );
-      hotkeySetting.controlEl.createSpan({
-        text: 'Alt ',
-        attr: { style: 'margin-right: 15px; font-size: 0.9em;' }
+      const span2 = hotkeySetting.controlEl.createSpan({
+        text: 'Alt '
       });
+      setCssProps(span2, { 'margin-right': '15px', 'font-size': '0.9em' });
 
       hotkeySetting.addToggle(toggle =>
         toggle
@@ -465,10 +476,10 @@ export class MathSettingTab extends PluginSettingTab {
             this.plugin.customNoteManager.registerCommands();
           })
       );
-      hotkeySetting.controlEl.createSpan({
-        text: 'Shift ',
-        attr: { style: 'margin-right: 15px; font-size: 0.9em;' }
+      const span3 = hotkeySetting.controlEl.createSpan({
+        text: 'Shift '
       });
+      setCssProps(span3, { 'margin-right': '15px', 'font-size': '0.9em' });
 
       hotkeySetting.addText(text =>
         text
@@ -492,11 +503,5 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
-  }
-}
-
-function setAttributes(element: HTMLTextAreaElement, attributes: { [x: string]: string }) {
-  for (const key in attributes) {
-    element.setAttribute(key, attributes[key]);
   }
 }

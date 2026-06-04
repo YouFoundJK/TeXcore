@@ -1,4 +1,4 @@
-import { parseLinktext, resolveSubpath } from 'obsidian';
+import { parseLinktext, resolveSubpath, HeadingSubpathResult, BlockSubpathResult } from 'obsidian';
 import LatexReferencer from 'main';
 
 /**
@@ -18,7 +18,11 @@ export function getMathLink(
   const subpathResult = cache ? resolveSubpath(cache, subpath) : null;
 
   for (const provider of plugin.internalProviders) {
-    const provided = provider.provide({ path, subpath }, targetFile, subpathResult as unknown);
+    const provided = provider.provide(
+      { path, subpath },
+      targetFile,
+      subpathResult as HeadingSubpathResult | BlockSubpathResult | null
+    );
     if (provided) {
       return provided;
     }

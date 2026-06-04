@@ -3,7 +3,6 @@ import {
   Editor,
   EditorSuggestContext,
   Instruction,
-  Notice,
   Scope,
   SearchResult,
   TFile,
@@ -13,6 +12,7 @@ import {
   renderMath,
   sortSearchResults
 } from 'obsidian';
+import { showNotice } from 'utils/obsidian';
 import LatexReferencer from 'main';
 import { EquationBlock } from 'types';
 import { LEAF_OPTION_TO_ARGS } from '../../settings/settings';
@@ -51,7 +51,7 @@ export class ActiveNoteSearchCore {
       const item = this.parent.getSelectedItem();
       const file = this.app.vault.getAbstractFileByPath(item.$file);
       if (!(file instanceof TFile)) return;
-      openFileAndSelectPosition(
+      void openFileAndSelectPosition(
         this.app,
         file,
         item.$pos,
@@ -86,7 +86,7 @@ export class ActiveNoteSearchCore {
   async getSuggestions(query: string): Promise<EquationBlock[]> {
     const blocks = await this.getUnsortedSuggestions();
     const callback = (
-      this.plugin.settings.searchMethod == 'Fuzzy' ? prepareFuzzySearch : prepareSimpleSearch
+      this.plugin.settings.searchMethod === 'Fuzzy' ? prepareFuzzySearch : prepareSimpleSearch
     )(query);
     const results: ScoredEquationBlock[] = [];
 
@@ -117,8 +117,8 @@ export class ActiveNoteSearchCore {
   }
 
   selectSuggestion(item: EquationBlock, evt: MouseEvent | KeyboardEvent): void {
-    this.selectSuggestionImpl(item);
-    finishRenderMath();
+    void this.selectSuggestionImpl(item);
+    void finishRenderMath();
   }
 
   async selectSuggestionImpl(block: EquationBlock): Promise<void> {
@@ -140,7 +140,7 @@ export class ActiveNoteSearchCore {
         { line: end.line + lineAdded, ch: end.ch }
       );
     } else {
-      new Notice(`${this.plugin.manifest.name}: Failed to read cache. Retry again later.`, 5000);
+      showNotice(`${this.plugin.manifest.name}: Failed to read cache. Retry again later.`, 5000);
     }
   }
 }

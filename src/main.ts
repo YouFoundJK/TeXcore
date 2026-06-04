@@ -6,8 +6,8 @@ import {
   Menu,
   TFolder,
   Editor,
-  Notice,
-  MarkdownFileInfo
+  MarkdownFileInfo,
+  EventRef
 } from 'obsidian';
 import type { Extension } from '@codemirror/state';
 import { around } from 'monkey-around';
@@ -33,6 +33,7 @@ import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { processActiveNoteEquations } from './core/equations/numbering';
 import { ExportConfigModal } from './ui/export-pdf/modal';
 import { checkAndFixCalloutMath } from 'utils/fixer';
+import { showNotice } from 'utils/obsidian';
 import { traverseFolder } from 'features/export-pdf/utils';
 import { SnippetManager } from 'features/snippets/manager';
 import { processZoteroCleanup } from 'features/zotero-cleanup';
@@ -44,6 +45,7 @@ import {
 } from './features/tikz/row-layout';
 import { createTikzLivePreviewPlugin } from './features/tikz/live-preview-overlay';
 
+declare const process: { env: { NODE_ENV?: string } };
 const isDev = process.env.NODE_ENV === 'development';
 
 export default class LatexReferencer extends Plugin {
@@ -79,7 +81,7 @@ export default class LatexReferencer extends Plugin {
       name: 'Remove duplicate Zotero annotations',
       editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
         if (ctx instanceof MarkdownView) {
-          processZoteroCleanup(this, ctx);
+          void processZoteroCleanup(this, ctx);
         }
       }
     });
@@ -92,9 +94,9 @@ export default class LatexReferencer extends Plugin {
         const fixed = checkAndFixCalloutMath(content);
         if (fixed) {
           editor.setValue(fixed);
-          new Notice('Fixed callout equations.');
+          showNotice('Fixed callout equations.');
         } else {
-          new Notice('No issues found or no changes needed.');
+          showNotice('No issues found or no changes needed.');
         }
       }
     });
@@ -115,7 +117,7 @@ export default class LatexReferencer extends Plugin {
 
     this.addCommand({
       id: 'export-current-file-to-pdf',
-      name: 'Export current file to PDF',
+      name: 'Export current file to pdf',
       checkCallback: (checking: boolean) => {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
         const file = view?.file;
@@ -133,7 +135,11 @@ export default class LatexReferencer extends Plugin {
 
     // Menu items for file export
     this.registerEvent(
-      (this.app.workspace as unknown).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
+      (
+        this.app.workspace as unknown as {
+          on(name: 'file-menu', callback: (menu: Menu, file: TFile | TFolder) => void): EventRef;
+        }
+      ).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
         let title = file instanceof TFolder ? 'Export folder to PDF' : 'Better Export PDF';
         if (isDev) {
           title = `${title} (dev)`;
@@ -152,7 +158,11 @@ export default class LatexReferencer extends Plugin {
     );
 
     this.registerEvent(
-      (this.app.workspace as unknown).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
+      (
+        this.app.workspace as unknown as {
+          on(name: 'file-menu', callback: (menu: Menu, file: TFile | TFolder) => void): EventRef;
+        }
+      ).on('file-menu', (menu: Menu, file: TFile | TFolder) => {
         if (file instanceof TFolder) {
           let title = 'Export to PDF...';
           if (isDev) {
@@ -160,11 +170,10 @@ export default class LatexReferencer extends Plugin {
           }
           menu.addItem(item => {
             item.setTitle(title).setIcon('lucide-folder-down').setSection('action');
-            // @ts-ignore
-            const subMenu: Menu = item.setSubmenu();
+            const subMenu = (item as unknown as { setSubmenu: () => Menu }).setSubmenu();
             subMenu.addItem(item =>
               item
-                .setTitle('Export each file to PDF')
+                .setTitle('Export each file to pdf')
                 .setIcon('lucide-file-stack')
                 .onClick(async () => {
                   new ExportConfigModal(this, file, true).open();
@@ -206,7 +215,9 @@ export default class LatexReferencer extends Plugin {
     this.registerMarkdownPostProcessor(createEquationNumberProcessor(this));
     this.registerMarkdownPostProcessor(CustomMathLinksProcessor(this));
     this.registerMarkdownPostProcessor(createRowLayoutProcessor(this));
-    this.app.workspace.onLayoutReady(() => this.forceRerender());
+    this.app.workspace.onLayoutReady(() => {
+      void this.forceRerender();
+    });
 
     this.patchPagePreview();
     this.register(setupDOMObserver(this));
@@ -217,7 +228,10 @@ export default class LatexReferencer extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...((await this.loadData()) as Partial<PluginSettings>)
+    };
   }
 
   async saveSettings() {
@@ -234,34 +248,46 @@ export default class LatexReferencer extends Plugin {
     this.app.workspace.updateOptions();
   }
 
-  forceRerender() {
-    window.setTimeout(async () => {
-      for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
-        const view = leaf.view as MarkdownView;
+  private forceRerender() {
+    this.app.workspace.iterateAllLeaves(leaf => {
+      const view = leaf.view;
+      if (view instanceof MarkdownView) {
         view.previewMode.rerender(true);
       }
-    }, 800);
+    });
   }
 
-  patchPagePreview() {
-    const pagePreviewPlugin = this.app.internalPlugins.getPluginById('page-preview');
-    if (!pagePreviewPlugin?.instance) {
-      console.log('Latex Referencer: Page Preview plugin not found. Cannot patch hover behavior.');
+  private patchPagePreview() {
+    const pagePreviewPlugin = this.app.internalPlugins.getPluginById('page-preview') as unknown as {
+      enabled: boolean;
+      instance: unknown;
+    } | null;
+    if (!pagePreviewPlugin?.enabled) {
       return;
     }
 
     const instance = pagePreviewPlugin.instance;
-    const plugin = this;
+    const app = this.app;
+    const getEquations = (file: TFile, content: string) =>
+      processActiveNoteEquations(this, file, content);
 
-    const uninstaller = around(instance, {
+    const uninstaller = around(instance as Record<string, unknown>, {
       onLinkHover(old: unknown) {
+        const oldFunc = old as (
+          this: unknown,
+          hoverParent: unknown,
+          targetEl: unknown,
+          linktext: string,
+          sourcePath: string,
+          state: Record<string, unknown>
+        ) => unknown;
         return function (
           this: unknown,
           hoverParent: unknown,
           targetEl: unknown,
           linktext: string,
           sourcePath: string,
-          state: unknown
+          state: Record<string, unknown>
         ) {
           const { path, subpath } = parseLinktext(linktext);
 
@@ -274,33 +300,33 @@ export default class LatexReferencer extends Plugin {
             if (subIndexMatch) {
               blockId = subpathText.substring(0, subIndexMatch.index);
             }
-            const targetFile = plugin.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
+            const targetFile = app.metadataCache.getFirstLinkpathDest(path, sourcePath);
 
             if (targetFile instanceof TFile) {
-              const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+              const activeView = app.workspace.getActiveViewOfType(MarkdownView);
               const activeFile = activeView?.file;
               const activeContent =
                 typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
 
               if (!activeFile || targetFile.path !== activeFile.path || activeContent === null) {
-                return old.call(this, hoverParent, targetEl, linktext, sourcePath, state);
+                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
               }
 
-              const equations = processActiveNoteEquations(plugin, activeFile, activeContent);
+              const equations = getEquations(activeFile, activeContent);
               const targetEquation = equations.get(blockId);
 
               if (targetEquation) {
                 const line = targetEquation.$position.start;
                 const newState = { ...state, scroll: line };
                 // Immediately call the original function with the correct line number
-                return old.call(this, hoverParent, targetEl, linktext, sourcePath, newState);
+                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, newState);
               }
             }
           }
 
           // If it's not our link, or if we couldn't find it in the cache,
           // call the original function without modification.
-          return old.call(this, hoverParent, targetEl, linktext, sourcePath, state);
+          return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
         };
       }
     });

@@ -58,7 +58,13 @@ export function generateEqId(length: number = 8): string {
   return result;
 }
 
-export function showNotice(message: string): Notice {
+export function showNotice(message: string, duration?: number): Notice {
   const NoticeConstructor = Notice;
-  return new NoticeConstructor(message);
+  return new NoticeConstructor(message, duration);
+}
+
+export function setCssProps(el: HTMLElement, props: Record<string, string>) {
+  for (const [key, value] of Object.entries(props)) {
+    el.style.setProperty(key, value);
+  }
 }

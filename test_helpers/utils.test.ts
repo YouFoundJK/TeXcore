@@ -57,7 +57,8 @@ describe('format.ts tests', () => {
 
   it('getEqNumberPrefix', () => {
     const dummyApp = {} as App;
-    const dummyFile = {} as TFile;
+    type TempTFile = TFile;
+    const dummyFile = {} as unknown as TempTFile;
     const settings = {
       eqNumberPrefix: 'Prefix-'
     } as unknown;

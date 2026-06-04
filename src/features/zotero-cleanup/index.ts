@@ -1,16 +1,17 @@
-import { MarkdownView, Notice } from 'obsidian';
+import { MarkdownView } from 'obsidian';
+import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../main';
 
 export const processZoteroCleanup = async (plugin: LatexReferencer, activeView: MarkdownView) => {
   const activeFile = activeView.file;
   if (!activeFile) {
-    new Notice('No active file to process.');
+    showNotice('No active file to process.');
     return;
   }
 
   const dirsSetting = plugin.settings.zoteroCleanDirectories;
   if (!dirsSetting || dirsSetting.trim().length === 0) {
-    new Notice('No Zotero cleanup directories configured in settings.');
+    showNotice('No Zotero cleanup directories configured in settings.');
     return;
   }
 
@@ -21,17 +22,17 @@ export const processZoteroCleanup = async (plugin: LatexReferencer, activeView: 
     .map(d => d.replace(/^\/+|\/+$/g, '')); // remove leading/trailing slashes
 
   if (directories.length === 0) {
-    new Notice('No valid Zotero cleanup directories configured.');
+    showNotice('No valid Zotero cleanup directories configured.');
     return;
   }
 
   const app = plugin.app;
   const activeContent = activeView.editor.getValue();
-  const urlRegex = /zotero:\/\/[^\s\)<>"]+/g;
+  const urlRegex = /zotero:\/\/[^\s)<>"]+/g;
 
   const activeUrlsMatches = activeContent.match(urlRegex);
   if (!activeUrlsMatches || activeUrlsMatches.length === 0) {
-    new Notice('No Zotero URLs found in the active note.');
+    showNotice('No Zotero URLs found in the active note.');
     return;
   }
 
@@ -44,12 +45,12 @@ export const processZoteroCleanup = async (plugin: LatexReferencer, activeView: 
   });
 
   if (otherFiles.length === 0) {
-    new Notice('No other markdown files found in the specified directories.');
+    showNotice('No other Markdown files found in the specified directories.');
     return;
   }
 
   const existingUrls = new Set<string>();
-  const notice = new Notice('Scanning directories for duplicate Zotero annotations...', 0);
+  const notice = showNotice('Scanning directories for duplicate Zotero annotations...', 0);
 
   try {
     for (const file of otherFiles) {
@@ -66,7 +67,7 @@ export const processZoteroCleanup = async (plugin: LatexReferencer, activeView: 
   }
 
   if (existingUrls.size === 0) {
-    new Notice('No duplicate Zotero annotations found.');
+    showNotice('No duplicate Zotero annotations found.');
     return;
   }
 
@@ -111,8 +112,8 @@ export const processZoteroCleanup = async (plugin: LatexReferencer, activeView: 
   const newContent = newLines.join('\n');
   if (newContent !== activeContent) {
     activeView.editor.setValue(newContent);
-    new Notice(`Removed ${existingUrls.size} duplicate Zotero annotation(s).`);
+    showNotice(`Removed ${existingUrls.size} duplicate Zotero annotation(s).`);
   } else {
-    new Notice('No changes made.');
+    showNotice('No changes made.');
   }
 };

@@ -5,22 +5,24 @@ import { PatchedSuggester, PreviewInfo, Suggester } from './types';
 
 export function patchSuggesterWithQuickPreview<T>(
   plugin: LatexReferencer,
-  suggesterClass: new (...args: unknown[]) => Suggester<T>,
+  suggesterClass: new (plugin: LatexReferencer) => Suggester<T>,
   itemNormalizer: (item: T) => PreviewInfo | null
 ) {
   const uninstaller = around(suggesterClass.prototype, {
-    open(old) {
+    open(old: unknown) {
+      const oldFunc = old as (this: unknown) => void;
       return function (this: PatchedSuggester<T>) {
-        old.call(this);
+        oldFunc.call(this);
         if (!this.popoverManager) {
           this.popoverManager = new PopoverManager<T>(plugin, this, itemNormalizer);
         }
         this.popoverManager.load();
       };
     },
-    close(old) {
+    close(old: unknown) {
+      const oldFunc = old as (this: unknown) => void;
       return function (this: PatchedSuggester<T>) {
-        old.call(this);
+        oldFunc.call(this);
         // close() can be called before open() at startup, so we need the optional chaining (?.)
         this.popoverManager?.unload();
       };

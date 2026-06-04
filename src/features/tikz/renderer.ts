@@ -1,4 +1,5 @@
-import { Notice, requestUrl } from 'obsidian';
+import { requestUrl } from 'obsidian';
+import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../main';
 
 export class TikzRenderer {
@@ -31,7 +32,7 @@ export class TikzRenderer {
       this.isLoaded = true;
     } catch (error) {
       console.error('Latex Referencer: Failed to initialize TikZJax rendering', error);
-      new Notice('Failed to initialize TikZJax diagram rendering.');
+      showNotice('Failed to initialize TikZJax diagram rendering.');
     }
   }
 
@@ -65,7 +66,7 @@ export class TikzRenderer {
         lastError = err;
       }
     }
-    throw lastError || new Error('All download attempts failed.');
+    throw lastError instanceof Error ? lastError : new Error('All download attempts failed.');
   }
 
   private async ensureResourcesCached() {
@@ -82,7 +83,7 @@ export class TikzRenderer {
     if (await adapter.exists(jsPath)) {
       const content = await adapter.read(jsPath);
       if (!content.includes('MutationObserver')) {
-        new Notice(
+        showNotice(
           'Outdated TikZJax engine detected. Clearing cache to fetch offline-capable version...'
         );
         await adapter.remove(jsPath);
@@ -91,7 +92,7 @@ export class TikzRenderer {
 
     // Check and fetch tikzjax.js
     if (!(await adapter.exists(jsPath))) {
-      new Notice('Downloading TikZJax engine (one-time setup)...');
+      showNotice('Downloading TikZJax engine (one-time setup)...');
       const jsUrls = [
         'https://cdn.jsdelivr.net/gh/artisticat1/obsidian-tikzjax@main/tikzjax.js',
         'https://raw.githubusercontent.com/artisticat1/obsidian-tikzjax/main/tikzjax.js'
@@ -99,10 +100,10 @@ export class TikzRenderer {
       try {
         const text = await this.fetchWithFallback(jsUrls);
         await adapter.write(jsPath, text);
-        new Notice('TikZJax engine cached successfully.');
+        showNotice('TikZJax engine cached successfully.');
       } catch (err) {
         console.error('Failed to download tikzjax.js', err);
-        throw new Error('Failed to download TikZJax JavaScript resource.');
+        throw new Error('Failed to download TikZJax JavaScript resource.', { cause: err });
       }
     }
 
@@ -118,7 +119,7 @@ export class TikzRenderer {
         await adapter.write(cssPath, text);
       } catch (err) {
         console.error('Failed to download tikzjax.css', err);
-        throw new Error('Failed to download TikZJax CSS resource.');
+        throw new Error('Failed to download TikZJax CSS resource.', { cause: err });
       }
     }
   }
@@ -213,7 +214,7 @@ export class TikzRenderer {
 
   private unloadTikZJax(doc: Document) {
     // Trigger the cleanup function in the document's window context if it exists
-    const win = doc.defaultView as unknown;
+    const win = doc.defaultView as unknown as { TikzJaxCleanup?: () => Promise<void> } | null;
     if (win && typeof win.TikzJaxCleanup === 'function') {
       win
         .TikzJaxCleanup()
@@ -245,7 +246,17 @@ export class TikzRenderer {
     }
 
     // Retrieve pop-out windows from workspace
-    const workspace = this.plugin.app.workspace as unknown;
+    const workspace = this.plugin.app.workspace as unknown as {
+      floatingSplit?: {
+        children: {
+          view?: {
+            containerEl?: {
+              win?: Window;
+            };
+          };
+        }[];
+      };
+    };
     const floatingSplit = workspace.floatingSplit;
     if (floatingSplit && floatingSplit.children) {
       for (const child of floatingSplit.children) {

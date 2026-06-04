@@ -1,9 +1,10 @@
-import { App, Editor, FuzzyMatch, FuzzySuggestModal, Notice } from 'obsidian';
+import { App, Editor, FuzzyMatch, FuzzySuggestModal } from 'obsidian';
 import {
   BUILTIN_TEXT_TRANSFORM_SNIPPETS,
   runTextTransformSnippet,
   TextTransformSnippet
 } from '../../features/snippets/transforms';
+import { showNotice } from 'utils/obsidian';
 
 export class TextTransformSuggestModal extends FuzzySuggestModal<TextTransformSnippet> {
   constructor(
@@ -30,9 +31,9 @@ export class TextTransformSuggestModal extends FuzzySuggestModal<TextTransformSn
   onChooseItem(item: TextTransformSnippet, evt: MouseEvent | KeyboardEvent): void {
     const result = runTextTransformSnippet(this.editor, item);
     if (result.changedCount > 0) {
-      new Notice(`Applied ${item.name} to ${result.changedCount} ${result.appliedOn}(s).`);
+      showNotice(`Applied ${item.name} to ${result.changedCount} ${result.appliedOn}(s).`);
       return;
     }
-    new Notice(`${item.name} made no changes to the current ${result.appliedOn}.`);
+    showNotice(`${item.name} made no changes to the current ${result.appliedOn}.`);
   }
 }
