@@ -136,6 +136,14 @@ export class TikzRenderer {
             console.warn("Latex Referencer: Could not find original trigger in tikzjax.js for patching.");
         }
 
+        // Patch tikzjax-load-finished dispatchEvent calls to use optional chaining to prevent uncaught null reference errors
+        if (jsText.includes('.dispatchEvent(new CustomEvent("tikzjax-load-finished"')) {
+            jsText = jsText.replaceAll('.dispatchEvent(new CustomEvent("tikzjax-load-finished"', '?.dispatchEvent(new CustomEvent("tikzjax-load-finished"');
+        }
+        if (jsText.includes(".dispatchEvent(new CustomEvent('tikzjax-load-finished'")) {
+            jsText = jsText.replaceAll(".dispatchEvent(new CustomEvent('tikzjax-load-finished'", "?.dispatchEvent(new CustomEvent('tikzjax-load-finished'");
+        }
+
         this.tikzjaxJs = jsText;
 
         if (await adapter.exists(`${pluginDir}/tikzjax.css`)) {
