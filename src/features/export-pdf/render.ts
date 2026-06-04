@@ -1,28 +1,36 @@
-import { App, Component, type FrontMatterCache, MarkdownRenderer, MarkdownView, Notice, TFile } from "obsidian";
-import type { TConfig } from "./modal";
-import { copyAttributes, fixAnchors, modifyDest } from "./utils";
-import { checkAndFixCalloutMath } from "../../utils/fixer";
+import {
+  App,
+  Component,
+  type FrontMatterCache,
+  MarkdownRenderer,
+  MarkdownView,
+  Notice,
+  TFile
+} from 'obsidian';
+import type { TConfig } from './modal';
+import { copyAttributes, fixAnchors, modifyDest } from './utils';
+import { checkAndFixCalloutMath } from '../../utils/fixer';
 
 export function getAllStyles() {
   const cssTexts: string[] = [];
 
-  Array.from(document.styleSheets).forEach((sheet) => {
+  Array.from(document.styleSheets).forEach(sheet => {
     // @ts-ignore
     const id = sheet.ownerNode?.id;
 
     // <style id="svelte-xxx" ignore
-    if (id?.startsWith("svelte-")) {
+    if (id?.startsWith('svelte-')) {
       return;
     }
     // @ts-ignore
     const href = sheet.ownerNode?.href;
 
-    const division = `/* ----------${id ? `id:${id}` : href ? `href:${href}` : ""}---------- */`;
+    const division = `/* ----------${id ? `id:${id}` : href ? `href:${href}` : ''}---------- */`;
 
     cssTexts.push(division);
 
     try {
-      Array.from(sheet?.cssRules ?? []).forEach((rule) => {
+      Array.from(sheet?.cssRules ?? []).forEach(rule => {
         cssTexts.push(rule.cssText);
       });
     } catch (error) {
@@ -83,13 +91,13 @@ export function getPatchStyle() {
 
 export function getPrintStyle() {
   const cssTexts: string[] = [];
-  Array.from(document.styleSheets).forEach((sheet) => {
+  Array.from(document.styleSheets).forEach(sheet => {
     try {
       const cssRules = sheet?.cssRules ?? [];
-      Array.from(cssRules).forEach((rule) => {
-        if (rule.constructor.name == "CSSMediaRule") {
-          if ((rule as CSSMediaRule).conditionText === "print") {
-            const res = rule.cssText.replace(/@media print\s*\{(.+)\}/gms, "$1");
+      Array.from(cssRules).forEach(rule => {
+        if (rule.constructor.name == 'CSSMediaRule') {
+          if ((rule as CSSMediaRule).conditionText === 'print') {
+            const res = rule.cssText.replace(/@media print\s*\{(.+)\}/gms, '$1');
             cssTexts.push(res);
           }
         }
@@ -102,7 +110,7 @@ export function getPrintStyle() {
 }
 
 function generateDocId(n: number) {
-  return Array.from({ length: n }, () => ((16 * Math.random()) | 0).toString(16)).join("");
+  return Array.from({ length: n }, () => ((16 * Math.random()) | 0).toString(16)).join('');
 }
 
 export type AyncFnType = (...args: unknown[]) => Promise<unknown>;
@@ -141,14 +149,14 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   // @ts-ignore
   const data: string = view?.data ?? ws?.getActiveFileView()?.data ?? ws.activeEditor?.data;
   if (!data) {
-    new Notice("data is empty!");
+    new Notice('data is empty!');
   }
 
   const frontMatter = getFrontMatter(app, file);
 
   const cssclasses = [];
   for (const [key, val] of Object.entries(frontMatter)) {
-    if (key.toLowerCase() == "cssclass" || key.toLowerCase() == "cssclasses") {
+    if (key.toLowerCase() == 'cssclass' || key.toLowerCase() == 'cssclasses') {
       if (Array.isArray(val)) {
         cssclasses.push(...val);
       } else {
@@ -160,22 +168,22 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   const comp = new Component();
   comp.load();
 
-  const printEl = document.body.createDiv("print");
+  const printEl = document.body.createDiv('print');
   const viewEl = printEl.createDiv({
-    cls: "markdown-preview-view markdown-rendered " + cssclasses.join(" "),
+    cls: 'markdown-preview-view markdown-rendered ' + cssclasses.join(' ')
   });
   app.vault.cachedRead(file);
 
   // @ts-ignore
-  viewEl.toggleClass("rtl", app.vault.getConfig("rightToLeft"));
+  viewEl.toggleClass('rtl', app.vault.getConfig('rightToLeft'));
   // @ts-ignore
-  viewEl.toggleClass("show-properties", "hidden" !== app.vault.getConfig("propertiesInDocument"));
+  viewEl.toggleClass('show-properties', 'hidden' !== app.vault.getConfig('propertiesInDocument'));
 
   const title = extra?.title ?? frontMatter?.title ?? file.basename;
-  viewEl.createEl("h1", { text: title }, (e) => {
-    e.addClass("__title__");
-    e.style.display = config.showTitle ? "block" : "none";
-    e.id = extra?.id ?? "";
+  viewEl.createEl('h1', { text: title }, e => {
+    e.addClass('__title__');
+    e.style.display = config.showTitle ? 'block' : 'none';
+    e.id = extra?.id ?? '';
   });
 
   const cache = app.metadataCache.getFileCache(file);
@@ -187,10 +195,10 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   // });
 
   const blocks = new Map(Object.entries(cache?.blocks ?? {}));
-  const lines = (data?.split("\n") ?? []).map((line, i) => {
+  const lines = (data?.split('\n') ?? []).map((line, i) => {
     for (const {
       id,
-      position: { start, end },
+      position: { start, end }
     } of blocks.values()) {
       const blockid = `^${id}`;
       if (line.includes(blockid) && i >= start.line && i <= end.line) {
@@ -214,16 +222,16 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   // We allow the render to complete (including implicit post-processing on the detached element)
   // and then move the content. The subsequent manual postProcess call ensures we capture
   // any necessary promises for the PDF generation wait-cycle.
-  const tempContainer = document.createElement("div");
+  const tempContainer = document.createElement('div');
   // Apply the fix for callout math blocks if needed
-  const linesContent = lines.join("\n");
+  const linesContent = lines.join('\n');
   const fixedContent = checkAndFixCalloutMath(linesContent) ?? linesContent;
 
   await MarkdownRenderer.render(app, fixedContent, tempContainer, file.path, comp);
 
   const el = createFragment();
-  Array.from(tempContainer.children).forEach((item) => {
-    el.createDiv({}, (t) => {
+  Array.from(tempContainer.children).forEach(item => {
+    el.createDiv({}, t => {
       return t.appendChild(item);
     });
   });
@@ -246,28 +254,28 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
     },
     containerEl: viewEl,
     el: viewEl,
-    displayMode: true,
+    displayMode: true
   });
   await Promise.all(promises);
 
-  printEl.findAll("a.internal-link").forEach((el: HTMLAnchorElement) => {
-    const [title, anchor] = el.dataset.href?.split("#") ?? [];
+  printEl.findAll('a.internal-link').forEach((el: HTMLAnchorElement) => {
+    const [title, anchor] = el.dataset.href?.split('#') ?? [];
 
-    if ((!title || title?.length == 0 || title == file.basename) && anchor?.startsWith("^")) {
+    if ((!title || title?.length == 0 || title == file.basename) && anchor?.startsWith('^')) {
       return;
     }
 
-    el.removeAttribute("href");
+    el.removeAttribute('href');
   });
   try {
     await fixWaitRender(data, viewEl);
   } catch (error) {
-    console.warn("wait timeout");
+    console.warn('wait timeout');
   }
 
   fixCanvasToImage(viewEl);
 
-  const doc = document.implementation.createHTMLDocument("document");
+  const doc = document.implementation.createHTMLDocument('document');
   doc.body.appendChild(printEl.cloneNode(true));
 
   printEl.detach();
@@ -287,12 +295,12 @@ export function fixDoc(doc: Document, title: string) {
 }
 
 export function encodeEmbeds(doc: Document) {
-  const spans = Array.from(doc.querySelectorAll("span.markdown-embed")).reverse();
+  const spans = Array.from(doc.querySelectorAll('span.markdown-embed')).reverse();
   spans.forEach((span: HTMLElement) => (span.innerHTML = encodeURIComponent(span.innerHTML)));
 }
 
 export async function fixWaitRender(data: string, viewEl: HTMLElement) {
-  if (data.includes("```dataview") || data.includes("```gEvent") || data.includes("![[")) {
+  if (data.includes('```dataview') || data.includes('```gEvent') || data.includes('![[')) {
     await sleep(2000);
   }
   try {
@@ -305,37 +313,37 @@ export async function fixWaitRender(data: string, viewEl: HTMLElement) {
 // TODO: base64 to canvas
 // TODO: light render canvas
 export function fixCanvasToImage(el: HTMLElement) {
-  for (const canvas of Array.from(el.querySelectorAll("canvas"))) {
+  for (const canvas of Array.from(el.querySelectorAll('canvas'))) {
     const data = canvas.toDataURL();
-    const img = document.createElement("img");
+    const img = document.createElement('img');
     img.src = data;
     copyAttributes(img, canvas.attributes);
-    img.className = "__canvas__";
+    img.className = '__canvas__';
 
     canvas.replaceWith(img);
   }
 }
 
 export function createWebview(scale = 1.25) {
-  const webview = document.createElement("webview");
+  const webview = document.createElement('webview');
   webview.src = `app://obsidian.md/help.html`;
   webview.setAttribute(
-    "style",
+    'style',
     `height:calc(${scale} * 100%);
      width: calc(${scale} * 100%);
      transform: scale(${1 / scale}, ${1 / scale});
      transform-origin: top left;
      border: 1px solid #f2f2f2;
-    `,
+    `
   );
-  webview.setAttribute("nodeintegration", "true");
+  webview.setAttribute('nodeintegration', 'true');
   return webview;
 }
 
 function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): Promise<boolean> {
   return new Promise((resolve, reject) => {
     let timer: NodeJS.Timeout;
-    const observer = new MutationObserver((m) => {
+    const observer = new MutationObserver(m => {
       clearTimeout(timer);
       timer = setTimeout(() => {
         observer.disconnect();
@@ -347,7 +355,7 @@ function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): 
       childList: true,
       subtree: true,
       attributes: true,
-      characterData: true,
+      characterData: true
     });
 
     setTimeout(() => {

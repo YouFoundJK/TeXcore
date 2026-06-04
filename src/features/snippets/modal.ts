@@ -1,10 +1,17 @@
-import { App, Editor, FuzzyMatch, FuzzySuggestModal, Notice } from "obsidian";
-import { BUILTIN_TEXT_TRANSFORM_SNIPPETS, runTextTransformSnippet, TextTransformSnippet } from "./transforms";
+import { App, Editor, FuzzyMatch, FuzzySuggestModal, Notice } from 'obsidian';
+import {
+  BUILTIN_TEXT_TRANSFORM_SNIPPETS,
+  runTextTransformSnippet,
+  TextTransformSnippet
+} from './transforms';
 
 export class TextTransformSuggestModal extends FuzzySuggestModal<TextTransformSnippet> {
-  constructor(app: App, private editor: Editor) {
+  constructor(
+    app: App,
+    private editor: Editor
+  ) {
     super(app);
-    this.setPlaceholder("Select a text transform snippet...");
+    this.setPlaceholder('Select a text transform snippet...');
   }
 
   getItems(): TextTransformSnippet[] {
@@ -12,12 +19,12 @@ export class TextTransformSuggestModal extends FuzzySuggestModal<TextTransformSn
   }
 
   getItemText(item: TextTransformSnippet): string {
-    return `${item.name} ${item.keywords.join(" ")}`;
+    return `${item.name} ${item.keywords.join(' ')}`;
   }
 
   renderSuggestion(item: FuzzyMatch<TextTransformSnippet>, el: HTMLElement): void {
-    el.createEl("div", { text: item.item.name });
-    el.createEl("small", { text: item.item.description });
+    el.createEl('div', { text: item.item.name });
+    el.createEl('small', { text: item.item.description });
   }
 
   onChooseItem(item: TextTransformSnippet, evt: MouseEvent | KeyboardEvent): void {

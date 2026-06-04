@@ -1,15 +1,30 @@
-import * as fs from "fs/promises";
-import { ButtonComponent, type FrontMatterCache, Modal, Setting, TFile, TFolder, debounce } from "obsidian";
-import * as path from "path";
-import { PageSize } from "./constant";
-import LatexReferencer from "../../main";
-import { exportToPDF, getOutputFile, getOutputPath } from "./pdf";
-import { createWebview, fixDoc, getAllStyles, getPatchStyle, renderMarkdown, type ParamType } from "./render";
-import { isNumber, mm2px, px2mm, safeParseFloat, safeParseInt, traverseFolder } from "./utils";
-import Progress from "./Progress.svelte";
-import { mount, unmount } from "svelte";
-import pLimit from "p-limit";
-export type PageSizeType = Electron.PrintToPDFOptions["pageSize"];
+import * as fs from 'fs/promises';
+import {
+  ButtonComponent,
+  type FrontMatterCache,
+  Modal,
+  Setting,
+  TFile,
+  TFolder,
+  debounce
+} from 'obsidian';
+import * as path from 'path';
+import { PageSize } from './constant';
+import LatexReferencer from '../../main';
+import { exportToPDF, getOutputFile, getOutputPath } from './pdf';
+import {
+  createWebview,
+  fixDoc,
+  getAllStyles,
+  getPatchStyle,
+  renderMarkdown,
+  type ParamType
+} from './render';
+import { isNumber, mm2px, px2mm, safeParseFloat, safeParseInt, traverseFolder } from './utils';
+import Progress from './Progress.svelte';
+import { mount, unmount } from 'svelte';
+import pLimit from 'p-limit';
+export type PageSizeType = Electron.PrintToPDFOptions['pageSize'];
 
 export interface TConfig {
   pageSize: string;
@@ -39,11 +54,11 @@ export type DocType = { doc: Document; frontMatter?: FrontMatterCache; file: TFi
 type Callback = (conf: TConfig) => void;
 
 function fullWidthButton(button: ButtonComponent) {
-  button.buttonEl.setAttribute("style", `margin: "0 auto"; width: -webkit-fill-available`);
+  button.buttonEl.setAttribute('style', `margin: "0 auto"; width: -webkit-fill-available`);
 }
 
 function setInputWidth(inputEl: HTMLInputElement) {
-  inputEl.setAttribute("style", `width: 100px;`);
+  inputEl.setAttribute('style', `width: 100px;`);
 }
 
 export class ExportConfigModal extends Modal {
@@ -52,8 +67,8 @@ export class ExportConfigModal extends Modal {
   multiplePdf?: boolean;
   callback: Callback;
   file: TFile | TFolder;
-  preview: Electron.WebViewElement;
-  webviews: Electron.WebViewElement[];
+  preview: any;
+  webviews: any[];
   previewDiv: HTMLDivElement;
   completed: boolean;
   docs: DocType[];
@@ -63,7 +78,11 @@ export class ExportConfigModal extends Modal {
   // @ts-ignore
   svelte: Progress;
 
-  constructor(public plugin: LatexReferencer, file: TFile | TFolder, multiplePdf?: boolean) {
+  constructor(
+    public plugin: LatexReferencer,
+    file: TFile | TFolder,
+    multiplePdf?: boolean
+  ) {
     super(plugin.app);
     this.canceled = true;
     this.file = file;
@@ -74,20 +93,20 @@ export class ExportConfigModal extends Modal {
     this.multiplePdf = multiplePdf;
 
     this.config = {
-      pageSize: "A4",
-      marginType: "1",
+      pageSize: 'A4',
+      marginType: '1',
       showTitle: plugin.settings.showTitle ?? true,
       open: true,
       scale: 100,
       landscape: false,
-      marginTop: "10",
-      marginBottom: "10",
-      marginLeft: "10",
-      marginRight: "10",
+      marginTop: '10',
+      marginBottom: '10',
+      marginLeft: '10',
+      marginRight: '10',
       displayHeader: plugin.settings.displayHeader ?? true,
       displayFooter: plugin.settings.displayHeader ?? true,
-      cssSnippet: "0",
-      ...(plugin.settings?.prevConfig ?? {}),
+      cssSnippet: '0',
+      ...(plugin.settings?.prevConfig ?? {})
     } as TConfig;
   }
 
@@ -105,11 +124,15 @@ export class ExportConfigModal extends Modal {
         data.push({
           app,
           file,
-          config: this.config,
+          config: this.config
         });
       }
     } else {
-      const { doc, frontMatter, file } = await renderMarkdown({ app, file: this.file, config: this.config });
+      const { doc, frontMatter, file } = await renderMarkdown({
+        app,
+        file: this.file,
+        config: this.config
+      });
       docs.push({ doc, frontMatter, file });
       if (frontMatter.toc) {
         const files = this.parseToc(doc);
@@ -118,7 +141,7 @@ export class ExportConfigModal extends Modal {
             app,
             file: item.file,
             config: this.config,
-            extra: item,
+            extra: item
           });
         }
       }
@@ -135,7 +158,7 @@ export class ExportConfigModal extends Modal {
         const res = await renderMarkdown(param);
         cb?.(i);
         return res;
-      }),
+      })
     );
     let _docs = [...(docs ?? []), ...(await Promise.all(inputs))];
 
@@ -164,10 +187,10 @@ export class ExportConfigModal extends Modal {
           return {
             title: displayText,
             file: this.app.metadataCache.getFirstLinkpathDest(link, this.file.path) as TFile,
-            id,
+            id
           };
         })
-        .filter((item) => item.file instanceof TFile) ?? [];
+        .filter(item => item.file instanceof TFile) ?? [];
     return files;
   }
 
@@ -175,22 +198,22 @@ export class ExportConfigModal extends Modal {
     const { doc: doc0, frontMatter, file } = docs[0];
     const sections = [];
     for (const { doc } of docs) {
-      const element = doc.querySelector(".markdown-preview-view");
+      const element = doc.querySelector('.markdown-preview-view');
 
       if (element) {
-        const section = doc0.createElement("section");
-        Array.from(element.children).forEach((child) => {
+        const section = doc0.createElement('section');
+        Array.from(element.children).forEach(child => {
           section.appendChild(doc0.importNode(child, true));
         });
 
         sections.push(section);
       }
     }
-    const root = doc0.querySelector(".markdown-preview-view");
+    const root = doc0.querySelector('.markdown-preview-view');
     if (root) {
-      root.innerHTML = "";
+      root.innerHTML = '';
     }
-    sections.forEach((section) => {
+    sections.forEach(section => {
       root?.appendChild(section);
     });
 
@@ -200,13 +223,16 @@ export class ExportConfigModal extends Modal {
   calcPageSize(element?: HTMLDivElement, config?: TConfig) {
     const { pageSize, pageWidth, pageHeight } = config ?? this.config;
     const el = element ?? this.previewDiv;
-    const [w, h] = PageSize?.[pageSize as string] ?? [safeParseFloat(pageWidth as string, 210), safeParseFloat(pageHeight as string, 297)];
+    const [w, h] = PageSize?.[pageSize as string] ?? [
+      safeParseFloat(pageWidth as string, 210),
+      safeParseFloat(pageHeight as string, 297)
+    ];
 
     // Scale is ratio of PDF Page Width in Pixels to Container Width in Pixels
     const width = w;
     const scale = Math.floor((mm2px(width) / el.offsetWidth) * 100) / 100;
 
-    this.webviews.forEach((wb) => {
+    this.webviews.forEach(wb => {
       wb.style.transform = `scale(${1 / scale},${1 / scale})`;
       wb.style.width = `calc(${scale} * 100%)`;
       wb.style.height = `${mm2px(h)}px`;
@@ -218,8 +244,10 @@ export class ExportConfigModal extends Modal {
   async calcWebviewSize() {
     await sleep(500);
     this.webviews.forEach(async (e, i) => {
-      const [width, height] = await e.executeJavaScript("[document.body.offsetWidth, document.body.offsetHeight]");
-      const sizeEl = e.parentNode?.querySelector(".print-size");
+      const [width, height] = await e.executeJavaScript(
+        '[document.body.offsetWidth, document.body.offsetHeight]'
+      );
+      const sizeEl = e.parentNode?.querySelector('.print-size');
       if (sizeEl) {
         sizeEl.innerHTML = `${width}×${height}px\n${px2mm(width)}×${px2mm(height)}mm`;
       }
@@ -227,11 +255,11 @@ export class ExportConfigModal extends Modal {
   }
 
   async togglePrintSize() {
-    document.querySelectorAll(".print-size")?.forEach((sizeEl: HTMLDivElement) => {
-      if (this.config["pageSize"] == "Custom") {
-        sizeEl.style.visibility = "visible";
+    document.querySelectorAll('.print-size')?.forEach((sizeEl: HTMLDivElement) => {
+      if (this.config['pageSize'] == 'Custom') {
+        sizeEl.style.visibility = 'visible';
       } else {
-        sizeEl.style.visibility = "hidden";
+        sizeEl.style.visibility = 'hidden';
       }
     });
   }
@@ -253,8 +281,8 @@ export class ExportConfigModal extends Modal {
       // Start the process with all span.markdown-embed elements in the document
       document.querySelectorAll("span.markdown-embed").forEach(decodeAndReplaceEmbed);
 
-      document.body.setAttribute("class", \`${document.body.getAttribute("class")}\`)
-      document.body.setAttribute("style", \`${document.body.getAttribute("style")}\`)
+      document.body.setAttribute("class", \`${document.body.getAttribute('class')}\`)
+      document.body.setAttribute("style", \`${document.body.getAttribute('style')}\`)
       document.body.addClass("theme-light");
       document.body.removeClass("theme-dark");
       document.title = \`${doc.title}\`;
@@ -270,16 +298,16 @@ export class ExportConfigModal extends Modal {
     const preview = e.appendChild(webview);
     this.webviews.push(preview);
     this.preview = preview;
-    preview.addEventListener("dom-ready", async (e) => {
+    preview.addEventListener('dom-ready', async e => {
       this.completed = true;
-      getAllStyles().forEach(async (css) => {
+      getAllStyles().forEach(async css => {
         await preview.insertCSS(css);
       });
-      if (this.config.cssSnippet && this.config.cssSnippet != "0") {
+      if (this.config.cssSnippet && this.config.cssSnippet != '0') {
         try {
-          const cssSnippet = await fs.readFile(this.config.cssSnippet, { encoding: "utf8" });
+          const cssSnippet = await fs.readFile(this.config.cssSnippet, { encoding: 'utf8' });
           // remove `@media print { ... }`
-          const printCss = cssSnippet.replaceAll(/@media print\s*{([^}]+)}/g, "$1");
+          const printCss = cssSnippet.replaceAll(/@media print\s*{([^}]+)}/g, '$1');
           await preview.insertCSS(printCss);
           await preview.insertCSS(cssSnippet);
         } catch (error) {
@@ -287,7 +315,7 @@ export class ExportConfigModal extends Modal {
         }
       }
       await preview.executeJavaScript(this.makeWebviewJs(doc));
-      getPatchStyle().forEach(async (css) => {
+      getPatchStyle().forEach(async css => {
         await preview.insertCSS(css);
       });
     });
@@ -300,8 +328,8 @@ export class ExportConfigModal extends Modal {
       this.svelte = mount(Progress, {
         target: el,
         props: {
-          startCount: 5,
-        },
+          startCount: 5
+        }
       });
       const { data, docs } = await this.getAllFiles();
       this.svelte.initRenderStates(data);
@@ -313,28 +341,28 @@ export class ExportConfigModal extends Modal {
         if (this.multiplePdf) {
           el.createDiv({
             text: `${i + 1}-${doc.title}`,
-            attr: { class: "filename" },
+            attr: { class: 'filename' }
           });
         }
-        const div = el.createDiv({ attr: { class: "webview-wrapper" } });
-        div.createDiv({ attr: { class: "print-size" } });
+        const div = el.createDiv({ attr: { class: 'webview-wrapper' } });
+        div.createDiv({ attr: { class: 'print-size' } });
         await this.appendWebview(div, doc);
-      }),
+      })
     );
     await this.calcWebviewSize();
   }
   async onOpen() {
     this.contentEl.empty();
-    this.modalEl.addClass("better-export-pdf-modal");
-    this.containerEl.style.setProperty("--dialog-width", "90vw");
-    this.containerEl.style.setProperty("--dialog-height", "90vh");
+    this.modalEl.addClass('better-export-pdf-modal');
+    this.containerEl.style.setProperty('--dialog-width', '90vw');
+    this.containerEl.style.setProperty('--dialog-height', '90vh');
 
-    this.titleEl.setText("Export to PDF");
-    const wrapper = this.contentEl.createDiv({ attr: { id: "better-export-pdf" } });
+    this.titleEl.setText('Export to PDF');
+    const wrapper = this.contentEl.createDiv({ attr: { id: 'better-export-pdf' } });
 
     const title = (this.file as TFile)?.basename ?? this.file?.name;
 
-    this.previewDiv = wrapper.createDiv({ attr: { class: "pdf-preview" } }, async (el) => {
+    this.previewDiv = wrapper.createDiv({ attr: { class: 'pdf-preview' } }, async el => {
       el.empty();
       const resizeObserver = new ResizeObserver(() => {
         this.calcPageSize(el);
@@ -345,9 +373,9 @@ export class ExportConfigModal extends Modal {
       this.togglePrintSize();
     });
 
-    const contentEl = wrapper.createDiv({ attr: { class: "setting-wrapper" } });
-    contentEl.addEventListener("keyup", (event) => {
-      if (event.key === "Enter") {
+    const contentEl = wrapper.createDiv({ attr: { class: 'setting-wrapper' } });
+    contentEl.addEventListener('keyup', event => {
+      if (event.key === 'Enter') {
         handleExport();
       }
     });
@@ -356,16 +384,19 @@ export class ExportConfigModal extends Modal {
     const handleExport = async () => {
       this.plugin.settings.prevConfig = this.config;
       await this.plugin.saveSettings();
-      if (this.config["pageSize"] == "Custom") {
-        if (!isNumber(this.config["pageWidth"] ?? "") || !isNumber(this.config["pageHeight"] ?? "")) {
-          alert("When the page size is Custom, the Width/Height cannot be empty.");
+      if (this.config['pageSize'] == 'Custom') {
+        if (
+          !isNumber(this.config['pageWidth'] ?? '') ||
+          !isNumber(this.config['pageHeight'] ?? '')
+        ) {
+          alert('When the page size is Custom, the Width/Height cannot be empty.');
           return;
         }
       }
 
       if (this.multiplePdf) {
         const outputPath = await getOutputPath(title);
-        console.log("output:", outputPath);
+        console.log('output:', outputPath);
         if (outputPath) {
           await Promise.all(
             this.webviews.map(async (wb, i) => {
@@ -373,36 +404,41 @@ export class ExportConfigModal extends Modal {
                 `${outputPath}/${this.docs[i].file.basename}.pdf`,
                 { ...this.plugin.settings, ...this.config },
                 wb,
-                this.docs[i],
+                this.docs[i]
               );
-            }),
+            })
           );
           this.close();
         }
       } else {
         const outputFile = await getOutputFile(title, this.plugin.settings.isTimestamp);
         if (outputFile) {
-          await exportToPDF(outputFile, { ...this.plugin.settings, ...this.config }, this.webviews[0], this.docs[0]);
+          await exportToPDF(
+            outputFile,
+            { ...this.plugin.settings, ...this.config },
+            this.webviews[0],
+            this.docs[0]
+          );
           this.close();
         }
       }
     };
 
-    new Setting(contentEl).setHeading().addButton((button) => {
-      button.setButtonText("Export").onClick(handleExport);
+    new Setting(contentEl).setHeading().addButton(button => {
+      button.setButtonText('Export').onClick(handleExport);
       button.setCta();
       fullWidthButton(button);
     });
 
-    new Setting(contentEl).setHeading().addButton((button) => {
-      button.setButtonText("Refresh").onClick(async () => {
+    new Setting(contentEl).setHeading().addButton(button => {
+      button.setButtonText('Refresh').onClick(async () => {
         await this.appendWebviews(this.previewDiv);
       });
       fullWidthButton(button);
     });
 
-    const debugEl = new Setting(contentEl).setHeading().addButton((button) => {
-      button.setButtonText("Debug").onClick(async () => {
+    const debugEl = new Setting(contentEl).setHeading().addButton(button => {
+      button.setButtonText('Debug').onClick(async () => {
         this.preview?.openDevTools();
       });
       fullWidthButton(button);
@@ -411,47 +447,47 @@ export class ExportConfigModal extends Modal {
   }
 
   private generateForm(contentEl: HTMLDivElement) {
-    new Setting(contentEl).setName("Include file name as title").addToggle((toggle) =>
+    new Setting(contentEl).setName('Include file name as title').addToggle(toggle =>
       toggle
-        .setTooltip("Include file name as title")
-        .setValue(this.config["showTitle"])
-        .onChange(async (value) => {
-          this.config["showTitle"] = value;
+        .setTooltip('Include file name as title')
+        .setValue(this.config['showTitle'])
+        .onChange(async value => {
+          this.config['showTitle'] = value;
           this.webviews.forEach((wv, i) => {
             wv.executeJavaScript(`
               var _title = document.querySelector("h1.__title__");
               if (_title) {
-              	_title.style.display = "${value ? "block" : "none"}";
+              	_title.style.display = "${value ? 'block' : 'none'}";
               }
               `);
-            const _title = this.docs[i]?.doc?.querySelector("h1.__title__") as HTMLHeadingElement;
+            const _title = this.docs[i]?.doc?.querySelector('h1.__title__') as HTMLHeadingElement;
             if (_title) {
-              _title.style.display = value ? "block" : "none";
+              _title.style.display = value ? 'block' : 'none';
             }
           });
-        }),
+        })
     );
     const pageSizes: string[] = [
-      "A0",
-      "A1",
-      "A2",
-      "A3",
-      "A4",
-      "A5",
-      "A6",
-      "Legal",
-      "Letter",
-      "Tabloid",
-      "Ledger",
-      "Custom",
+      'A0',
+      'A1',
+      'A2',
+      'A3',
+      'A4',
+      'A5',
+      'A6',
+      'Legal',
+      'Letter',
+      'Tabloid',
+      'Ledger',
+      'Custom'
     ];
-    new Setting(contentEl).setName("Page Size").addDropdown((dropdown) => {
+    new Setting(contentEl).setName('Page Size').addDropdown(dropdown => {
       dropdown
-        .addOptions(Object.fromEntries(pageSizes.map((size) => [size, size])))
+        .addOptions(Object.fromEntries(pageSizes.map(size => [size, size])))
         .setValue(this.config.pageSize as string)
         .onChange(async (value: string) => {
-          this.config["pageSize"] = value;
-          if (value == "Custom") {
+          this.config['pageSize'] = value;
+          if (value == 'Custom') {
             sizeEl.settingEl.hidden = false;
           } else {
             sizeEl.settingEl.hidden = true;
@@ -463,49 +499,49 @@ export class ExportConfigModal extends Modal {
     });
 
     const sizeEl = new Setting(contentEl)
-      .setName("Width/Height")
-      .addText((text) => {
+      .setName('Width/Height')
+      .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder("width")
-          .setValue(this.config["pageWidth"] as string)
+          .setPlaceholder('width')
+          .setValue(this.config['pageWidth'] as string)
           .onChange(
             debounce(
-              async (value) => {
-                this.config["pageWidth"] = value;
+              async value => {
+                this.config['pageWidth'] = value;
                 this.calcPageSize();
                 await this.calcWebviewSize();
               },
               500,
-              true,
-            ),
+              true
+            )
           );
       })
-      .addText((text) => {
+      .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder("height")
-          .setValue(this.config["pageHeight"] as string)
-          .onChange((value) => {
-            this.config["pageHeight"] = value;
+          .setPlaceholder('height')
+          .setValue(this.config['pageHeight'] as string)
+          .onChange(value => {
+            this.config['pageHeight'] = value;
           });
       });
 
-    sizeEl.settingEl.hidden = this.config["pageSize"] !== "Custom";
+    sizeEl.settingEl.hidden = this.config['pageSize'] !== 'Custom';
 
     new Setting(contentEl)
-      .setName("Margin")
-      .setDesc("The unit is millimeters.")
-      .addDropdown((dropdown) => {
+      .setName('Margin')
+      .setDesc('The unit is millimeters.')
+      .addDropdown(dropdown => {
         dropdown
-          .addOption("0", "None")
-          .addOption("1", "Default")
-          .addOption("2", "Small")
-          .addOption("3", "Custom")
-          .setValue(this.config["marginType"])
+          .addOption('0', 'None')
+          .addOption('1', 'Default')
+          .addOption('2', 'Small')
+          .addOption('3', 'Custom')
+          .setValue(this.config['marginType'])
           .onChange(async (value: string) => {
-            this.config["marginType"] = value;
-            if (value == "3") {
+            this.config['marginType'] = value;
+            if (value == '3') {
               topEl.settingEl.hidden = false;
               btmEl.settingEl.hidden = false;
             } else {
@@ -516,103 +552,103 @@ export class ExportConfigModal extends Modal {
       });
 
     const topEl = new Setting(contentEl)
-      .setName("Top/Bottom")
-      .addText((text) => {
+      .setName('Top/Bottom')
+      .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder("margin top")
-          .setValue(this.config["marginTop"] as string)
-          .onChange((value) => {
-            this.config["marginTop"] = value;
+          .setPlaceholder('margin top')
+          .setValue(this.config['marginTop'] as string)
+          .onChange(value => {
+            this.config['marginTop'] = value;
           });
       })
-      .addText((text) => {
+      .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder("margin bottom")
-          .setValue(this.config["marginBottom"] as string)
-          .onChange((value) => {
-            this.config["marginBottom"] = value;
+          .setPlaceholder('margin bottom')
+          .setValue(this.config['marginBottom'] as string)
+          .onChange(value => {
+            this.config['marginBottom'] = value;
           });
       });
-    topEl.settingEl.hidden = this.config["marginType"] != "3";
+    topEl.settingEl.hidden = this.config['marginType'] != '3';
     const btmEl = new Setting(contentEl)
-      .setName("Left/Right")
-      .addText((text) => {
+      .setName('Left/Right')
+      .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder("margin left")
-          .setValue(this.config["marginLeft"] as string)
-          .onChange((value) => {
-            this.config["marginLeft"] = value;
+          .setPlaceholder('margin left')
+          .setValue(this.config['marginLeft'] as string)
+          .onChange(value => {
+            this.config['marginLeft'] = value;
           });
       })
-      .addText((text) => {
+      .addText(text => {
         setInputWidth(text.inputEl);
         text
-          .setPlaceholder("margin right")
-          .setValue(this.config["marginRight"] as string)
-          .onChange((value) => {
-            this.config["marginRight"] = value;
+          .setPlaceholder('margin right')
+          .setValue(this.config['marginRight'] as string)
+          .onChange(value => {
+            this.config['marginRight'] = value;
           });
       });
-    btmEl.settingEl.hidden = this.config["marginType"] != "3";
+    btmEl.settingEl.hidden = this.config['marginType'] != '3';
 
-    new Setting(contentEl).setName("Downscale Percent").addSlider((slider) => {
+    new Setting(contentEl).setName('Downscale Percent').addSlider(slider => {
       slider
         .setLimits(0, 100, 1)
-        .setValue(this.config["scale"] as number)
-        .onChange(async (value) => {
-          this.config["scale"] = value;
+        .setValue(this.config['scale'] as number)
+        .onChange(async value => {
+          this.config['scale'] = value;
           slider.showTooltip();
         });
     });
-    new Setting(contentEl).setName("Landscape").addToggle((toggle) =>
+    new Setting(contentEl).setName('Landscape').addToggle(toggle =>
       toggle
-        .setTooltip("landscape")
-        .setValue(this.config["landscape"])
-        .onChange(async (value) => {
-          this.config["landscape"] = value;
-        }),
+        .setTooltip('landscape')
+        .setValue(this.config['landscape'])
+        .onChange(async value => {
+          this.config['landscape'] = value;
+        })
     );
 
-    new Setting(contentEl).setName("Display Header").addToggle((toggle) =>
+    new Setting(contentEl).setName('Display Header').addToggle(toggle =>
       toggle
-        .setTooltip("Display header")
-        .setValue(this.config["displayHeader"])
-        .onChange(async (value) => {
-          this.config["displayHeader"] = value;
-        }),
+        .setTooltip('Display header')
+        .setValue(this.config['displayHeader'])
+        .onChange(async value => {
+          this.config['displayHeader'] = value;
+        })
     );
 
-    new Setting(contentEl).setName("Display Footer").addToggle((toggle) =>
+    new Setting(contentEl).setName('Display Footer').addToggle(toggle =>
       toggle
-        .setTooltip("Display footer")
-        .setValue(this.config["displayFooter"])
-        .onChange(async (value) => {
-          this.config["displayFooter"] = value;
-        }),
+        .setTooltip('Display footer')
+        .setValue(this.config['displayFooter'])
+        .onChange(async value => {
+          this.config['displayFooter'] = value;
+        })
     );
 
-    new Setting(contentEl).setName("Open after export").addToggle((toggle) =>
+    new Setting(contentEl).setName('Open after export').addToggle(toggle =>
       toggle
-        .setTooltip("Open the exported file after exporting.")
-        .setValue(this.config["open"])
-        .onChange(async (value) => {
-          this.config["open"] = value;
-        }),
+        .setTooltip('Open the exported file after exporting.')
+        .setValue(this.config['open'])
+        .onChange(async value => {
+          this.config['open'] = value;
+        })
     );
 
     const snippets = this.cssSnippets();
 
     if (Object.keys(snippets).length > 0 && this.plugin.settings.enabledCss) {
-      new Setting(contentEl).setName("CSS snippets").addDropdown((dropdown) => {
+      new Setting(contentEl).setName('CSS snippets').addDropdown(dropdown => {
         dropdown
-          .addOption("0", "Not select")
+          .addOption('0', 'Not select')
           .addOptions(snippets)
-          .setValue(this.config["cssSnippet"] as string)
+          .setValue(this.config['cssSnippet'] as string)
           .onChange(async (value: string) => {
-            this.config["cssSnippet"] = value;
+            this.config['cssSnippet'] = value;
             await this.appendWebviews(this.previewDiv, false);
           });
       });
@@ -637,9 +673,9 @@ export class ExportConfigModal extends Modal {
       snippets
         ?.filter((item: string) => !enabledSnippets.has(item))
         .map((name: string) => {
-          const file = path.join(basePath, ".obsidian/snippets", name + ".css");
+          const file = path.join(basePath, '.obsidian/snippets', name + '.css');
           return [file, name];
-        }),
+        })
     );
   }
 }

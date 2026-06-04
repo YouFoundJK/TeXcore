@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from 'fs';
+import * as path from 'path';
 
 type DebugCapablePlugin = {
   settings?: { debug?: boolean };
@@ -10,10 +10,10 @@ let sequence = 0;
 
 function getDefaultLogPath(plugin?: DebugCapablePlugin): string {
   const basePath = plugin?.app?.vault?.adapter?.basePath;
-  if (typeof basePath === "string" && basePath.length > 0) {
-    return path.join(basePath, "latex-referencer-debug.log");
+  if (typeof basePath === 'string' && basePath.length > 0) {
+    return path.join(basePath, 'latex-referencer-debug.log');
   }
-  return path.join(process.cwd(), "latex-referencer-debug.log");
+  return path.join(process.cwd(), 'latex-referencer-debug.log');
 }
 
 function canDebug(plugin?: DebugCapablePlugin): boolean {
@@ -22,7 +22,7 @@ function canDebug(plugin?: DebugCapablePlugin): boolean {
 
 function writeDebugLine(line: string, plugin?: DebugCapablePlugin) {
   try {
-    fs.appendFileSync(getDefaultLogPath(plugin), line + "\n", { encoding: "utf-8" });
+    fs.appendFileSync(getDefaultLogPath(plugin), line + '\n', { encoding: 'utf-8' });
   } catch (_) {
     // Best-effort only. Console logging should still work.
   }
@@ -41,13 +41,13 @@ export function logDebugEvent(
   if (!canDebug(plugin)) return;
   sequence += 1;
 
-  const payload = typeof data === "function" ? data() : (data ?? {});
+  const payload = typeof data === 'function' ? data() : (data ?? {});
   const line = JSON.stringify({
     seq: sequence,
     ts: new Date().toISOString(),
     scope,
     event,
-    ...payload,
+    ...payload
   });
   writeDebugLine(line, plugin);
 }
@@ -55,7 +55,7 @@ export function logDebugEvent(
 export function clearDebugLog(plugin?: DebugCapablePlugin) {
   const logPath = getDefaultLogPath(plugin);
   try {
-    fs.writeFileSync(logPath, "", { encoding: "utf-8" });
+    fs.writeFileSync(logPath, '', { encoding: 'utf-8' });
   } catch (_) {
     // Ignore write failures.
   }

@@ -1,10 +1,10 @@
-import { getCalloutPrefix } from "./parse";
+import { getCalloutPrefix } from './parse';
 
 /**
  * Checks and fixes broken math blocks inside callouts.
- * Obsidian's PDF export (and sometimes editor preview) requires all lines of a math block 
+ * Obsidian's PDF export (and sometimes editor preview) requires all lines of a math block
  * inside a callout to start with '>'.
- * 
+ *
  * @param content The full text content to check.
  * @returns The fixed content string if changes were made, or null if no changes were needed.
  */
@@ -14,7 +14,7 @@ export function checkAndFixCalloutMath(content: string): string | null {
   let inMathBlock = false;
   let mathBlockStartLevel = 0;
 
-  const newLines = lines.map((line) => {
+  const newLines = lines.map(line => {
     // Determine current blockquote level
     const prefix = getCalloutPrefix(line);
     const currentLevel = (prefix.match(/>/g) || []).length;
@@ -27,7 +27,7 @@ export function checkAndFixCalloutMath(content: string): string | null {
     // We only fix if we are strictly inside a block (after the opening line).
     if (inMathBlock && currentLevel < mathBlockStartLevel) {
       const missingLevels = mathBlockStartLevel - currentLevel;
-      const patch = "> ".repeat(missingLevels);
+      const patch = '> '.repeat(missingLevels);
       processedLine = patch + line;
       changed = true;
     }

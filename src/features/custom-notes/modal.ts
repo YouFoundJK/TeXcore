@@ -1,9 +1,12 @@
-import { App, FuzzyMatch, FuzzySuggestModal, TFile } from "obsidian";
+import { App, FuzzyMatch, FuzzySuggestModal, TFile } from 'obsidian';
 
 export class NoteSuggestModal extends FuzzySuggestModal<TFile> {
-  constructor(app: App, private onSelect: (file: TFile) => void) {
+  constructor(
+    app: App,
+    private onSelect: (file: TFile) => void
+  ) {
     super(app);
-    this.setPlaceholder("Search note path...");
+    this.setPlaceholder('Search note path...');
   }
 
   getItems(): TFile[] {
@@ -15,8 +18,8 @@ export class NoteSuggestModal extends FuzzySuggestModal<TFile> {
   }
 
   renderSuggestion(item: FuzzyMatch<TFile>, el: HTMLElement): void {
-    el.createEl("div", { text: item.item.basename });
-    el.createEl("small", { text: item.item.path, attr: { style: "color: var(--text-muted);" } });
+    el.createEl('div', { text: item.item.basename });
+    el.createEl('small', { text: item.item.path, attr: { style: 'color: var(--text-muted);' } });
   }
 
   onChooseItem(item: TFile, evt: MouseEvent | KeyboardEvent): void {

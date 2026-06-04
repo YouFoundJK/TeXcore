@@ -1,0 +1,8 @@
+allowBuilds:
+  '@swc/core': true
+  '@parcel/watcher': true
+  es5-ext: true
+  esbuild: true
+  electron: true
+  msw: true
+  unrs-resolver: true

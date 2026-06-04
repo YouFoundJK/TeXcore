@@ -1,12 +1,20 @@
-import * as electron from "electron";
-import * as fs from "fs/promises";
-import { type FrontMatterCache, Notice } from "obsidian";
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFRef, StandardFonts } from "pdf-lib";
+import * as electron from 'electron';
+import * as fs from 'fs/promises';
+import { type FrontMatterCache, Notice } from 'obsidian';
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFRef,
+  StandardFonts
+} from 'pdf-lib';
 
-import type { PluginSettings } from "../settings/settings";
+import type { PluginSettings } from '../settings/settings';
 
-import type { DocType, PageSizeType, TConfig } from "./modal";
-import { TreeNode, getHeadingTree, safeParseFloat, safeParseInt } from "./utils";
+import type { DocType, PageSizeType, TConfig } from './modal';
+import { TreeNode, getHeadingTree, safeParseFloat, safeParseInt } from './utils';
 
 interface TPosition {
   [key: string]: number[];
@@ -27,16 +35,16 @@ export async function getDestPosition(pdfDoc: PDFDocument): Promise<TPosition> {
     for (let annotIndex = 0; annotIndex < numAnnotations; annotIndex++) {
       try {
         const annotation = annotations.lookup(annotIndex, PDFDict);
-        const subtype = annotation.get(PDFName.of("Subtype"));
-        if (subtype?.toString() === "/Link") {
-          const linkDict = annotation.get(PDFName.of("A")) as PDFDict;
+        const subtype = annotation.get(PDFName.of('Subtype'));
+        if (subtype?.toString() === '/Link') {
+          const linkDict = annotation.get(PDFName.of('A')) as PDFDict;
           // @ts-ignore
-          const uri = linkDict?.get(PDFName.of("URI")).toString();
-          console.debug("uri", uri);
-          const regexMatch = /^\(af:\/\/(.+)\)$/.exec(uri || "");
+          const uri = linkDict?.get(PDFName.of('URI')).toString();
+          console.debug('uri', uri);
+          const regexMatch = /^\(af:\/\/(.+)\)$/.exec(uri || '');
 
           if (regexMatch) {
-            const rect = (annotation.get(PDFName.of("Rect")) as PDFArray)?.asRectangle();
+            const rect = (annotation.get(PDFName.of('Rect')) as PDFArray)?.asRectangle();
             const linkUrl = regexMatch[1];
             const yPos = rect.y;
             links[linkUrl] = [pageIndex, yPos];
@@ -66,24 +74,24 @@ export async function setAnchors(pdfDoc: PDFDocument, links: TPosition) {
       try {
         const linkAnnotRef = annots.get(idx);
         const linkAnnot = annots.lookup(idx, PDFDict);
-        const subtype = linkAnnot.get(PDFName.of("Subtype"));
-        if (subtype?.toString() === "/Link") {
-          const linkDict = linkAnnot.get(PDFName.of("A")) as PDFDict;
+        const subtype = linkAnnot.get(PDFName.of('Subtype'));
+        if (subtype?.toString() === '/Link') {
+          const linkDict = linkAnnot.get(PDFName.of('A')) as PDFDict;
           // @ts-ignore
-          const uri = linkDict?.get(PDFName.of("URI")).toString();
-          console.debug("uri", uri);
-          const regexMatch = /^\(an:\/\/(.+)\)$/.exec(uri || "");
+          const uri = linkDict?.get(PDFName.of('URI')).toString();
+          console.debug('uri', uri);
+          const regexMatch = /^\(an:\/\/(.+)\)$/.exec(uri || '');
 
           const key = regexMatch?.[1];
           if (key && links?.[key]) {
             const [pageIdx, yPos] = links[key];
             const newAnnot = pdfDoc.context.obj({
-              Type: "Annot",
-              Subtype: "Link",
-              Rect: linkAnnot.lookup(PDFName.of("Rect")),
-              Border: linkAnnot.lookup(PDFName.of("Border")),
-              C: linkAnnot.lookup(PDFName.of("C")),
-              Dest: [pages[pageIdx].ref, "XYZ", null, yPos, null],
+              Type: 'Annot',
+              Subtype: 'Link',
+              Rect: linkAnnot.lookup(PDFName.of('Rect')),
+              Border: linkAnnot.lookup(PDFName.of('Border')),
+              C: linkAnnot.lookup(PDFName.of('C')),
+              Dest: [pages[pageIdx].ref, 'XYZ', null, yPos, null]
             });
 
             // @ts-ignore
@@ -110,7 +118,7 @@ export function generateOutlines(root: TreeNode, positions: TPosition, maxLevel 
       title: node.title,
       to: [pageIdx, 0, pos],
       open: false,
-      children: [],
+      children: []
     };
     if (node.children?.length > 0) {
       for (const item of node.children) {
@@ -139,7 +147,7 @@ export interface PDFOutlineItem {
   bold?: boolean;
 }
 
-export interface PDFOutlineItemWithChildren extends Omit<PDFOutlineItem, "to"> {
+export interface PDFOutlineItemWithChildren extends Omit<PDFOutlineItem, 'to'> {
   to?: PDFOutlineTo;
   children: PDFOutline[];
   open: boolean;
@@ -149,27 +157,27 @@ export type PDFOutline = PDFOutlineItem | PDFOutlineItemWithChildren;
 
 const walk = (
   outlines: readonly PDFOutline[],
-  callback: (outline: PDFOutline) => void | boolean, // stop walking to children if returned false
+  callback: (outline: PDFOutline) => void | boolean // stop walking to children if returned false
 ) => {
   for (const outline of outlines) {
     const ret = callback(outline);
-    if ("children" in outline && ret !== false) walk(outline.children, callback);
+    if ('children' in outline && ret !== false) walk(outline.children, callback);
   }
 };
 
 const flatten = (outlines: readonly PDFOutline[]) => {
   const result: PDFOutline[] = [];
 
-  walk(outlines, (outline) => void result.push(outline));
+  walk(outlines, outline => void result.push(outline));
   return result;
 };
 
 const getOpeningCount = (outlines: readonly PDFOutline[]) => {
   let count = 0;
 
-  walk(outlines, (outline) => {
+  walk(outlines, outline => {
     count += 1;
-    return !("open" in outline && !outline.open);
+    return !('open' in outline && !outline.open);
   });
 
   return count;
@@ -188,7 +196,7 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
     const refs: PDFRef[] = [];
 
     doc.catalog.Pages().traverse((kid, ref) => {
-      if (kid.get(kid.context.obj("Type"))?.toString() === "/Page") {
+      if (kid.get(kid.context.obj('Type'))?.toString() === '/Page') {
         refs.push(ref);
       }
     });
@@ -209,28 +217,28 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
         //   // URL
         //   return { A: { S: 'URI', URI: PDFHexString.fromText(outline.to) } }
         // } else
-        if (typeof outline.to === "number") {
-          return { Dest: [pageRefs[outline.to], "Fit"] };
+        if (typeof outline.to === 'number') {
+          return { Dest: [pageRefs[outline.to], 'Fit'] };
         } else if (Array.isArray(outline.to)) {
           // const page = doc.getPage(outline.to[0]);
           // const width = page.getWidth() * outline.to[1];
           // const height = page.getHeight()* outline.to[2];
 
           return {
-            Dest: [pageRefs[outline.to[0]], "XYZ", outline.to[1], outline.to[2], null],
+            Dest: [pageRefs[outline.to[0]], 'XYZ', outline.to[1], outline.to[2], null]
           };
         }
         return {};
       })();
 
       const childrenDict = (() => {
-        if ("children" in outline && outline.children.length > 0) {
+        if ('children' in outline && outline.children.length > 0) {
           createOutline(outline.children, outlineRef);
 
           return {
             First: refMap.get(outline.children[0])!,
             Last: refMap.get(outline.children[outline.children.length - 1])!,
-            Count: getOpeningCount(outline.children) * (outline.open ? 1 : -1),
+            Count: getOpeningCount(outline.children) * (outline.open ? 1 : -1)
           };
         }
         return {};
@@ -245,8 +253,8 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
           ...(i < length - 1 ? { Next: refMap.get(outlines[i + 1])! } : {}),
           ...childrenDict,
           ...destOrAction,
-          F: (outline.italic ? 1 : 0) | (outline.bold ? 2 : 0),
-        }),
+          F: (outline.italic ? 1 : 0) | (outline.bold ? 2 : 0)
+        })
       );
     }
   };
@@ -259,18 +267,18 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
   doc.context.assign(
     rootRef,
     doc.context.obj({
-      Type: "Outlines",
+      Type: 'Outlines',
       ...(rootCount > 0
         ? {
-          First: refMap.get(outlines[0])!,
-          Last: refMap.get(outlines[outlines.length - 1])!,
-        }
+            First: refMap.get(outlines[0])!,
+            Last: refMap.get(outlines[outlines.length - 1])!
+          }
         : {}),
-      Count: rootCount,
-    }),
+      Count: rootCount
+    })
   );
 
-  doc.catalog.set(doc.context.obj("Outlines"), rootRef);
+  doc.catalog.set(doc.context.obj('Outlines'), rootRef);
 };
 
 type PageSetting = {
@@ -287,12 +295,14 @@ export async function addPageNumbers(doc: PDFDocument, setting: PageSetting) {
   for (const pageIndex of pageIndices) {
     const page = doc.getPage(pageIndex);
 
-    const content = setting.format.replace("{page}", `${pageIndex + 1}`).replace("{pages}", `${total}`);
+    const content = setting.format
+      .replace('{page}', `${pageIndex + 1}`)
+      .replace('{pages}', `${total}`);
     page.drawText(content, {
       x: page.getWidth() / 2,
       y: setting.position,
       font: courierBoldFont,
-      size: 12,
+      size: 12
     });
   }
 }
@@ -322,7 +332,7 @@ export type EditPDFParamType = {
 // add outlines
 export async function editPDF(
   data: Uint8Array,
-  { headings, maxLevel, frontMatter, displayMetadata }: EditPDFParamType,
+  { headings, maxLevel, frontMatter, displayMetadata }: EditPDFParamType
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(data);
   const posistions = await getDestPosition(pdfDoc);
@@ -342,26 +352,26 @@ export async function editPDF(
 // add pdf metadata [title, author, keywords, created_at, updated_at, creator, producer]
 export function setMetadata(
   pdfDoc: PDFDocument,
-  { title, author, keywords, subject, creator, created_at, updated_at }: FrontMatterCache,
+  { title, author, keywords, subject, creator, created_at, updated_at }: FrontMatterCache
 ) {
   if (title) {
     pdfDoc.setTitle(title, { showInWindowTitleBar: true });
   }
   if (author) {
     if (Array.isArray(author)) {
-      pdfDoc.setAuthor(author.join(", "));
+      pdfDoc.setAuthor(author.join(', '));
     } else {
       pdfDoc.setAuthor(author.toString());
     }
   }
   if (keywords) {
-    pdfDoc.setKeywords(typeof keywords == "string" ? [keywords] : keywords);
+    pdfDoc.setKeywords(typeof keywords == 'string' ? [keywords] : keywords);
   }
   if (subject) {
     pdfDoc.setSubject(subject);
   }
-  pdfDoc.setCreator(creator ?? "Obsidian");
-  pdfDoc.setProducer("Obsidian");
+  pdfDoc.setCreator(creator ?? 'Obsidian');
+  pdfDoc.setProducer('Obsidian');
   pdfDoc.setCreationDate(new Date(created_at ?? new Date()));
   pdfDoc.setModificationDate(new Date(updated_at ?? new Date()));
 }
@@ -369,68 +379,68 @@ export function setMetadata(
 export async function exportToPDF(
   outputFile: string,
   config: TConfig & PluginSettings, // Changed from BetterExportPdfPluginSettings
-  w: Electron.WebViewElement,
-  { doc, frontMatter }: DocType,
+  w: any,
+  { doc, frontMatter }: DocType
 ) {
-  console.log("output pdf:", outputFile);
-  let pageSize = config["pageSize"] as PageSizeType;
-  if (config["pageSize"] == "Custom" && config["pageWidth"] && config["pageHeight"]) {
+  console.log('output pdf:', outputFile);
+  let pageSize = config['pageSize'] as PageSizeType;
+  if (config['pageSize'] == 'Custom' && config['pageWidth'] && config['pageHeight']) {
     pageSize = {
-      width: safeParseFloat(config["pageWidth"], 210) / 25.4,
-      height: safeParseFloat(config["pageHeight"], 297) / 25.4,
+      width: safeParseFloat(config['pageWidth'], 210) / 25.4,
+      height: safeParseFloat(config['pageHeight'], 297) / 25.4
     };
   }
 
-  let scale = config?.["scale"] ?? 100;
+  let scale = config?.['scale'] ?? 100;
   if (scale > 200 || scale < 10) {
     scale = 100;
   }
   const printOptions: any = {
-    landscape: config?.["landscape"],
-    printBackground: config?.["printBackground"],
-    generateTaggedPDF: config?.["generateTaggedPDF"],
+    landscape: config?.['landscape'],
+    printBackground: config?.['printBackground'],
+    generateTaggedPDF: config?.['generateTaggedPDF'],
     pageSize,
     scale: scale / 100,
     margins: {
-      marginType: "default",
+      marginType: 'default'
     },
-    displayHeaderFooter: config["displayHeader"] || config["displayFooter"],
-    headerTemplate: config["displayHeader"]
-      ? frontMatter?.["headerTemplate"] ?? config["headerTemplate"]
-      : "<span></span>",
-    footerTemplate: config["displayFooter"]
-      ? frontMatter?.["footerTemplate"] ?? config["footerTemplate"]
-      : "<span></span>",
+    displayHeaderFooter: config['displayHeader'] || config['displayFooter'],
+    headerTemplate: config['displayHeader']
+      ? (frontMatter?.['headerTemplate'] ?? config['headerTemplate'])
+      : '<span></span>',
+    footerTemplate: config['displayFooter']
+      ? (frontMatter?.['footerTemplate'] ?? config['footerTemplate'])
+      : '<span></span>'
   };
 
-  if (config.marginType == "0") {
-    printOptions["margins"] = {
-      marginType: "custom",
+  if (config.marginType == '0') {
+    printOptions['margins'] = {
+      marginType: 'custom',
       top: 0,
       bottom: 0,
       left: 0,
-      right: 0,
+      right: 0
     };
-  } else if (config.marginType == "1") {
-    printOptions["margins"] = {
-      marginType: "default",
+  } else if (config.marginType == '1') {
+    printOptions['margins'] = {
+      marginType: 'default'
     };
-  } else if (config.marginType == "2") {
-    printOptions["margins"] = {
-      marginType: "custom",
+  } else if (config.marginType == '2') {
+    printOptions['margins'] = {
+      marginType: 'custom',
       top: 0.1,
       bottom: 0.1,
       left: 0.1,
-      right: 0.1,
+      right: 0.1
     };
-  } else if (config.marginType == "3") {
+  } else if (config.marginType == '3') {
     // Custom Margin
-    printOptions["margins"] = {
-      marginType: "custom",
-      top: safeParseFloat(config["marginTop"], 0) / 25.4,
-      bottom: safeParseFloat(config["marginBottom"], 0) / 25.4,
-      left: safeParseFloat(config["marginLeft"], 0) / 25.4,
-      right: safeParseFloat(config["marginRight"], 0) / 25.4,
+    printOptions['margins'] = {
+      marginType: 'custom',
+      top: safeParseFloat(config['marginTop'], 0) / 25.4,
+      bottom: safeParseFloat(config['marginBottom'], 0) / 25.4,
+      left: safeParseFloat(config['marginLeft'], 0) / 25.4,
+      right: safeParseFloat(config['marginRight'], 0) / 25.4
     };
   }
 
@@ -442,7 +452,7 @@ export async function exportToPDF(
       headings: getHeadingTree(doc),
       frontMatter,
       displayMetadata: config?.displayMetadata,
-      maxLevel: safeParseInt(config?.maxLevel, 6),
+      maxLevel: safeParseInt(config?.maxLevel, 6)
     });
 
     await fs.writeFile(outputFile, data);
@@ -453,20 +463,20 @@ export async function exportToPDF(
     }
   } catch (error) {
     console.error(error);
-    new Notice("Export to PDF failed: " + error);
+    new Notice('Export to PDF failed: ' + error);
   }
 }
 
 export async function getOutputFile(filename: string, isTimestamp?: boolean) {
   // @ts-ignore
   const result: Electron.SaveDialogReturnValue = await electron.remote.dialog.showSaveDialog({
-    title: "Export to PDF",
-    defaultPath: filename + (isTimestamp ? "-" + Date.now() : "") + ".pdf",
+    title: 'Export to PDF',
+    defaultPath: filename + (isTimestamp ? '-' + Date.now() : '') + '.pdf',
     filters: [
-      { name: "All Files", extensions: ["*"] },
-      { name: "PDF", extensions: ["pdf"] },
+      { name: 'All Files', extensions: ['*'] },
+      { name: 'PDF', extensions: ['pdf'] }
     ],
-    properties: ["showOverwriteConfirmation", "createDirectory"],
+    properties: ['showOverwriteConfirmation', 'createDirectory']
   } as any);
 
   if (result.canceled) {
@@ -478,9 +488,9 @@ export async function getOutputFile(filename: string, isTimestamp?: boolean) {
 export async function getOutputPath(filename: string, isTimestamp?: boolean) {
   // @ts-ignore
   const result: Electron.OpenDialogReturnValue = await electron.remote.dialog.showOpenDialog({
-    title: "Export to PDF",
+    title: 'Export to PDF',
     defaultPath: filename,
-    properties: ["openDirectory"],
+    properties: ['openDirectory']
   });
 
   if (result.canceled) {

@@ -1,4 +1,4 @@
-import { MarkdownView, App, MarkdownRenderer } from "obsidian";
+import { MarkdownView, App, MarkdownRenderer } from 'obsidian';
 
 export type SelectionType = {
   rendered: boolean;
@@ -30,7 +30,7 @@ export type SelectionType = {
 };
 
 // Extend the existing type definition for MarkdownView
-declare module "obsidian" {
+declare module 'obsidian' {
   interface MarkdownPreviewView {
     renderer: {
       queueRender: () => void; // Typing for queueRender() method

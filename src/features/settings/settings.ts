@@ -1,147 +1,153 @@
-import { Modifier } from "obsidian";
-import type { TConfig } from "../export-pdf/modal";
-import { LeafArgs } from "../../declarations";
+import { Modifier } from 'obsidian';
+import type { TConfig } from '../export-pdf/modal';
+import { LeafArgs } from '../../declarations';
 
 // Types
-export const NUMBER_STYLES = ["arabic", "alph", "Alph", "roman", "Roman"] as const;
-export type NumberStyle = typeof NUMBER_STYLES[number];
+export const NUMBER_STYLES = ['arabic', 'alph', 'Alph', 'roman', 'Roman'] as const;
+export type NumberStyle = (typeof NUMBER_STYLES)[number];
 
-export const LEAF_OPTIONS = ["Current tab", "Split right", "Split down", "New tab", "New window"] as const;
-export type LeafOption = typeof LEAF_OPTIONS[number];
+export const LEAF_OPTIONS = [
+  'Current tab',
+  'Split right',
+  'Split down',
+  'New tab',
+  'New window'
+] as const;
+export type LeafOption = (typeof LEAF_OPTIONS)[number];
 export const LEAF_OPTION_TO_ARGS: Record<LeafOption, LeafArgs> = {
-    "Current tab": [false],
-    "Split right": ["split", "vertical"],
-    "Split down": ["split", "horizontal"],
-    "New tab": ["tab"],
-    "New window": ["window"],
+  'Current tab': [false],
+  'Split right': ['split', 'vertical'],
+  'Split down': ['split', 'horizontal'],
+  'New tab': ['tab'],
+  'New window': ['window']
 };
 
-export const SEARCH_METHODS = ["Fuzzy", "Simple"] as const;
-export type SearchMethod = typeof SEARCH_METHODS[number];
+export const SEARCH_METHODS = ['Fuzzy', 'Simple'] as const;
+export type SearchMethod = (typeof SEARCH_METHODS)[number];
 
 // This is now the single settings interface for the entire plugin.
 export interface PluginSettings {
-    // Numbering
-    numberOnlyReferencedEquations: boolean;
-    eqNumberPrefix: string;
-    eqNumberSuffix: string;
-    eqNumberInit: number;
-    eqNumberStyle: NumberStyle;
-    lineByLine: boolean;
+  // Numbering
+  numberOnlyReferencedEquations: boolean;
+  eqNumberPrefix: string;
+  eqNumberSuffix: string;
+  eqNumberInit: number;
+  eqNumberStyle: NumberStyle;
+  lineByLine: boolean;
 
-    // Referencing
-    eqRefPrefix: string;
-    eqRefSuffix: string;
-    insertSpace: boolean;
-    noteTitleInEquationLink: boolean;
+  // Referencing
+  eqRefPrefix: string;
+  eqRefSuffix: string;
+  insertSpace: boolean;
+  noteTitleInEquationLink: boolean;
 
-    // Autocomplete & Search
-    enableSuggest: boolean;
-    triggerSuggest: string;
-    renderMathInSuggestion: boolean;
-    suggestNumber: number;
-    searchMethod: SearchMethod;
-    modifierToJump: Modifier;
-    showModifierInstruction: boolean;
-    suggestLeafOption: LeafOption;
+  // Autocomplete & Search
+  enableSuggest: boolean;
+  triggerSuggest: string;
+  renderMathInSuggestion: boolean;
+  suggestNumber: number;
+  searchMethod: SearchMethod;
+  modifierToJump: Modifier;
+  showModifierInstruction: boolean;
+  suggestLeafOption: LeafOption;
 
-    // PDF Export Settings
-    prevConfig?: TConfig;
-    showTitle: boolean;
-    maxLevel: string;
-    displayHeader: boolean;
-    displayFooter: boolean;
-    headerTemplate: string;
-    footerTemplate: string;
-    printBackground: boolean;
-    generateTaggedPDF: boolean;
-    displayMetadata: boolean;
-    isTimestamp: boolean;
-    debug: boolean;
-    enabledCss: boolean;
-    concurrency: string;
+  // PDF Export Settings
+  prevConfig?: TConfig;
+  showTitle: boolean;
+  maxLevel: string;
+  displayHeader: boolean;
+  displayFooter: boolean;
+  headerTemplate: string;
+  footerTemplate: string;
+  printBackground: boolean;
+  generateTaggedPDF: boolean;
+  displayMetadata: boolean;
+  isTimestamp: boolean;
+  debug: boolean;
+  enabledCss: boolean;
+  concurrency: string;
 
-    // Zotero Cleanup
-    zoteroCleanDirectories: string;
+  // Zotero Cleanup
+  zoteroCleanDirectories: string;
 
-    // Custom Note Hotkeys
-    customNoteHotkeys: CustomNoteHotkey[];
+  // Custom Note Hotkeys
+  customNoteHotkeys: CustomNoteHotkey[];
 
-    // TikZJax Settings
-    enableTikzjax: boolean;
-    invertColorsInDarkMode: boolean;
+  // TikZJax Settings
+  enableTikzjax: boolean;
+  invertColorsInDarkMode: boolean;
 }
 
 export interface CustomNoteHotkey {
-    id: string;
-    notePath: string;
-    name: string;
-    hotkeyModifiers: Modifier[];
-    hotkeyKey: string;
+  id: string;
+  notePath: string;
+  name: string;
+  hotkeyModifiers: Modifier[];
+  hotkeyKey: string;
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
-    // Numbering
-    numberOnlyReferencedEquations: true,
-    eqNumberPrefix: "",
-    eqNumberSuffix: "",
-    eqNumberInit: 1,
-    eqNumberStyle: "arabic",
-    lineByLine: true,
+  // Numbering
+  numberOnlyReferencedEquations: true,
+  eqNumberPrefix: '',
+  eqNumberSuffix: '',
+  eqNumberInit: 1,
+  eqNumberStyle: 'arabic',
+  lineByLine: true,
 
-    // Referencing
-    eqRefPrefix: "",
-    eqRefSuffix: "",
-    insertSpace: true,
-    noteTitleInEquationLink: true,
+  // Referencing
+  eqRefPrefix: '',
+  eqRefSuffix: '',
+  insertSpace: true,
+  noteTitleInEquationLink: true,
 
-    // Autocomplete & Search
-    enableSuggest: true,
-    triggerSuggest: "\\eqref",
-    renderMathInSuggestion: true,
-    suggestNumber: 20,
-    searchMethod: "Fuzzy",
-    modifierToJump: "Mod",
-    showModifierInstruction: true,
-    suggestLeafOption: "Current tab",
+  // Autocomplete & Search
+  enableSuggest: true,
+  triggerSuggest: '\\eqref',
+  renderMathInSuggestion: true,
+  suggestNumber: 20,
+  searchMethod: 'Fuzzy',
+  modifierToJump: 'Mod',
+  showModifierInstruction: true,
+  suggestLeafOption: 'Current tab',
 
-    // PDF Export Settings
-    prevConfig: {
-        pageSize: "A4",
-        marginType: "1",
-        open: true,
-        landscape: false,
-        scale: 100,
-        showTitle: true,
-        displayHeader: true,
-        displayFooter: true,
-        marginTop: "10",
-        marginBottom: "10",
-        marginLeft: "10",
-        marginRight: "10",
-        cssSnippet: "0",
-    },
+  // PDF Export Settings
+  prevConfig: {
+    pageSize: 'A4',
+    marginType: '1',
+    open: true,
+    landscape: false,
+    scale: 100,
     showTitle: true,
-    maxLevel: "6",
     displayHeader: true,
     displayFooter: true,
-    headerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="title"></span></div>`,
-    footerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
-    printBackground: false,
-    generateTaggedPDF: false,
-    displayMetadata: false,
-    isTimestamp: false,
-    debug: false,
-    enabledCss: false,
-    concurrency: "5",
-    
-    // Zotero Cleanup
-    zoteroCleanDirectories: "",
+    marginTop: '10',
+    marginBottom: '10',
+    marginLeft: '10',
+    marginRight: '10',
+    cssSnippet: '0'
+  },
+  showTitle: true,
+  maxLevel: '6',
+  displayHeader: true,
+  displayFooter: true,
+  headerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="title"></span></div>`,
+  footerTemplate: `<div style="width: 100vw;font-size:10px;text-align:center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`,
+  printBackground: false,
+  generateTaggedPDF: false,
+  displayMetadata: false,
+  isTimestamp: false,
+  debug: false,
+  enabledCss: false,
+  concurrency: '5',
 
-    // Custom Note Hotkeys
-    customNoteHotkeys: [],
+  // Zotero Cleanup
+  zoteroCleanDirectories: '',
 
-    // TikZJax Settings
-    enableTikzjax: true,
-    invertColorsInDarkMode: true,
+  // Custom Note Hotkeys
+  customNoteHotkeys: [],
+
+  // TikZJax Settings
+  enableTikzjax: true,
+  invertColorsInDarkMode: true
 };

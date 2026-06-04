@@ -1,80 +1,122 @@
 site_name: LaTeX Equation Referencer
-site_description: A minimalistic Obsidian plugin for equation numbering and referencing
+site_description: A powerful indexing & referencing system for theorems & equations in your vault.
 site_url: https://youfoundjk.github.io/obsidian-latex-eq-refer/
 repo_name: YouFoundJK/obsidian-latex-eq-refer
 repo_url: https://github.com/YouFoundJK/obsidian-latex-eq-refer
 
 theme:
-  name: material
-  palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
-  features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.expand
-    - navigation.top
-    - search.suggest
-    - search.highlight
-    - content.code.copy
-    - content.tabs.link
-  icon:
-    repo: fontawesome/brands/github
-
-plugins:
-  - search
-  - minify:
-      minify_html: true
+    name: material
+    custom_dir: docs/overrides
+    font:
+        text: Work Sans
+    features:
+        - navigation.instant
+        - navigation.tracking
+        - navigation.indexes
+        - navigation.tabs
+        - navigation.tabs.sticky
+        - navigation.top
+        - search.suggest
+        - search.highlight
+        - content.code.copy
+        - content.code.select
+        - content.code.annotate
+    palette:
+        - media: "(prefers-color-scheme: light)"
+          scheme: default
+          primary: white
+          accent: indigo
+          toggle:
+              icon: material/toggle-switch-off-outline
+              name: Switch to dark mode
+        - media: "(prefers-color-scheme: dark)"
+          scheme: slate
+          primary: black
+          accent: indigo
+          toggle:
+              icon: material/toggle-switch
+              name: Switch to light mode
+    icon:
+        repo: fontawesome/brands/square-github
 
 markdown_extensions:
-  - admonition
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.tabbed:
-      alternate_style: true
-  - tables
-  - attr_list
-  - md_in_html
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
-  - pymdownx.arithmatex:
-      generic: true
+    - toc:
+          permalink: true
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences:
+          custom_fences:
+            - name: mermaid
+              class: mermaid
+              format: !!python/name:pymdownx.superfences.fence_code_format
+    - pymdownx.emoji:
+          emoji_index: !!python/name:material.extensions.emoji.twemoji
+          emoji_generator: !!python/name:material.extensions.emoji.to_svg
+    - pymdownx.tabbed:
+          alternate_style: true
+    - pymdownx.tasklist:
+          custom_checkbox: true
+    - pymdownx.inlinehilite
+    - pymdownx.snippets
+    - pymdownx.keys
+    - pymdownx.caret
+    - attr_list
+    - tables
+    - md_in_html
+    - pymdownx.arithmatex:
+          generic: true
 
 extra_javascript:
-  - javascripts/mathjax.js
-  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+    - javascripts/mathjax.js
+    - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+    - assets/javascripts/nav-section-links.js
+    - assets/javascripts/theme-logo.js
+    - assets/javascripts/analytics-events.js
 
-nav:
-  - Home: index.md
-  - Getting Started: getting-started.md
-  - Features:
-    - Equation Numbering: features/equations.md
-    - PDF Export: features/pdf-export.md
-    - LaTeX Snippets: features/snippets.md
-    - Equation Search: features/search.md
-    - Quick Preview: features/quick-preview.md
-    - Callout Support: features/callout-support.md
-  - Configuration:
-    - Settings Reference: configuration/settings.md
+extra_css:
+    - assets/stylesheets/site-polish.css
+    - assets/stylesheets/nav-section-links.css
+    - assets/stylesheets/custom-footer.css
+
+plugins:
+    - search
+    - minify:
+          minify_html: true
+    - git-revision-date-localized:
+          enable_creation_date: true
+          type: datetime
+    - git-committers:
+          repository: YouFoundJK/obsidian-latex-eq-refer
+          cache_dir: .cache/plugin/git-committers
+          branch: master
 
 extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/YouFoundJK/obsidian-latex-eq-refer
+    analytics:
+        provider: custom
+        feedback:
+            title: Was this page helpful?
+            ratings:
+                - icon: material/emoticon-happy-outline
+                  name: This page was helpful
+                  data: 1
+                  note: Thanks for your feedback!
+                - icon: material/emoticon-sad-outline
+                  name: This page was not helpful
+                  data: 0
+                  note: Thanks for your feedback!
+    social:
+        - icon: fontawesome/brands/github
+          link: https://github.com/YouFoundJK/obsidian-latex-eq-refer
+
+nav:
+    - Home: index.md
+    - Getting Started: getting-started.md
+    - Features:
+        - Equation Numbering: features/equations.md
+        - PDF Export: features/pdf-export.md
+        - LaTeX Snippets: features/snippets.md
+        - Equation Search: features/search.md
+        - Quick Preview: features/quick-preview.md
+        - Callout Support: features/callout-support.md
+    - Configuration:
+        - Settings Reference: configuration/settings.md

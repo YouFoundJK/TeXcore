@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, copyFileSync } from "fs";
 
 const targetVersion = process.env.npm_package_version;
 
@@ -12,3 +12,13 @@ writeFileSync("manifest.json", JSON.stringify(manifest, null, "\t"));
 let versions = JSON.parse(readFileSync("versions.json", "utf8"));
 versions[targetVersion] = minAppVersion;
 writeFileSync("versions.json", JSON.stringify(versions, null, "\t"));
+
+// Copy manifest.json to the Obsidian plugin directory
+try {
+  copyFileSync(
+    "manifest.json",
+    "../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/Latex-like-equations/manifest.json"
+  );
+} catch (e) {
+  console.warn("Could not copy manifest.json during version bump:", e.message);
+}

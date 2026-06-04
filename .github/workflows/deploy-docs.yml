@@ -4,31 +4,55 @@ on:
   push:
     branches:
       - master
+      - main
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'requirements.txt'
+
+permissions:
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3 # Use a more recent version of checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4 # Use a more recent version of setup-python
+        uses: actions/setup-python@v5
         with:
           python-version: 3.x
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
       - name: Install dependencies
-        run: pip install mkdocs-material mkdocs-minify-plugin
+        run: |
+          pip install -r requirements.txt
+
+      - name: Cache git-committers
+        uses: actions/cache@v4
+        with:
+          path: .cache/plugin/git-committers
+          key: ${{ runner.os }}-git-committers-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-git-committers-
 
       - name: Build MkDocs site
+        env:
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
         run: mkdocs build
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
-          force_orphan: true # Creates a clean history for the gh-pages branch
+          force_orphan: true

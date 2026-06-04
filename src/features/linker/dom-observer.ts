@@ -1,23 +1,23 @@
 /**
  * DOM Observer for Callout Equation Links
- * 
+ *
  * When Obsidian renders a callout in Live Preview (cursor leaves the callout),
  * it replaces the CodeMirror content with a native HTML Block Widget. This
  * native rendering bypasses MarkdownPostProcessor hooks, so our equation link
  * rendering never fires.
- * 
+ *
  * Additionally, Obsidian copies the 'math-link-processed' class from the
  * CodeMirror state into the callout HTML, which means we must strip it
  * before reprocessing.
- * 
+ *
  * This observer watches for DOM mutations and manually processes equation
  * links inside dynamically rendered callout blocks. It also performs an
  * initial scan on setup to catch callouts rendered before the cache was ready.
  */
 
-import { MarkdownView } from "obsidian";
-import LatexReferencer from "main";
-import { processInternalLink } from "./reading-view-linker";
+import { MarkdownView } from 'obsidian';
+import LatexReferencer from 'main';
+import { processInternalLink } from './reading-view-linker';
 
 /**
  * Process all equation links within a given HTML element, stripping any
@@ -28,7 +28,7 @@ function processEquationLinksInElement(node: HTMLElement, plugin: LatexReference
 
   const resolveSourcePath = () => {
     if (sourcePath) return;
-    const leaves = plugin.app.workspace.getLeavesOfType("markdown");
+    const leaves = plugin.app.workspace.getLeavesOfType('markdown');
     for (const leaf of leaves) {
       if (leaf.view.containerEl.contains(node)) {
         sourcePath = (leaf.view as MarkdownView).file?.path;
@@ -87,14 +87,14 @@ function scanExistingCallouts(plugin: LatexReferencer): void {
  * Sets up a MutationObserver on document.body to detect callout rendering
  * and reprocess equation links within them. Also performs an initial scan
  * after a delay to catch callouts rendered before the cache was ready.
- * 
+ *
  * @param plugin - The LatexReferencer plugin instance
  * @returns A cleanup function that disconnects the observer
  */
 export function setupDOMObserver(plugin: LatexReferencer): () => void {
-  const observer = new MutationObserver((mutations) => {
+  const observer = new MutationObserver(mutations => {
     for (const mutation of mutations) {
-      if (mutation.type === "childList") {
+      if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
           if (node instanceof HTMLElement) {
             if (!node.querySelector && !node.matches) continue;
@@ -108,7 +108,7 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
   observer.observe(document.body, { childList: true, subtree: true });
 
   // Initial scan: process callouts that were rendered before the observer
-  // started or before the equation cache was ready. We use onLayoutReady 
+  // started or before the equation cache was ready. We use onLayoutReady
   // to ensure the DOM is fully initialized, plus a small delay to ensure
   // the equation cache has been built.
   plugin.app.workspace.onLayoutReady(() => {

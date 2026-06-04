@@ -1,5 +1,5 @@
-import { Notice, TFile } from "obsidian";
-import type LatexReferencer from "../../main";
+import { Notice, TFile } from 'obsidian';
+import type LatexReferencer from '../../main';
 
 export class CustomNoteManager {
   private registeredCommandIds: string[] = [];
@@ -13,12 +13,12 @@ export class CustomNoteManager {
   registerCommands() {
     // 1. Unregister all previously registered commands
     const appCommands = (this.plugin.app as any).commands;
-    if (appCommands && typeof appCommands.removeCommand === "function") {
+    if (appCommands && typeof appCommands.removeCommand === 'function') {
       for (const cmdId of this.registeredCommandIds) {
         try {
           appCommands.removeCommand(cmdId);
         } catch (e) {
-          console.error("Failed to remove custom note command", cmdId, e);
+          console.error('Failed to remove custom note command', cmdId, e);
         }
       }
     }
@@ -29,7 +29,8 @@ export class CustomNoteManager {
     for (const item of customNotes) {
       if (!item.notePath) continue;
 
-      const displayName = item.name || item.notePath.split("/").pop()?.replace(/\.md$/, "") || item.notePath;
+      const displayName =
+        item.name || item.notePath.split('/').pop()?.replace(/\.md$/, '') || item.notePath;
       const commandId = `open-custom-note-${item.id}`;
       const fullCommandId = `${this.plugin.manifest.id}:${commandId}`;
 
@@ -57,15 +58,17 @@ export class CustomNoteManager {
 
   async openCustomNote(notePath: string) {
     let file = this.plugin.app.vault.getAbstractFileByPath(notePath);
-    if (!file && !notePath.endsWith(".md")) {
-      file = this.plugin.app.vault.getAbstractFileByPath(notePath + ".md");
+    if (!file && !notePath.endsWith('.md')) {
+      file = this.plugin.app.vault.getAbstractFileByPath(notePath + '.md');
     }
 
     if (file instanceof TFile) {
-      const leaf = this.plugin.app.workspace.getLeaf("tab");
+      const leaf = this.plugin.app.workspace.getLeaf('tab');
       await leaf.openFile(file);
     } else {
-      new Notice(`Custom note not found at path: ${notePath}. Please verify your configuration in settings.`);
+      new Notice(
+        `Custom note not found at path: ${notePath}. Please verify your configuration in settings.`
+      );
     }
   }
 }

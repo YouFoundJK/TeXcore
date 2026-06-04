@@ -3,167 +3,174 @@ import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
-import type { PluginSettings } from "features/settings/settings";
-import { CALLOUT_PREFIX_REGEX, getCalloutPrefix, isStructuralCalloutLine } from "utils/parse";
-
+import type { PluginSettings } from 'features/settings/settings';
+import { CALLOUT_PREFIX_REGEX, getCalloutPrefix, isStructuralCalloutLine } from 'utils/parse';
 
 /**
  * The in-memory state for the TagManager. It holds only the information
  * necessary to decide if a tag should be added, updated, or removed.
  */
 interface EquationInfo {
-    from: number;
-    to: number;
-    id: string;
-    printName: string | null; // The calculated number, e.g., "(1)"
-    subIndices?: Set<number>; // Add this property
+  from: number;
+  to: number;
+  id: string;
+  printName: string | null; // The calculated number, e.g., "(1)"
+  subIndices?: Set<number>; // Add this property
 }
 type EquationState = readonly EquationInfo[];
-
 
 /**
  * A utility parser that finds the start and end positions of all $$...$$ math blocks,
  * ignoring any that are inside code blocks. This is a stable dependency.
  */
 function findMathBlocks(state: EditorState): readonly { from: number; to: number }[] {
-    const text = state.doc.toString();
-    const codeBlockRanges: { from: number; to: number }[] = [];
+  const text = state.doc.toString();
+  const codeBlockRanges: { from: number; to: number }[] = [];
 
-    const fencedCodeRegex = /^```[\s\S]*?^```/gm;
-    let fencedMatch: RegExpExecArray | null;
-    while ((fencedMatch = fencedCodeRegex.exec(text)) !== null) {
-        codeBlockRanges.push({ from: fencedMatch.index, to: fencedMatch.index + fencedMatch[0].length });
-    }
-
-    const inlineCodeRegex = /(`+)(?:(?!\1|(?:\r\n|\n){2})[\s\S])+?\1/g;
-    let inlineMatch: RegExpExecArray | null;
-    while ((inlineMatch = inlineCodeRegex.exec(text)) !== null) {
-        const currentMatch = inlineMatch;
-        const isInsideFencedBlock = codeBlockRanges.some(range =>
-            currentMatch.index >= range.from && (currentMatch.index + currentMatch[0].length) <= range.to
-        );
-        if (!isInsideFencedBlock) {
-            codeBlockRanges.push({ from: currentMatch.index, to: currentMatch.index + currentMatch[0].length });
-        }
-    }
-
-    const mathBlockRanges: { from: number; to: number }[] = [];
-    const mathRegex = /\$\$(.*?)\$\$/gs;
-    let mathMatch: RegExpExecArray | null;
-    while ((mathMatch = mathRegex.exec(text)) !== null) {
-        // Guard against lazy-continuation callout math blocks.
-        // When the opening $$ is on a callout line (e.g. "> $$") but the closing
-        // $$ is NOT (lazy continuation), the tag manager would corrupt the document
-        // by reconstructing the closing with the opening's prefix.
-        // Only skip blocks with MISMATCHED prefixes; properly-formed callout
-        // equations (where both $$ share the same prefix) are fine.
-        const openPos = mathMatch.index;
-        const openLineStart = text.lastIndexOf('\n', openPos - 1) + 1;
-        const openPrefix = text.substring(openLineStart, openPos);
-
-        const closePos = mathMatch.index + mathMatch[0].length - 2; // position of closing $$
-        const closeLineStart = text.lastIndexOf('\n', closePos - 1) + 1;
-        const closePrefix = text.substring(closeLineStart, closePos);
-
-        const openCallout = (openPrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
-        const closeCallout = (closePrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
-        if (openCallout !== closeCallout) {
-            continue;
-        }
-
-        mathBlockRanges.push({ from: mathMatch.index, to: mathMatch.index + mathMatch[0].length });
-    }
-
-    const validMathBlocks = mathBlockRanges.filter(mathRange => {
-        return !codeBlockRanges.some(codeRange =>
-            mathRange.from >= codeRange.from && mathRange.to <= codeRange.to
-        );
+  const fencedCodeRegex = /^```[\s\S]*?^```/gm;
+  let fencedMatch: RegExpExecArray | null;
+  while ((fencedMatch = fencedCodeRegex.exec(text)) !== null) {
+    codeBlockRanges.push({
+      from: fencedMatch.index,
+      to: fencedMatch.index + fencedMatch[0].length
     });
+  }
 
-    return validMathBlocks;
+  const inlineCodeRegex = /(`+)(?:(?!\1|(?:\r\n|\n){2})[\s\S])+?\1/g;
+  let inlineMatch: RegExpExecArray | null;
+  while ((inlineMatch = inlineCodeRegex.exec(text)) !== null) {
+    const currentMatch = inlineMatch;
+    const isInsideFencedBlock = codeBlockRanges.some(
+      range =>
+        currentMatch.index >= range.from && currentMatch.index + currentMatch[0].length <= range.to
+    );
+    if (!isInsideFencedBlock) {
+      codeBlockRanges.push({
+        from: currentMatch.index,
+        to: currentMatch.index + currentMatch[0].length
+      });
+    }
+  }
+
+  const mathBlockRanges: { from: number; to: number }[] = [];
+  const mathRegex = /\$\$(.*?)\$\$/gs;
+  let mathMatch: RegExpExecArray | null;
+  while ((mathMatch = mathRegex.exec(text)) !== null) {
+    // Guard against lazy-continuation callout math blocks.
+    // When the opening $$ is on a callout line (e.g. "> $$") but the closing
+    // $$ is NOT (lazy continuation), the tag manager would corrupt the document
+    // by reconstructing the closing with the opening's prefix.
+    // Only skip blocks with MISMATCHED prefixes; properly-formed callout
+    // equations (where both $$ share the same prefix) are fine.
+    const openPos = mathMatch.index;
+    const openLineStart = text.lastIndexOf('\n', openPos - 1) + 1;
+    const openPrefix = text.substring(openLineStart, openPos);
+
+    const closePos = mathMatch.index + mathMatch[0].length - 2; // position of closing $$
+    const closeLineStart = text.lastIndexOf('\n', closePos - 1) + 1;
+    const closePrefix = text.substring(closeLineStart, closePos);
+
+    const openCallout = (openPrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
+    const closeCallout = (closePrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
+    if (openCallout !== closeCallout) {
+      continue;
+    }
+
+    mathBlockRanges.push({ from: mathMatch.index, to: mathMatch.index + mathMatch[0].length });
+  }
+
+  const validMathBlocks = mathBlockRanges.filter(mathRange => {
+    return !codeBlockRanges.some(
+      codeRange => mathRange.from >= codeRange.from && mathRange.to <= codeRange.to
+    );
+  });
+
+  return validMathBlocks;
 }
 
 const mathBlockPositionsField = StateField.define<readonly { from: number; to: number }[]>({
-    create(state) { return findMathBlocks(state); },
-    update(value, tr) {
-        if (!tr.docChanged) return value;
-        return findMathBlocks(tr.state);
-    }
+  create(state) {
+    return findMathBlocks(state);
+  },
+  update(value, tr) {
+    if (!tr.docChanged) return value;
+    return findMathBlocks(tr.state);
+  }
 });
-
 
 /**
  * The "Brain". This function scans the document for references and calculates
  * the correct number for each managed equation.
  */
 function parseEquationInfo(state: EditorState, plugin: LatexReferencer): EquationState {
-    const text = state.doc.toString();
-    const settings = plugin.settings;
-    const file = state.field(editorInfoField).file;
-    if (!file) return [];
+  const text = state.doc.toString();
+  const settings = plugin.settings;
+  const file = state.field(editorInfoField).file;
+  if (!file) return [];
 
-    // 1. Scan for all references, including sub-equation links
-    const referenceMap = new Map<string, { totalCount: number, subIndices: Set<number> }>();
-    const linkRegex = /\[\[#\^eq-[\w-]+\]\]/g;
-    let match;
-    while ((match = linkRegex.exec(text)) !== null) {
-        const linkText = match[0].slice(4, -2); // eq-id or eq-id-2
-        const subIndexMatch = linkText.match(/-(\d+)$/);
-        let baseId = linkText;
-        let subIndexStr: string | undefined = undefined;
+  // 1. Scan for all references, including sub-equation links
+  const referenceMap = new Map<string, { totalCount: number; subIndices: Set<number> }>();
+  const linkRegex = /\[\[#\^eq-[\w-]+\]\]/g;
+  let match;
+  while ((match = linkRegex.exec(text)) !== null) {
+    const linkText = match[0].slice(4, -2); // eq-id or eq-id-2
+    const subIndexMatch = linkText.match(/-(\d+)$/);
+    let baseId = linkText;
+    let subIndexStr: string | undefined = undefined;
 
-        if (subIndexMatch) {
-            subIndexStr = subIndexMatch[1];
-            baseId = linkText.substring(0, subIndexMatch.index);
-        }
-
-        if (!referenceMap.has(baseId)) {
-            referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
-        }
-        const refInfo = referenceMap.get(baseId);
-        if (!refInfo) continue;
-        refInfo.totalCount++;
-        if (subIndexStr) {
-            const subIndex = parseInt(subIndexStr);
-            if (!isNaN(subIndex)) {
-                refInfo.subIndices.add(subIndex);
-            }
-        }
+    if (subIndexMatch) {
+      subIndexStr = subIndexMatch[1];
+      baseId = linkText.substring(0, subIndexMatch.index);
     }
 
-    const mathBlocks = state.field(mathBlockPositionsField);
-    const equationInfos: (EquationInfo & { refCount: number })[] = [];
-    for (const block of mathBlocks) {
-        const blockText = state.doc.sliceString(block.from, block.to);
-        const idMatch = blockText.match(/% id: (eq-[\w-]+)/);
-        if (idMatch) {
-            const id = idMatch[1];
-            const refInfo = referenceMap.get(id);
-            equationInfos.push({
-                from: block.from, to: block.to, id: id,
-                refCount: refInfo?.totalCount ?? 0,
-                printName: null,
-                subIndices: refInfo?.subIndices,
-            });
-        }
+    if (!referenceMap.has(baseId)) {
+      referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
     }
-
-    let equationCount = 0;
-    const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>);
-    const eqSuffix = settings.eqNumberSuffix;
-
-    for (const info of equationInfos) {
-        if (!settings.numberOnlyReferencedEquations || info.refCount > 0) {
-            const num = settings.eqNumberInit + equationCount;
-            const numberStyle = settings.eqNumberStyle as keyof typeof CONVERTER;
-            const convertedNum = CONVERTER[numberStyle](num);
-            info.printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
-            equationCount++;
-        }
+    const refInfo = referenceMap.get(baseId);
+    if (!refInfo) continue;
+    refInfo.totalCount++;
+    if (subIndexStr) {
+      const subIndex = parseInt(subIndexStr);
+      if (!isNaN(subIndex)) {
+        refInfo.subIndices.add(subIndex);
+      }
     }
-    return equationInfos;
+  }
+
+  const mathBlocks = state.field(mathBlockPositionsField);
+  const equationInfos: (EquationInfo & { refCount: number })[] = [];
+  for (const block of mathBlocks) {
+    const blockText = state.doc.sliceString(block.from, block.to);
+    const idMatch = blockText.match(/% id: (eq-[\w-]+)/);
+    if (idMatch) {
+      const id = idMatch[1];
+      const refInfo = referenceMap.get(id);
+      equationInfos.push({
+        from: block.from,
+        to: block.to,
+        id: id,
+        refCount: refInfo?.totalCount ?? 0,
+        printName: null,
+        subIndices: refInfo?.subIndices
+      });
+    }
+  }
+
+  let equationCount = 0;
+  const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>);
+  const eqSuffix = settings.eqNumberSuffix;
+
+  for (const info of equationInfos) {
+    if (!settings.numberOnlyReferencedEquations || info.refCount > 0) {
+      const num = settings.eqNumberInit + equationCount;
+      const numberStyle = settings.eqNumberStyle as keyof typeof CONVERTER;
+      const convertedNum = CONVERTER[numberStyle](num);
+      info.printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
+      equationCount++;
+    }
+  }
+  return equationInfos;
 }
-
 
 const tagManagerAnnotation = Annotation.define<boolean>();
 
@@ -171,182 +178,187 @@ const tagManagerAnnotation = Annotation.define<boolean>();
  * The "Hands". This is the one and only plugin responsible for adding,
  * updating, or removing \tag{...} commands from the editor text.
  */
-function createTagManagerPlugin(plugin: LatexReferencer, equationField: StateField<EquationState>): ViewPlugin<object> {
-    return ViewPlugin.fromClass(class {
-        timeout: NodeJS.Timeout | null = null;
-        blockedBySelection = false;
+function createTagManagerPlugin(
+  plugin: LatexReferencer,
+  equationField: StateField<EquationState>
+): ViewPlugin<object> {
+  return ViewPlugin.fromClass(
+    class {
+      timeout: NodeJS.Timeout | null = null;
+      blockedBySelection = false;
 
-        constructor(view: EditorView) {
-            this.scheduleCheck(view);
-        }
-        update(update: ViewUpdate) {
-            if (update.docChanged && !update.transactions.some(tr => tr.annotation(tagManagerAnnotation))) {
-                this.scheduleCheck(update.view);
-            }
-
-            // If a previous run detected pending edits but skipped due to active selection
-            // inside an equation block, retry once the selection changes.
-            if (update.selectionSet && this.blockedBySelection) {
-                this.scheduleCheck(update.view);
-            }
-        }
-        scheduleCheck(view: EditorView) {
-            if (this.timeout) clearTimeout(this.timeout);
-            this.timeout = setTimeout(() => this.runCheck(view), 300);
+      constructor(view: EditorView) {
+        this.scheduleCheck(view);
+      }
+      update(update: ViewUpdate) {
+        if (
+          update.docChanged &&
+          !update.transactions.some(tr => tr.annotation(tagManagerAnnotation))
+        ) {
+          this.scheduleCheck(update.view);
         }
 
-        // equations/live-preview.ts (inside ViewPlugin.fromClass)
-
-        runCheck(view: EditorView) {
-            const equationInfos = view.state.field(equationField);
-            const changes: { from: number; to: number; insert: string }[] = [];
-            const selection = view.state.selection.main;
-            let blockedChanges = 0;
-
-            for (const info of equationInfos) {
-                const selectionOverlapsEquation = selection.from <= info.to && selection.to >= info.from;
-                // Determine the prefix from the OPENING line of the block.
-                // This is the source of truth for indentation/callout level.
-                const startLine = view.state.doc.lineAt(info.from);
-                const prefix = getCalloutPrefix(startLine.text);
-
-                // Get inner content (excluding $$ delimiters)
-                const blockContent = view.state.doc.sliceString(info.from + 2, info.to - 2);
-
-                // --- Common Extraction Logic ---
-                // 1. Extract existing ID if present
-                const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
-                const idMatch = blockContent.match(idCommentRegex);
-                const idVal = idMatch ? idMatch[0].match(/eq-[\w-]+/)?.[0] : null;
-
-                // 2. Isolate Math Part (all text before the ID comment)
-                let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
-
-                // 3. Clean existing tags
-                mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '');
-
-                // 4. Robust Line-Based Trimming
-                // Split into lines to inspect them individually.
-                let mathLines = mathPart.split(/\r?\n/);
-
-                // We want to remove trailing lines that contain ONLY the prefix (or whitespace).
-                // These are "structural" lines that shouldn't be treated as math content.
-                // e.g. a line that is just "> " or "   > "
-
-                // Pop lines from the end until we hit content or run out
-                while (mathLines.length > 0 && isStructuralCalloutLine(mathLines[mathLines.length - 1])) {
-                    mathLines.pop();
-                }
-
-                // Be careful: if we stripped everything (empty block), we might want to keep one empty line?
-                // Or just have empty content.
-                // If mathLines is empty now, it means block was empty.
-
-                // Rejoin the trimmed math part
-                mathPart = mathLines.join('\n');
-
-
-                let newInnerContent: string | null = null;
-
-                // --- Mode 1: Sub-equation ---
-                if (info.subIndices && info.subIndices.size > 0 && info.printName) {
-                    const baseName = info.printName.slice(1, -1);
-                    const rows = mathPart.trim().split(/\\\\/);
-                    let hasContent = false;
-
-                    const taggedRows = rows.map((row, index) => {
-                        const cleanedRow = row.replace(/^[ \t]+/, '');
-                        if (cleanedRow.trim() === '') return cleanedRow;
-                        hasContent = true;
-                        const subIndex = index + 1;
-                        const newTag = ` \\tag{${baseName}.${subIndex}}`;
-                        const endEnvMatch = cleanedRow.match(/(\\end\{[a-zA-Z*]+\})/);
-                        if (endEnvMatch && endEnvMatch.index !== undefined) {
-                            const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
-                            const environment = endEnvMatch[0];
-                            const after = cleanedRow.substring(endEnvMatch.index + environment.length);
-                            return before + newTag + ' ' + environment + after;
-                        } else {
-                            return cleanedRow.trimEnd() + newTag;
-                        }
-                    });
-
-                    if (hasContent) {
-                        newInnerContent = taggedRows.join(' \\\\ ');
-                    }
-                }
-                // --- Mode 2: Normal Equation ---
-                else {
-                    const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
-                    // mathPart is already trimmed of trailing structural lines.
-                    // We still trimEnd to remove trailing spaces on the last content line itself.
-                    mathPart = mathPart.trimEnd();
-
-                    if (requiredTagContent) {
-                        mathPart += ` \\tag{${requiredTagContent}}`;
-                    }
-                    newInnerContent = mathPart;
-                }
-
-                // --- Reconstruction ---
-                if (newInnerContent !== null) {
-                    // Logic to reconstruct the block end
-                    const existingSuffix = view.state.doc.sliceString(info.from + 2, info.to);
-                    // But if we trimmed, we might lose them.
-                    // blockContent usually starts with `\n`.
-
-                    // Simple heuristic: If original started with newline, keep it.
-                    const leadingNewline = blockContent.startsWith('\n') ? '\n' : '';
-                    const cleanMath = newInnerContent.trim();
-
-                    let proposedSuffix = leadingNewline + cleanMath;
-
-                    if (idVal) {
-                        proposedSuffix += `\n${prefix}% id: ${idVal}`;
-                    }
-                    proposedSuffix += `\n${prefix}$$`;
-
-                    // Comparison
-                    // We simply compare the strings.
-                    // Note: This replaces EVERYTHING from inside the block to the end of the block.
-                    if (existingSuffix !== proposedSuffix) {
-                        if (selectionOverlapsEquation) {
-                            blockedChanges += 1;
-                            continue;
-                        }
-                        changes.push({ from: info.from + 2, to: info.to, insert: proposedSuffix });
-                    }
-                }
-            }
-
-            this.blockedBySelection = blockedChanges > 0;
-
-            if (changes.length > 0) {
-                view.dispatch({
-                    changes,
-                    annotations: tagManagerAnnotation.of(true)
-                });
-            }
+        // If a previous run detected pending edits but skipped due to active selection
+        // inside an equation block, retry once the selection changes.
+        if (update.selectionSet && this.blockedBySelection) {
+          this.scheduleCheck(update.view);
         }
-    });
+      }
+      scheduleCheck(view: EditorView) {
+        if (this.timeout) clearTimeout(this.timeout);
+        this.timeout = setTimeout(() => this.runCheck(view), 300);
+      }
+
+      // equations/live-preview.ts (inside ViewPlugin.fromClass)
+
+      runCheck(view: EditorView) {
+        const equationInfos = view.state.field(equationField);
+        const changes: { from: number; to: number; insert: string }[] = [];
+        const selection = view.state.selection.main;
+        let blockedChanges = 0;
+
+        for (const info of equationInfos) {
+          const selectionOverlapsEquation = selection.from <= info.to && selection.to >= info.from;
+          // Determine the prefix from the OPENING line of the block.
+          // This is the source of truth for indentation/callout level.
+          const startLine = view.state.doc.lineAt(info.from);
+          const prefix = getCalloutPrefix(startLine.text);
+
+          // Get inner content (excluding $$ delimiters)
+          const blockContent = view.state.doc.sliceString(info.from + 2, info.to - 2);
+
+          // --- Common Extraction Logic ---
+          // 1. Extract existing ID if present
+          const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
+          const idMatch = blockContent.match(idCommentRegex);
+          const idVal = idMatch ? idMatch[0].match(/eq-[\w-]+/)?.[0] : null;
+
+          // 2. Isolate Math Part (all text before the ID comment)
+          let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
+
+          // 3. Clean existing tags
+          mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '');
+
+          // 4. Robust Line-Based Trimming
+          // Split into lines to inspect them individually.
+          let mathLines = mathPart.split(/\r?\n/);
+
+          // We want to remove trailing lines that contain ONLY the prefix (or whitespace).
+          // These are "structural" lines that shouldn't be treated as math content.
+          // e.g. a line that is just "> " or "   > "
+
+          // Pop lines from the end until we hit content or run out
+          while (mathLines.length > 0 && isStructuralCalloutLine(mathLines[mathLines.length - 1])) {
+            mathLines.pop();
+          }
+
+          // Be careful: if we stripped everything (empty block), we might want to keep one empty line?
+          // Or just have empty content.
+          // If mathLines is empty now, it means block was empty.
+
+          // Rejoin the trimmed math part
+          mathPart = mathLines.join('\n');
+
+          let newInnerContent: string | null = null;
+
+          // --- Mode 1: Sub-equation ---
+          if (info.subIndices && info.subIndices.size > 0 && info.printName) {
+            const baseName = info.printName.slice(1, -1);
+            const rows = mathPart.trim().split(/\\\\/);
+            let hasContent = false;
+
+            const taggedRows = rows.map((row, index) => {
+              const cleanedRow = row.replace(/^[ \t]+/, '');
+              if (cleanedRow.trim() === '') return cleanedRow;
+              hasContent = true;
+              const subIndex = index + 1;
+              const newTag = ` \\tag{${baseName}.${subIndex}}`;
+              const endEnvMatch = cleanedRow.match(/(\\end\{[a-zA-Z*]+\})/);
+              if (endEnvMatch && endEnvMatch.index !== undefined) {
+                const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
+                const environment = endEnvMatch[0];
+                const after = cleanedRow.substring(endEnvMatch.index + environment.length);
+                return before + newTag + ' ' + environment + after;
+              } else {
+                return cleanedRow.trimEnd() + newTag;
+              }
+            });
+
+            if (hasContent) {
+              newInnerContent = taggedRows.join(' \\\\ ');
+            }
+          }
+          // --- Mode 2: Normal Equation ---
+          else {
+            const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
+            // mathPart is already trimmed of trailing structural lines.
+            // We still trimEnd to remove trailing spaces on the last content line itself.
+            mathPart = mathPart.trimEnd();
+
+            if (requiredTagContent) {
+              mathPart += ` \\tag{${requiredTagContent}}`;
+            }
+            newInnerContent = mathPart;
+          }
+
+          // --- Reconstruction ---
+          if (newInnerContent !== null) {
+            // Logic to reconstruct the block end
+            const existingSuffix = view.state.doc.sliceString(info.from + 2, info.to);
+            // But if we trimmed, we might lose them.
+            // blockContent usually starts with `\n`.
+
+            // Simple heuristic: If original started with newline, keep it.
+            const leadingNewline = blockContent.startsWith('\n') ? '\n' : '';
+            const cleanMath = newInnerContent.trim();
+
+            let proposedSuffix = leadingNewline + cleanMath;
+
+            if (idVal) {
+              proposedSuffix += `\n${prefix}% id: ${idVal}`;
+            }
+            proposedSuffix += `\n${prefix}$$`;
+
+            // Comparison
+            // We simply compare the strings.
+            // Note: This replaces EVERYTHING from inside the block to the end of the block.
+            if (existingSuffix !== proposedSuffix) {
+              if (selectionOverlapsEquation) {
+                blockedChanges += 1;
+                continue;
+              }
+              changes.push({ from: info.from + 2, to: info.to, insert: proposedSuffix });
+            }
+          }
+        }
+
+        this.blockedBySelection = blockedChanges > 0;
+
+        if (changes.length > 0) {
+          view.dispatch({
+            changes,
+            annotations: tagManagerAnnotation.of(true)
+          });
+        }
+      }
+    }
+  );
 }
 
 function createEquationField(plugin: LatexReferencer): StateField<EquationState> {
-    return StateField.define<EquationState>({
-        create(state) { return parseEquationInfo(state, plugin); },
-        update(value, tr) {
-            if (!tr.docChanged) return value;
-            return parseEquationInfo(tr.state, plugin);
-        }
-    });
+  return StateField.define<EquationState>({
+    create(state) {
+      return parseEquationInfo(state, plugin);
+    },
+    update(value, tr) {
+      if (!tr.docChanged) return value;
+      return parseEquationInfo(tr.state, plugin);
+    }
+  });
 }
 
 /** The main export that bundles all required editor extensions. */
 export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
-    const equationField = createEquationField(plugin);
-    return [
-        mathBlockPositionsField,
-        equationField,
-        createTagManagerPlugin(plugin, equationField),
-    ];
+  const equationField = createEquationField(plugin);
+  return [mathBlockPositionsField, equationField, createTagManagerPlugin(plugin, equationField)];
 }

@@ -1,30 +1,35 @@
 {
-  "compilerOptions": {
-    "baseUrl": "./src",
-    "inlineSourceMap": true,
-    "inlineSources": true,
-    "module": "ESNext",
-    "target": "ES2022",
-    "allowJs": true,
-    "noImplicitAny": true,
-    "moduleResolution": "node",
-    "importHelpers": true,
-    "isolatedModules": true,
-	"strictNullChecks": true,
-    "lib": [
-      "DOM",
-      "ES5",
-      "ES6",
-      "ES7",
-      "ES2021.String",
-      "DOM.Iterable",
-      "es2022"
-    ]
-  },
-  "include": [
-    "**/*.ts"
-  ],
-  "exclude": [
-    "src/legacy/*.ts",
-  ]
+	"compilerOptions": {
+		"baseUrl": "./src",
+		"inlineSourceMap": true,
+		"inlineSources": true,
+		"module": "ESNext",
+		"target": "ES2022",
+		"allowJs": true,
+		"noImplicitAny": true,
+		"moduleResolution": "node",
+		"importHelpers": true,
+		"isolatedModules": true,
+		"strictNullChecks": true,
+		"lib": [
+			"DOM",
+			"ES5",
+			"ES6",
+			"ES7",
+			"ES2021.String",
+			"DOM.Iterable",
+			"es2022"
+		]
+	},
+	"include": [
+		"**/*.d.ts",
+		"**/*.ts"
+	],
+	"exclude": [
+		"src/legacy/*.ts",
+		"node_modules",
+		"dist",
+		"build",
+		"main.js"
+	]
 }

@@ -10,5 +10,5 @@ export const PageSize: Record<string, number[]> = {
   Legal: [216, 356],
   Letter: [216, 279],
   Tabloid: [279, 432],
-  Ledger: [432, 279],
+  Ledger: [432, 279]
 };

@@ -1,4 +1,4 @@
-import { TFile, TFolder } from "obsidian";
+import { TFile, TFolder } from 'obsidian';
 
 export class TreeNode {
   // h2-1, h3-2, etc
@@ -25,18 +25,18 @@ export class TreeNode {
  */
 
 export function getHeadingTree(doc = document) {
-  const headings = doc.querySelectorAll("h1, h2, h3, h4, h5, h6");
-  const root = new TreeNode("", "Root", 0);
+  const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  const root = new TreeNode('', 'Root', 0);
   let prev = root;
 
   headings.forEach((heading: HTMLElement) => {
-    if (heading.style.display == "none") {
+    if (heading.style.display == 'none') {
       return;
     }
     const level = parseInt(heading.tagName.slice(1));
 
-    const link = heading.querySelector("a.md-print-anchor") as HTMLLinkElement;
-    const regexMatch = /^af:\/\/(.+)$/.exec(link?.href ?? "");
+    const link = heading.querySelector('a.md-print-anchor') as HTMLLinkElement;
+    const regexMatch = /^af:\/\/(.+)$/.exec(link?.href ?? '');
     if (!regexMatch) {
       return;
     }
@@ -57,11 +57,11 @@ export function getHeadingTree(doc = document) {
 // modify heading/block, and get heading/block flag
 export function modifyDest(doc: Document) {
   const data = new Map();
-  doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading: HTMLElement, i) => {
-    const link = document.createElement("a") as HTMLAnchorElement;
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading: HTMLElement, i) => {
+    const link = document.createElement('a') as HTMLAnchorElement;
     const flag = `${heading.tagName.toLowerCase()}-${i}`;
     link.href = `af://${flag}`;
-    link.className = "md-print-anchor";
+    link.className = 'md-print-anchor';
     heading.appendChild(link);
     data.set(heading.dataset.heading, flag);
   });
@@ -76,10 +76,10 @@ function convertMapKeysToLowercase(map: Map<string, string>) {
 export function fixAnchors(doc: Document, dest: Map<string, string>, basename: string) {
   const lowerDest = convertMapKeysToLowercase(dest);
 
-  doc.querySelectorAll("a.internal-link").forEach((el: HTMLAnchorElement, i) => {
-    const [title, anchor] = el.dataset.href?.split("#") ?? [];
+  doc.querySelectorAll('a.internal-link').forEach((el: HTMLAnchorElement, i) => {
+    const [title, anchor] = el.dataset.href?.split('#') ?? [];
 
-    if (anchor?.startsWith("^")) {
+    if (anchor?.startsWith('^')) {
       el.href = el.dataset.href?.toLowerCase() as string;
     }
 
@@ -89,7 +89,7 @@ export function fixAnchors(doc: Document, dest: Map<string, string>, basename: s
       }
 
       const flag = dest.get(anchor) || lowerDest.get(anchor?.toLowerCase());
-      if (flag && !anchor.startsWith("^")) {
+      if (flag && !anchor.startsWith('^')) {
         el.href = `an://${flag}`;
       }
     }
@@ -111,7 +111,7 @@ export function waitFor(cond: (...args: unknown[]) => boolean, timeout = 0) {
       if (cond()) {
         resolve(true);
       } else if (timeout > 0 && Date.now() - startTime >= timeout) {
-        reject(new Error("Timeout exceeded"));
+        reject(new Error('Timeout exceeded'));
       } else {
         setTimeout(poll, 100);
       }
@@ -121,7 +121,7 @@ export function waitFor(cond: (...args: unknown[]) => boolean, timeout = 0) {
   });
 }
 
-export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const px2mm = (px: number) => {
   return Math.round(px * 0.26458333333719);
@@ -132,7 +132,7 @@ export const mm2px = (mm: number) => {
 
 export function traverseFolder(path: TFolder | TFile): TFile[] {
   if (path instanceof TFile) {
-    if (path.extension == "md") {
+    if (path.extension == 'md') {
       return [path];
     } else {
       return [];
@@ -147,7 +147,7 @@ export function traverseFolder(path: TFolder | TFile): TFile[] {
 
 // copy element attributes
 export function copyAttributes(node: HTMLElement, attributes: NamedNodeMap) {
-  Array.from(attributes).forEach((attr) => {
+  Array.from(attributes).forEach(attr => {
     node.setAttribute(attr.name, attr.value);
   });
 }
