@@ -19,6 +19,21 @@ function selectionAndRangeOverlap(selection: EditorSelection, rangeFrom: number,
     return false;
 }
 
+function tightenColumn(colEl: HTMLElement) {
+    colEl.style.setProperty("margin-top", "0", "important");
+    colEl.style.setProperty("margin-bottom", "0", "important");
+    colEl.style.setProperty("padding-top", "0", "important");
+    colEl.style.setProperty("padding-bottom", "0", "important");
+
+    const selectors = "p, .math, .math-block, pre, code, .block-language-tikz, mjx-container, svg, .cm-embed-block";
+    colEl.querySelectorAll(selectors).forEach((el: HTMLElement) => {
+        el.style.setProperty("margin-top", "0", "important");
+        el.style.setProperty("margin-bottom", "0", "important");
+        el.style.setProperty("padding-top", "0", "important");
+        el.style.setProperty("padding-bottom", "0", "important");
+    });
+}
+
 // ==========================================
 // 1. Reading View & PDF Export Post-Processor
 // ==========================================
@@ -156,7 +171,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
                 rowEl.style.gap = "1.5rem";
                 rowEl.style.width = "100%";
                 rowEl.style.alignItems = "center";
-                rowEl.style.margin = "1.5em 0";
+                rowEl.style.margin = "-0.5em 0";
 
                 columnsMarkdown.forEach((colMarkdown) => {
                     const colEl = rowEl.createEl("div", { cls: "latex-referencer-column" });
@@ -169,6 +184,12 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
                     const comp = new MarkdownRenderChild(colEl);
                     ctx.addChild(comp);
                     MarkdownRenderer.render(plugin.app, colMarkdown, colEl, ctx.sourcePath, comp)
+                        .then(() => {
+                            tightenColumn(colEl);
+                            setTimeout(() => tightenColumn(colEl), 50);
+                            setTimeout(() => tightenColumn(colEl), 150);
+                            setTimeout(() => tightenColumn(colEl), 500);
+                        })
                         .catch((err) => console.error("Latex Referencer: Failed to render column markdown", err));
                 });
 
@@ -223,7 +244,7 @@ class RowLayoutWidget extends WidgetType {
         rowEl.style.gap = "1.5rem";
         rowEl.style.width = "100%";
         rowEl.style.alignItems = "center";
-        rowEl.style.margin = "1.5em 0";
+        rowEl.style.margin = "-0.5em 0";
 
         this.columnsMarkdown.forEach((colMarkdown) => {
             const colEl = rowEl.createEl("div", { cls: "latex-referencer-column" });
@@ -237,6 +258,12 @@ class RowLayoutWidget extends WidgetType {
             comp.load();
             this.components.push(comp);
             MarkdownRenderer.render(this.plugin.app, colMarkdown, colEl, this.sourcePath, comp)
+                .then(() => {
+                    tightenColumn(colEl);
+                    setTimeout(() => tightenColumn(colEl), 50);
+                    setTimeout(() => tightenColumn(colEl), 150);
+                    setTimeout(() => tightenColumn(colEl), 500);
+                })
                 .catch((err) => console.error("Latex Referencer: Failed to render Live Preview column markdown", err));
         });
 
