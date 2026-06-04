@@ -31,6 +31,7 @@ import { processZoteroCleanup } from 'features/zotero-cleanup';
 import { CustomNoteManager } from 'features/custom-notes/manager';
 import { TikzRenderer } from "./features/tikz/renderer";
 import { createRowLayoutProcessor, createLivePreviewRowLayoutPlugin } from "./features/tikz/row-layout";
+import { createTikzLivePreviewPlugin } from "./features/tikz/live-preview-overlay";
 
 
 const isDev = process.env.NODE_ENV === "development";
@@ -218,6 +219,7 @@ export default class LatexReferencer extends Plugin {
 		this.editorExtensions.push(createEquationNumberPlugin(this));
 		this.editorExtensions.push(createLivePreviewLinkRendererPlugin(this));
 		this.editorExtensions.push(createLivePreviewRowLayoutPlugin(this));
+		this.editorExtensions.push(createTikzLivePreviewPlugin(this));
 		this.app.workspace.updateOptions();
 	}
 
