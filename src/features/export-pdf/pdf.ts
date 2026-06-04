@@ -240,7 +240,8 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
 
     for (let i = 0; i < length; i += 1) {
       const outline = outlines[i];
-      const outlineRef = refMap.get(outline)!;
+      const outlineRef = refMap.get(outline);
+      if (!outlineRef) continue;
 
       const destOrAction = (() => {
         // if (typeof outline.to === 'string') {
@@ -265,22 +266,29 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
         if ('children' in outline && outline.children.length > 0) {
           createOutline(outline.children, outlineRef);
 
-          return {
-            First: refMap.get(outline.children[0])!,
-            Last: refMap.get(outline.children[outline.children.length - 1])!,
-            Count: getOpeningCount(outline.children) * (outline.open ? 1 : -1)
-          };
+          const firstRef = refMap.get(outline.children[0]);
+          const lastRef = refMap.get(outline.children[outline.children.length - 1]);
+          if (firstRef && lastRef) {
+            return {
+              First: firstRef,
+              Last: lastRef,
+              Count: getOpeningCount(outline.children) * (outline.open ? 1 : -1)
+            };
+          }
         }
         return {};
       })();
+
+      const prevRef = i > 0 ? refMap.get(outlines[i - 1]) : undefined;
+      const nextRef = i < length - 1 ? refMap.get(outlines[i + 1]) : undefined;
 
       doc.context.assign(
         outlineRef,
         doc.context.obj({
           Title: PDFHexString.fromText(outline.title),
           Parent: parent,
-          ...(i > 0 ? { Prev: refMap.get(outlines[i - 1])! } : {}),
-          ...(i < length - 1 ? { Next: refMap.get(outlines[i + 1])! } : {}),
+          ...(prevRef ? { Prev: prevRef } : {}),
+          ...(nextRef ? { Next: nextRef } : {}),
           ...childrenDict,
           ...destOrAction,
           F: (outline.italic ? 1 : 0) | (outline.bold ? 2 : 0)
@@ -299,10 +307,11 @@ export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline
     doc.context.obj({
       Type: 'Outlines',
       ...(rootCount > 0
-        ? {
-            First: refMap.get(outlines[0])!,
-            Last: refMap.get(outlines[outlines.length - 1])!
-          }
+        ? (() => {
+            const firstRef = refMap.get(outlines[0]);
+            const lastRef = refMap.get(outlines[outlines.length - 1]);
+            return firstRef && lastRef ? { First: firstRef, Last: lastRef } : {};
+          })()
         : {}),
       Count: rootCount
     })

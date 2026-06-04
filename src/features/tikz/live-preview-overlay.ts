@@ -138,11 +138,12 @@ class TikzLivePreviewOverlay {
 
     // Drag functionality
     handleEl.onmousedown = (e: MouseEvent) => {
+      if (!this.overlayEl) return;
       this.isDragging = true;
       this.startX = e.clientX;
       this.startY = e.clientY;
-      this.startLeft = this.overlayEl!.offsetLeft;
-      this.startTop = this.overlayEl!.offsetTop;
+      this.startLeft = this.overlayEl.offsetLeft;
+      this.startTop = this.overlayEl.offsetTop;
       e.preventDefault();
     };
 
@@ -154,8 +155,10 @@ class TikzLivePreviewOverlay {
       let newLeft = this.startLeft + dx;
       let newTop = this.startTop + dy;
 
-      const maxLeft = doc.defaultView!.innerWidth - this.overlayEl.offsetWidth;
-      const maxTop = doc.defaultView!.innerHeight - this.overlayEl.offsetHeight;
+      const view = doc.defaultView;
+      if (!view) return;
+      const maxLeft = view.innerWidth - this.overlayEl.offsetWidth;
+      const maxTop = view.innerHeight - this.overlayEl.offsetHeight;
 
       newLeft = Math.max(0, Math.min(newLeft, maxLeft));
       newTop = Math.max(0, Math.min(newTop, maxTop));

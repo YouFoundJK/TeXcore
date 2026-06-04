@@ -79,7 +79,7 @@
 }
 
 .theorem-callout-font-family-inherit {
-    font-family: inherit !important;
+    font-family: inherit;
 }
 
 .math-booster-title-form,
@@ -278,8 +278,8 @@
 }
 
 .math-booster-dependency-validation svg {
-    width: 16px !important;
-    height: 16px !important;
+    width: 16px;
+    height: 16px;
 }
 
 .math-booster-dependency-validation.valid {
