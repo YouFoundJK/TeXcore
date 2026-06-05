@@ -1,7 +1,7 @@
 {
   "name": "TeXcore",
   "version": "0.0.1",
-  "description": "Automatic equation numbering, Tex Diagrams rendering, and more for Obsidian.md",
+  "description": "Automatic equation numbering, Tex Diagrams rendering, and more.",
   "main": "main.js",
   "packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499",
   "scripts": {
@@ -23,7 +23,7 @@
     "coverage": "jest --coverage --passWithNoTests",
     "fl": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\"",
     "ra": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\" && pnpm run compile && eslint src -o lint_report.txt --no-color && eslint -c eslint.css.config.mjs \"src/**/*.css\" -o css_report.txt --no-color && jest --ci --silent=true --passWithNoTests",
-    "prod:release": "pnpm run prod && node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const outputDir=path.join(root,'release-artifacts');fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(outputDir,{recursive:true});for(const fileName of ['main.js','styles.css']){if(fs.existsSync(path.join(root,fileName))){fs.copyFileSync(path.join(root,fileName),path.join(outputDir,fileName));}}if(fs.existsSync(path.join(root,'manifest.json'))){fs.copyFileSync(path.join(root,'manifest.json'),path.join(outputDir,'manifest.json'));}if(fs.existsSync(path.join(root,'tikzjax-assets'))){fs.cpSync(path.join(root,'tikzjax-assets'),path.join(outputDir,'tikzjax-assets'),{recursive:true});}\""
+    "prod:release": "pnpm run prod && node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const outputDir=path.join(root,'release-artifacts');fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(outputDir,{recursive:true});for(const fileName of ['main.js','styles.css']){if(fs.existsSync(path.join(root,fileName))){fs.copyFileSync(path.join(root,fileName),path.join(outputDir,fileName));}}if(fs.existsSync(path.join(root,'manifest.json'))){fs.copyFileSync(path.join(root,'manifest.json'),path.join(outputDir,'manifest.json'));}\""
   },
   "keywords": [],
   "author": {

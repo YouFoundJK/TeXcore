@@ -29,7 +29,13 @@ export class TikzRenderer {
       if (await adapter.exists(cssPath)) {
         this.tikzjaxCss = await adapter.read(cssPath);
       } else {
-        console.warn('Latex Referencer: tikzjax.css not found in tikzjax-assets directory.');
+        // Try downloading it via loader
+        const cssData = await this.loader.loadAssetString('tikzjax.css');
+        if (cssData) {
+          this.tikzjaxCss = cssData;
+        } else {
+          console.warn('Latex Referencer: tikzjax.css not found and download failed.');
+        }
       }
 
       // Inject styling for main window and pop-outs
@@ -60,6 +66,28 @@ export class TikzRenderer {
    */
   public async render(source: string): Promise<SVGElement> {
     const code = this.tidyTikzSource(source);
+
+    // Lazy-load tikzjax.css if not loaded yet
+    if (!this.tikzjaxCss) {
+      const adapter = this.plugin.app.vault.adapter;
+      const pluginDir = this.plugin.manifest.dir;
+      if (pluginDir) {
+        const cssPath = `${pluginDir}/tikzjax-assets/tikzjax.css`;
+        if (await adapter.exists(cssPath)) {
+          this.tikzjaxCss = await adapter.read(cssPath);
+        } else {
+          const cssData = await this.loader.loadAssetString('tikzjax.css');
+          if (cssData) {
+            this.tikzjaxCss = cssData;
+          }
+        }
+
+        if (this.tikzjaxCss) {
+          this.injectCssAllWindows();
+        }
+      }
+    }
+
     const svg = await this.loader.render(code);
     this.postProcessSvg(svg);
     return svg;

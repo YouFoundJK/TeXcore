@@ -1,7 +1,10 @@
 import { dvi2html } from 'dvi2html';
 import { Writable } from 'stream';
 import zlib from 'zlib';
+import { requestUrl, type Notice } from 'obsidian';
+import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../../main';
+import { TIKZJAX_ASSETS } from './assets-manifest';
 // @ts-ignore
 import TikzJaxWorker from './tikzjax.worker';
 
@@ -9,8 +12,6 @@ let cachedWasm: Uint8Array | null = null;
 let cachedCore: Uint8Array | null = null;
 
 export class TikzJaxLoader {
-  private assetFilesList: string[] = [];
-
   constructor(private plugin: LatexReferencer) {}
 
   /**
@@ -45,55 +46,89 @@ export class TikzJaxLoader {
   }
 
   /**
-   * Load asset files list from the tikzjax-assets folder once
+   * Load asset files list (using static manifest)
    */
   private async ensureAssetsList(): Promise<string[]> {
-    if (this.assetFilesList.length > 0) {
-      return this.assetFilesList;
-    }
-
-    const adapter = this.plugin.app.vault.adapter;
-    const pluginDir = this.plugin.manifest.dir;
-    if (!pluginDir) return [];
-
-    const assetsPath = `${pluginDir}/tikzjax-assets`;
-    try {
-      if (await adapter.exists(assetsPath)) {
-        // Recursively list files under tikzjax-assets
-        const listFiles = async (dir: string): Promise<string[]> => {
-          const result: string[] = [];
-          const list = await adapter.list(dir);
-
-          // list.files contains direct child files
-          for (const file of list.files) {
-            result.push(file);
-          }
-
-          // list.folders contains subfolders
-          for (const folder of list.folders) {
-            const subFiles = await listFiles(folder);
-            result.push(...subFiles);
-          }
-          return result;
-        };
-
-        const absolutePaths = await listFiles(assetsPath);
-        // Map to relative paths within the tikzjax-assets folder
-        this.assetFilesList = absolutePaths.map(p => {
-          // p is like ".obsidian/plugins/latex-referencer/tikzjax-assets/tex_files/chemfig.tex.gz"
-          const idx = p.indexOf('tikzjax-assets/');
-          return idx !== -1 ? p.substring(idx + 'tikzjax-assets/'.length) : p;
-        });
-      }
-    } catch (err) {
-      console.error('Latex Referencer: Failed to scan tikzjax-assets directory', err);
-    }
-
-    return this.assetFilesList;
+    return TIKZJAX_ASSETS;
   }
 
   /**
-   * Read a .gz file from the assets folder and return the decompressed Uint8Array
+   * Download a file from the CDN and save it locally in the plugin's folder
+   */
+  private async downloadAsset(filename: string): Promise<Uint8Array | null> {
+    const adapter = this.plugin.app.vault.adapter;
+    const pluginDir = this.plugin.manifest.dir;
+    if (!pluginDir) return null;
+
+    const localPath = `${pluginDir}/tikzjax-assets/${filename}`;
+    const cdnUrl = `https://cdn.jsdelivr.net/gh/YouFoundJK/ObsiTeXcore@main/tikzjax-assets/${filename}`;
+
+    let notice: Notice | null = null;
+    try {
+      notice = showNotice(`TeXcore: Downloading TikZ asset ${filename}...`, 0);
+
+      const response = await requestUrl({
+        url: cdnUrl,
+        method: 'GET'
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = new Uint8Array(response.arrayBuffer);
+
+      // Ensure directory structure exists
+      const lastSlash = localPath.lastIndexOf('/');
+      if (lastSlash !== -1) {
+        const parentDir = localPath.substring(0, lastSlash);
+        if (!(await adapter.exists(parentDir))) {
+          await adapter.mkdir(parentDir);
+        }
+      }
+
+      // Write binary data to local file
+      await adapter.writeBinary(localPath, data.buffer);
+
+      if (notice) notice.hide();
+      showNotice(`TeXcore: Loaded TikZ asset ${filename} successfully.`);
+      return data;
+    } catch (err) {
+      console.error(`Latex Referencer: Failed to download asset ${filename} from CDN`, err);
+      if (notice) notice.hide();
+      showNotice(
+        `TeXcore error: Failed to download TikZ asset ${filename}. Check internet connection.`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Load an asset as a string (useful for tikzjax.css which is not compressed)
+   */
+  public async loadAssetString(filename: string): Promise<string | null> {
+    const adapter = this.plugin.app.vault.adapter;
+    const pluginDir = this.plugin.manifest.dir;
+    if (!pluginDir) return null;
+
+    const filePath = `${pluginDir}/tikzjax-assets/${filename}`;
+    try {
+      if (!(await adapter.exists(filePath))) {
+        const downloaded = await this.downloadAsset(filename);
+        if (!downloaded) {
+          return null;
+        }
+      }
+      return await adapter.read(filePath);
+    } catch (err) {
+      console.error(`Latex Referencer: Failed to load asset string ${filename}`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Read a .gz file from the assets folder and return the decompressed Uint8Array.
+   * If the file is not present locally, it will try to download it from the CDN first.
    */
   private async loadAssetFile(filename: string): Promise<Uint8Array | null> {
     const adapter = this.plugin.app.vault.adapter;
@@ -102,15 +137,22 @@ export class TikzJaxLoader {
 
     const filePath = `${pluginDir}/tikzjax-assets/${filename}`;
     try {
+      let compressedData: ArrayBufferLike;
       if (!(await adapter.exists(filePath))) {
-        return null;
+        const downloaded = await this.downloadAsset(filename);
+        if (!downloaded) {
+          return null;
+        }
+        compressedData = downloaded.buffer;
+      } else {
+        compressedData = await adapter.readBinary(filePath);
       }
-      const compressedData = await adapter.readBinary(filePath);
+
       // Decompress gzip synchronously using Node zlib
       const decompressed = zlib.gunzipSync(Buffer.from(compressedData));
       return new Uint8Array(decompressed);
     } catch (err) {
-      console.error(`Latex Referencer: Failed to load and decompress asset ${filename}`, err);
+      console.error(`Latex Referencer: Failed to load/decompress asset ${filename}`, err);
       return null;
     }
   }
