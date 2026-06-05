@@ -125,7 +125,7 @@ describe('MockVault API tests', () => {
     }
 
     // create another folder
-    const folder2 = await vault.createFolder('folder2');
+    await vault.createFolder('folder2');
 
     // rename folder
     const folder1 = vault.getAbstractFileByPath('folder1');

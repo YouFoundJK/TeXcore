@@ -1,10 +1,54 @@
-import { App, PluginSettingTab, Setting, TextAreaComponent } from 'obsidian';
+import { App, PluginSettingTab, Setting, TextAreaComponent, setIcon } from 'obsidian';
 import LatexReferencer from 'main';
 import { NUMBER_STYLES } from './settings';
 import { NoteSuggestModal } from '../ui/custom-notes/modal';
 import { setCssProps } from 'utils/obsidian';
+import { createDescWithDocs } from './docsLinks';
+import { changelogData } from './changelogData';
+import { t } from '../i18n/t';
+
+type SettingsTabId = 'general' | 'pdf' | 'tikz' | 'hotkeys' | 'changelog';
+
+interface TabCategory {
+  id: SettingsTabId;
+  labelKey: string;
+  descKey: string;
+}
+
+const TABS: TabCategory[] = [
+  {
+    id: 'general',
+    labelKey: 'settings.tab.general',
+    descKey: 'settings.tab.generalDesc'
+  },
+  {
+    id: 'pdf',
+    labelKey: 'settings.tab.pdf',
+    descKey: 'settings.tab.pdfDesc'
+  },
+  {
+    id: 'tikz',
+    labelKey: 'settings.tab.tikz',
+    descKey: 'settings.tab.tikzDesc'
+  },
+  {
+    id: 'hotkeys',
+    labelKey: 'settings.tab.hotkeys',
+    descKey: 'settings.tab.hotkeysDesc'
+  },
+  {
+    id: 'changelog',
+    labelKey: 'settings.tab.changelog',
+    descKey: 'settings.tab.changelogDesc'
+  }
+];
 
 export class MathSettingTab extends PluginSettingTab {
+  private activeTab: SettingsTabId = 'general';
+  private searchQuery = '';
+  private searchExpanded = false;
+  private searchDebounceId: number | null = null;
+
   constructor(
     app: App,
     public plugin: LatexReferencer
@@ -13,14 +57,199 @@ export class MathSettingTab extends PluginSettingTab {
   }
 
   display() {
+    this.render();
+  }
+
+  render() {
     const { containerEl } = this;
     containerEl.empty();
 
+    const shellEl = containerEl.createDiv('obsitexcore-settings-shell');
+
+    // Header
+    const headerEl = shellEl.createDiv('obsitexcore-settings-header');
+    new Setting(headerEl).setName(t('settings.title')).setHeading();
+
+    // Tabs & Search row
+    const tabsRowEl = shellEl.createDiv('obsitexcore-settings-tabs-row');
+    const tabsEl = tabsRowEl.createDiv('obsitexcore-settings-tabs');
+
+    TABS.forEach(tab => {
+      const isActive = tab.id === this.activeTab;
+      const button = tabsEl.createEl('button', {
+        cls: `full-calendar-settings-tab${isActive ? ' is-active' : ''}`,
+        text: t(tab.labelKey)
+      });
+      button.type = 'button';
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      button.addEventListener('click', () => {
+        if (this.activeTab === tab.id) return;
+        this.activeTab = tab.id;
+        this.render();
+      });
+    });
+
+    // Search wrap
+    const searchWrapEl = tabsRowEl.createDiv('obsitexcore-settings-search-wrap');
+
+    const searchButtonEl = searchWrapEl.createEl('button', {
+      cls: 'clickable-icon obsitexcore-settings-search-trigger'
+    });
+    searchButtonEl.type = 'button';
+    searchButtonEl.ariaLabel = 'Search settings';
+    setIcon(searchButtonEl, 'search');
+
+    const inputWrapEl = searchWrapEl.createDiv('obsitexcore-settings-search-input-wrap');
+    setCssProps(inputWrapEl, {
+      position: 'relative',
+      width: this.searchExpanded || this.searchQuery ? '170px' : '0px',
+      overflow: 'hidden',
+      transition: 'width 140ms ease'
+    });
+
+    const searchInputEl = inputWrapEl.createEl('input', {
+      cls: 'obsitexcore-settings-search-input'
+    });
+    searchInputEl.type = 'text';
+    searchInputEl.placeholder = 'Search settings...';
+    searchInputEl.value = this.searchQuery;
+
+    const clearButtonEl = inputWrapEl.createEl('button', {
+      cls: 'clickable-icon obsitexcore-settings-search-clear'
+    });
+    clearButtonEl.type = 'button';
+    clearButtonEl.ariaLabel = 'Clear search';
+    setCssProps(clearButtonEl, {
+      position: 'absolute',
+      right: '6px',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      display: this.searchQuery ? 'inline-flex' : 'none'
+    });
+    setIcon(clearButtonEl, 'x');
+
+    const renderSearchResults = () => {
+      this.renderSettingsContent(contentEl);
+      setCssProps(clearButtonEl, { display: this.searchQuery ? 'inline-flex' : 'none' });
+      setCssProps(searchButtonEl, {
+        display: this.searchExpanded || !!this.searchQuery ? 'none' : 'inline-flex'
+      });
+      searchButtonEl.toggleClass('is-active', this.searchExpanded || !!this.searchQuery);
+      inputWrapEl.toggleClass('is-active-query', !!this.searchQuery);
+    };
+
+    searchButtonEl.addEventListener('click', () => {
+      this.searchExpanded = true;
+      setCssProps(inputWrapEl, { width: '170px' });
+      setCssProps(searchButtonEl, { display: 'none' });
+      searchInputEl.focus();
+      searchButtonEl.toggleClass('is-active', true);
+    });
+
+    searchInputEl.addEventListener('blur', () => {
+      if (this.searchQuery) return;
+      this.searchExpanded = false;
+      setCssProps(inputWrapEl, { width: '0px' });
+      setCssProps(searchButtonEl, { display: 'inline-flex' });
+      searchButtonEl.toggleClass('is-active', false);
+    });
+
+    searchInputEl.addEventListener('input', () => {
+      this.searchQuery = searchInputEl.value;
+      if (this.searchDebounceId !== null) {
+        window.clearTimeout(this.searchDebounceId);
+      }
+      this.searchDebounceId = window.setTimeout(renderSearchResults, 80);
+    });
+
+    clearButtonEl.addEventListener('mousedown', evt => {
+      evt.preventDefault();
+      this.searchQuery = '';
+      searchInputEl.value = '';
+      renderSearchResults();
+      searchInputEl.focus();
+    });
+
+    // Content Panel
+    const contentEl = shellEl.createDiv('obsitexcore-settings-content');
+    this.renderSettingsContent(contentEl);
+
+    // Footer
+    this.renderFooter(shellEl);
+  }
+
+  private renderSettingsContent(containerEl: HTMLElement): void {
+    containerEl.empty();
+    const query = this.searchQuery.trim();
+
+    if (!query) {
+      const activeTab = TABS.find(t => t.id === this.activeTab);
+      if (activeTab) {
+        const introEl = containerEl.createDiv('obsitexcore-settings-category-intro');
+        introEl.createEl('p', { text: t(activeTab.descKey) });
+      }
+      const panelEl = containerEl.createDiv('obsitexcore-settings-panel');
+      this.renderCategoryContent(this.activeTab, panelEl);
+      return;
+    }
+
+    let hasAnyMatches = false;
+    for (const tab of TABS) {
+      if (tab.id === 'changelog') continue; // Skip changelog in search filters
+
+      const sectionEl = containerEl.createDiv('obsitexcore-settings-search-section');
+      const introEl = sectionEl.createDiv('obsitexcore-settings-category-intro');
+      new Setting(introEl).setName(t(tab.labelKey)).setHeading();
+      introEl.createEl('p', { text: t(tab.descKey) });
+
+      const panelEl = sectionEl.createDiv('obsitexcore-settings-panel');
+      this.renderCategoryContent(tab.id, panelEl);
+
+      const sectionHasMatches = this.applySearchFilter(panelEl, query);
+      if (!sectionHasMatches) {
+        sectionEl.remove();
+      } else {
+        hasAnyMatches = true;
+      }
+    }
+
+    if (!hasAnyMatches) {
+      const emptyEl = containerEl.createDiv('obsitexcore-settings-search-empty');
+      emptyEl.createEl('p', { text: `No settings match "${query}".` });
+    }
+  }
+
+  private renderCategoryContent(tabId: SettingsTabId, panelEl: HTMLElement): void {
+    switch (tabId) {
+      case 'general':
+        this.renderGeneral(panelEl);
+        break;
+      case 'pdf':
+        this.renderPdf(panelEl);
+        break;
+      case 'tikz':
+        this.renderTikz(panelEl);
+        break;
+      case 'hotkeys':
+        this.renderHotkeys(panelEl);
+        break;
+      case 'changelog':
+        this.renderChangelog(panelEl);
+        break;
+    }
+  }
+
+  private renderGeneral(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Equation numbering & referencing').setHeading();
 
     new Setting(containerEl)
       .setName('Number only referenced equations')
-      .setDesc('If turned on, only equations that are referenced somewhere will be numbered.')
+      .setDesc(
+        createDescWithDocs(
+          'If turned on, only equations that are referenced somewhere will be numbered.',
+          [{ text: 'Learn more', path: 'features/equations/' }]
+        )
+      )
       .addToggle(toggle =>
         toggle
           .setValue(this.plugin.settings.numberOnlyReferencedEquations)
@@ -90,12 +319,19 @@ export class MathSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName('Autocomplete & search').setHeading();
 
-    new Setting(containerEl).setName('Enable autocompletion').addToggle(toggle =>
-      toggle.setValue(this.plugin.settings.enableSuggest).onChange(async value => {
-        this.plugin.settings.enableSuggest = value;
-        await this.plugin.saveSettings();
-      })
-    );
+    new Setting(containerEl)
+      .setName('Enable autocompletion')
+      .setDesc(
+        createDescWithDocs('Enable auto-suggestions for equations and theorems as you type.', [
+          { text: 'Learn more', path: 'features/search/' }
+        ])
+      )
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.enableSuggest).onChange(async value => {
+          this.plugin.settings.enableSuggest = value;
+          await this.plugin.saveSettings();
+        })
+      );
 
     new Setting(containerEl).setName('Trigger for autocompletion').addText(text =>
       text.setValue(this.plugin.settings.triggerSuggest).onChange(async value => {
@@ -111,34 +347,51 @@ export class MathSettingTab extends PluginSettingTab {
       })
     );
 
+    new Setting(containerEl).setName('Zotero cleanup').setHeading();
+
+    new Setting(containerEl)
+      .setName('Directories to search')
+      .setDesc(
+        "Comma-separated list of directories to search recursively for Zotero annotations (e.g. 'Zotero,notes/readings')."
+      )
+      .addTextArea(textArea => {
+        textArea.setValue(this.plugin.settings.zoteroCleanDirectories).onChange(async value => {
+          this.plugin.settings.zoteroCleanDirectories = value;
+          await this.plugin.saveSettings();
+        });
+        textArea.inputEl.setAttr('rows', 3);
+      });
+  }
+
+  private renderPdf(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Pdf export').setHeading();
 
-    new Setting(containerEl).setName('Add file name as title').addToggle(toggle =>
-      toggle
-        .setTooltip('Add file name as title')
-        .setValue(this.plugin.settings.showTitle)
-        .onChange(async value => {
+    new Setting(containerEl)
+      .setName('Add file name as title')
+      .setDesc(
+        createDescWithDocs('Add the current file name as the heading/title in exported PDFs.', [
+          { text: 'Learn more', path: 'features/pdf-export/' }
+        ])
+      )
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.showTitle).onChange(async value => {
           this.plugin.settings.showTitle = value;
           await this.plugin.saveSettings();
         })
-    );
+      );
+
     new Setting(containerEl).setName('Display headers').addToggle(toggle =>
-      toggle
-        .setTooltip('Display header')
-        .setValue(this.plugin.settings.displayHeader)
-        .onChange(async value => {
-          this.plugin.settings.displayHeader = value;
-          await this.plugin.saveSettings();
-        })
+      toggle.setValue(this.plugin.settings.displayHeader).onChange(async value => {
+        this.plugin.settings.displayHeader = value;
+        await this.plugin.saveSettings();
+      })
     );
+
     new Setting(containerEl).setName('Display footer').addToggle(toggle =>
-      toggle
-        .setTooltip('Display footer')
-        .setValue(this.plugin.settings.displayFooter)
-        .onChange(async value => {
-          this.plugin.settings.displayFooter = value;
-          await this.plugin.saveSettings();
-        })
+      toggle.setValue(this.plugin.settings.displayFooter).onChange(async value => {
+        this.plugin.settings.displayFooter = value;
+        await this.plugin.saveSettings();
+      })
     );
 
     new Setting(containerEl)
@@ -263,7 +516,9 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
+  }
 
+  private renderTikz(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('TikZJax rendering').setHeading();
 
     new Setting(containerEl)
@@ -289,22 +544,9 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         })
       );
+  }
 
-    new Setting(containerEl).setName('Zotero cleanup').setHeading();
-
-    new Setting(containerEl)
-      .setName('Directories to search')
-      .setDesc(
-        "Comma-separated list of directories to search recursively for Zotero annotations (e.g. 'Zotero,notes/readings')."
-      )
-      .addTextArea(textArea => {
-        textArea.setValue(this.plugin.settings.zoteroCleanDirectories).onChange(async value => {
-          this.plugin.settings.zoteroCleanDirectories = value;
-          await this.plugin.saveSettings();
-        });
-        textArea.inputEl.setAttr('rows', 3);
-      });
-
+  private renderHotkeys(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Custom note hotkeys').setHeading();
     containerEl.createEl('p', {
       text: "Configure hotkeys to quickly open specific notes in your vault. You can define optional default hotkeys here, and further customize or rebind them within Obsidian's global 'hotkeys' settings.",
@@ -313,7 +555,11 @@ export class MathSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Add new hotkey mapping')
-      .setDesc('Create a new shortcut command to open a specific note.')
+      .setDesc(
+        createDescWithDocs('Create a new shortcut command to open a specific note.', [
+          { text: 'Learn more', path: 'features/snippets/' }
+        ])
+      )
       .addButton(btn =>
         btn.onClick(async () => {
           if (!this.plugin.settings.customNoteHotkeys) {
@@ -328,7 +574,7 @@ export class MathSettingTab extends PluginSettingTab {
           });
           await this.plugin.saveSettings();
           this.plugin.customNoteManager.registerCommands();
-          (this as unknown as { display(): void }).display();
+          this.render();
         })
       );
 
@@ -367,7 +613,7 @@ export class MathSettingTab extends PluginSettingTab {
           hotkeys.splice(index, 1);
           await this.plugin.saveSettings();
           this.plugin.customNoteManager.registerCommands();
-          (this as unknown as { display(): void }).display();
+          this.render();
         })();
       });
 
@@ -503,5 +749,145 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
+  }
+
+  private renderChangelog(containerEl: HTMLElement): void {
+    new Setting(containerEl).setName(t('settings.header.whatsNew')).setHeading();
+    const changelogList = containerEl.createDiv('obsitexcore-changelog-view-list');
+
+    changelogData.forEach(version => {
+      const verContainer = changelogList.createDiv('obsitexcore-changelog-version-container');
+      new Setting(verContainer)
+        .setName(`Version ${version.version} (${version.date})`)
+        .setHeading();
+
+      version.changes.forEach(change => {
+        const colonIndex = change.description.indexOf(':');
+        let title: string;
+        let desc = change.description;
+        if (colonIndex !== -1) {
+          title = change.description.substring(0, colonIndex).trim();
+          desc = change.description.substring(colonIndex + 1).trim();
+        } else {
+          title = change.type.charAt(0).toUpperCase() + change.type.slice(1);
+        }
+
+        let emoji = '✨';
+        if (change.type === 'new') {
+          emoji = '🚀';
+        } else if (change.type === 'fix') {
+          emoji = '🛠️';
+        }
+
+        const itemEl = verContainer.createDiv(`full-calendar-change-item full-calendar-change-type-${change.type}`);
+        itemEl.createDiv({
+          cls: 'full-calendar-change-icon',
+          text: emoji
+        });
+        const contentWrap = itemEl.createDiv('change-content');
+        contentWrap.createDiv({
+          cls: 'full-calendar-change-title',
+          text: title
+        });
+        contentWrap.createDiv({
+          cls: 'full-calendar-change-description',
+          text: desc
+        });
+      });
+    });
+  }
+
+  private renderFooter(containerEl: HTMLElement): void {
+    const footerEl = containerEl.createDiv({ cls: 'full-calendar-settings-footer' });
+    footerEl.createEl('p', {
+      text: t('settings.footer.question'),
+      cls: 'full-calendar-settings-footer-text'
+    });
+
+    const linksContainer = footerEl.createDiv({ cls: 'full-calendar-settings-footer-links' });
+
+    linksContainer.createEl('a', {
+      text: t('settings.footer.supportOnKofi'),
+      attr: {
+        href: 'https://youfoundjk.github.io/ObsiTeXcore/donation/ko-fi'
+      },
+      cls: 'full-calendar-settings-footer-link'
+    });
+    linksContainer.createEl('a', {
+      text: t('settings.footer.suggestFeature'),
+      attr: {
+        href: 'https://github.com/YouFoundJK/ObsiTeXcore/discussions'
+      },
+      cls: 'full-calendar-settings-footer-link'
+    });
+    linksContainer.createEl('a', {
+      text: t('settings.footer.reportBug'),
+      attr: {
+        href: 'https://github.com/YouFoundJK/ObsiTeXcore/issues'
+      },
+      cls: 'full-calendar-settings-footer-link'
+    });
+  }
+
+  private applySearchFilter(containerEl: HTMLElement, query: string): boolean {
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const settingEls = Array.from(containerEl.querySelectorAll<HTMLElement>('.setting-item'));
+
+    let visibleCount = 0;
+    settingEls.forEach(settingEl => {
+      const titleEl = settingEl.querySelector<HTMLElement>('.setting-item-name');
+      const descriptionEl = settingEl.querySelector<HTMLElement>('.setting-item-description');
+      const title = titleEl?.textContent ?? '';
+      const description = descriptionEl?.textContent ?? '';
+      const haystack = `${title} ${description}`.toLowerCase();
+
+      const isMatch = tokens.every(token => haystack.includes(token));
+      setCssProps(settingEl, { display: isMatch ? '' : 'none' });
+      if (isMatch) {
+        this.highlightSearchTokens(titleEl, tokens);
+        this.highlightSearchTokens(descriptionEl, tokens);
+        visibleCount += 1;
+      }
+    });
+
+    return visibleCount > 0;
+  }
+
+  private highlightSearchTokens(el: HTMLElement | null, tokens: string[]): void {
+    if (!el) return;
+    const rawText = el.textContent ?? '';
+    if (!rawText || tokens.length === 0) return;
+
+    const escapedTokens = tokens
+      .filter(Boolean)
+      .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (escapedTokens.length === 0) return;
+
+    const regex = new RegExp(`(${escapedTokens.join('|')})`, 'gi');
+    const doc = window.activeDocument ?? window.document;
+    const fragment = doc.createDocumentFragment();
+    let lastIndex = 0;
+
+    for (const match of rawText.matchAll(regex)) {
+      const matchText = match[0];
+      const matchIndex = match.index ?? -1;
+      if (matchIndex < 0) continue;
+
+      if (matchIndex > lastIndex) {
+        fragment.append(rawText.slice(lastIndex, matchIndex));
+      }
+
+      const markEl = doc.createElement('mark');
+      markEl.textContent = matchText;
+      fragment.append(markEl);
+      lastIndex = matchIndex + matchText.length;
+    }
+
+    if (lastIndex < rawText.length) {
+      fragment.append(rawText.slice(lastIndex));
+    }
+
+    el.empty();
+    el.append(fragment);
   }
 }

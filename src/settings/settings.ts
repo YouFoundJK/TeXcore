@@ -76,6 +76,9 @@ export interface PluginSettings {
   // TikZJax Settings
   enableTikzjax: boolean;
   invertColorsInDarkMode: boolean;
+
+  // Version tracking
+  currentVersion: string | null;
 }
 
 export interface CustomNoteHotkey {
@@ -87,6 +90,7 @@ export interface CustomNoteHotkey {
 }
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
+  currentVersion: null,
   // Numbering
   numberOnlyReferencedEquations: true,
   eqNumberPrefix: '',

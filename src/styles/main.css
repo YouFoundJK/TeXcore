@@ -354,3 +354,187 @@
     width: 100%;
     /* Ensure wrapper takes full width */
 }
+
+/* ====== Settings Redesign (Tabs, Search, Footer, and Changelog) ====== */
+
+.obsitexcore-settings-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-3);
+    margin-top: 15px;
+}
+
+.obsitexcore-settings-header {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 10px;
+}
+
+.obsitexcore-settings-tabs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 8px;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.obsitexcore-settings-tabs {
+    display: flex;
+    gap: 6px;
+}
+
+.obsitexcore-settings-tab {
+    padding: 6px 12px;
+    background-color: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.obsitexcore-settings-tab:hover {
+    color: var(--text-normal);
+    background-color: var(--background-secondary);
+}
+
+.obsitexcore-settings-tab.is-active {
+    color: var(--text-on-accent);
+    background-color: var(--interactive-accent);
+    border-color: var(--interactive-accent-hover);
+}
+
+.obsitexcore-settings-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.obsitexcore-settings-search-trigger {
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-s);
+}
+
+.obsitexcore-settings-search-input-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.obsitexcore-settings-search-input {
+    width: 100%;
+    padding: 6px 28px 6px 10px;
+    font-size: 0.9em;
+}
+
+.obsitexcore-settings-search-clear {
+    color: var(--text-muted);
+}
+
+.obsitexcore-settings-search-clear:hover {
+    color: var(--text-normal);
+}
+
+.obsitexcore-settings-category-intro {
+    font-size: 0.95em;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+}
+
+.obsitexcore-settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.obsitexcore-settings-search-section {
+    margin-bottom: 25px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    padding: 15px;
+    background-color: var(--background-primary-alt);
+}
+
+.obsitexcore-settings-search-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* ====== Settings Footer (Exact styles from full-calendar) ====== */
+.full-calendar-settings-footer {
+    margin-top: 1em;
+    padding: var(--size-4-4);
+    text-align: center;
+    background-color: var(--background-secondary);
+    border-radius: var(--radius-m);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.full-calendar-settings-footer-text {
+    font-size: var(--font-ui-medium);
+    color: var(--text-normal);
+    margin-top: var(--size-8-4);
+    margin-bottom: var(--size-4-2);
+}
+
+.full-calendar-settings-footer-links {
+    display: flex;
+    justify-content: center;
+    gap: var(--size-4-4);
+}
+
+.full-calendar-settings-footer-link {
+    font-size: var(--font-ui-medium);
+    font-weight: 600;
+    color: var(--interactive-accent);
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+.full-calendar-settings-footer-link:hover {
+    color: var(--interactive-accent-hover);
+}
+
+/* ====== Changelog/What's New Card Styles (Exact styles from full-calendar) ====== */
+.full-calendar-change-item {
+    display: flex;
+    gap: var(--size-4-3);
+    padding: var(--size-4-4);
+    border-radius: var(--radius-m);
+    margin-bottom: var(--size-4-2);
+    background-color: var(--background-secondary);
+    border-left: 3px solid;
+    text-align: left;
+}
+
+.full-calendar-change-type-new {
+    border-color: var(--color-green);
+}
+
+.full-calendar-change-type-improvement {
+    border-color: var(--color-blue);
+}
+
+.full-calendar-change-type-fix {
+    border-color: var(--color-orange);
+}
+
+.full-calendar-change-icon {
+    font-size: var(--font-ui-large);
+}
+
+.full-calendar-change-title {
+    font-weight: 700;
+    margin-bottom: var(--size-4-1);
+}
+
+.full-calendar-change-description {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+}

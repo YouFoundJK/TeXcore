@@ -1,0 +1,33 @@
+{
+  "settings": {
+    "title": "ObsiTeXcore settings",
+    "tab": {
+      "general": "General",
+      "generalDesc": "Configure equation numbering, referencing, autocomplete, and Zotero clean up settings.",
+      "pdf": "PDF Export",
+      "pdfDesc": "Configure layout, templates, and rendering limits for PDF exports.",
+      "tikz": "TikZJax",
+      "tikzDesc": "Configure TikZ rendering options and dark mode behavior.",
+      "hotkeys": "Custom Notes",
+      "hotkeysDesc": "Configure keyboard shortcuts to quickly open specific notes.",
+      "changelog": "What's new",
+      "changelogDesc": "View recent changes and new features."
+    },
+    "header": {
+      "whatsNew": "What's new"
+    },
+    "footer": {
+      "question": "Do you like what you see?",
+      "supportOnKofi": "☕ Buy me a coffee",
+      "suggestFeature": "💡 Suggest a new feature",
+      "reportBug": "🐛 Raise an issue"
+    }
+  },
+  "modals": {
+    "whatsNew": {
+      "title": "What's new in ObsiTeXcore",
+      "openSettings": "Open settings",
+      "supportKofi": "Support development / ko-fi"
+    }
+  }
+}

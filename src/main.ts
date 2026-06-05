@@ -59,6 +59,20 @@ export default class LatexReferencer extends Plugin {
   async onload() {
     await this.loadSettings();
 
+    // Check version and show What's New modal if upgraded/first install
+    const releaseVersion = this.manifest.version;
+    this.app.workspace.onLayoutReady(async () => {
+      if (
+        this.settings.currentVersion === null ||
+        this.settings.currentVersion !== releaseVersion
+      ) {
+        const { WhatsNewModal } = await import('./ui/modals/WhatsNewModal');
+        new WhatsNewModal(this.app, this.manifest.id).open();
+        this.settings.currentVersion = releaseVersion;
+        await this.saveSettings();
+      }
+    });
+
     this.internalProviders.push(new LatexLinkProvider(this));
 
     // Snippets

@@ -60,3 +60,10 @@ declare module 'obsidian' {
 export type LeafArgs =
   | [newLeaf?: PaneType | boolean]
   | [newLeaf?: 'split', direction?: SplitDirection];
+
+declare global {
+  interface Window {
+    activeDocument: Document;
+    activeWindow: Window;
+  }
+}
