@@ -55,6 +55,7 @@ export default class LatexReferencer extends Plugin {
   snippetManager!: SnippetManager;
   customNoteManager!: CustomNoteManager;
   tikzRenderer!: TikzRenderer;
+  isTikzEditorOpen = false;
 
   async onload() {
     await this.loadSettings();

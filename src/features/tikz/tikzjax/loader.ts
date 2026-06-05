@@ -167,7 +167,7 @@ export class TikzJaxLoader {
     if (!pluginDir) return null;
 
     const localPath = `${pluginDir}/tikzjax-assets/${filename}`;
-    const cdnUrl = `https://cdn.jsdelivr.net/gh/YouFoundJK/ObsiTeXcore@main/tikzjax-assets/${filename}`;
+    const cdnUrl = `https://raw.githubusercontent.com/YouFoundJK/TeXcore/main/tikzjax-assets/${filename}`;
 
     let notice: Notice | null = null;
     try {

@@ -423,6 +423,9 @@ export function put(descriptor: number, pointer: number, length: number) {
 async function compile(code: string, filesMap: Record<string, Uint8Array>): Promise<Uint8Array> {
   deleteEverything();
 
+  // Strip the ObsiTeXState comment to prevent WebAssembly/TeX line buffer out-of-bounds crashes
+  const strippedCode = code.replace(/%.*\[ObsiTeXState:.*\].*/g, '');
+
   // Populate preloaded file dict (excludes the WASM binary and core dump)
   for (const [filepath, content] of Object.entries(filesMap)) {
     if (filepath !== 'tex.wasm' && filepath !== 'core.dump') {
@@ -441,12 +444,12 @@ async function compile(code: string, filesMap: Record<string, Uint8Array>): Prom
   // and \usepackage{tikz} already executed, so we must strip any duplicate declarations
   // of \documentclass or \usepackage{tikz} to avoid "Two \documentclass" or package errors.
   let input: string;
-  if (code.includes('\\begin{document}')) {
-    let cleanCode = code.replace(/\\documentclass\s*(\[[^\]]*\])?\s*\{[^}]*\}/g, '');
+  if (strippedCode.includes('\\begin{document}')) {
+    let cleanCode = strippedCode.replace(/\\documentclass\s*(\[[^\]]*\])?\s*\{[^}]*\}/g, '');
     cleanCode = cleanCode.replace(/\\usepackage\s*(\[[^\]]*\])?\s*\{tikz\}/g, '');
     input = `\n${cleanCode}`;
   } else {
-    let cleanCode = code.replace(/\\documentclass\s*(\[[^\]]*\])?\s*\{[^}]*\}/g, '');
+    let cleanCode = strippedCode.replace(/\\documentclass\s*(\[[^\]]*\])?\s*\{[^}]*\}/g, '');
     cleanCode = cleanCode.replace(/\\usepackage\s*(\[[^\]]*\])?\s*\{tikz\}/g, '');
 
     // Split cleanCode into preamble and body. Preamble commands (like \usepackage,

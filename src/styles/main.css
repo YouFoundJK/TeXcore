@@ -355,6 +355,63 @@
     /* Ensure wrapper takes full width */
 }
 
+/* ====== TikZ Graphical Editor Modal ====== */
+
+.tikz-editor-modal {
+    width: min(1500px, 96vw);
+    max-width: 96vw;
+    height: min(900px, 92vh);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.tikz-editor-modal .modal-close-button {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+}
+
+.tikz-editor-modal .tikz-header-save-btn {
+    position: absolute;
+    top: 14px;
+    right: 50px;
+    z-index: 10005;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-s);
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.85em;
+    height: auto !important;
+    line-height: normal;
+    transition: background-color 0.15s ease;
+}
+
+.tikz-editor-modal .tikz-header-save-btn:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+.tikz-editor-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    overflow: hidden;
+    padding: 0;
+    height: auto;
+}
+
+.tikz-editor-modal .modal-header {
+    flex: 0 0 auto;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tikz-editor-modal .modal-title {
+    margin: 0;
+}
+
 /* ====== Settings Redesign (Tabs, Search, Footer, and Changelog) ====== */
 
 .obsitexcore-settings-shell {
@@ -590,4 +647,906 @@
     position: sticky;
     bottom: 0;
     z-index: 1;
+}
+
+/* ====== TikZ Graphical Editor Workspace & Components ====== */
+
+.tikz-editor-ui {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: var(--font-interface);
+}
+
+/* Left Sidebar */
+.tikz-editor-ui .left-sidebar {
+    width: 280px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    position: relative;
+    user-select: none;
+    z-index: 5;
+    flex-shrink: 0;
+}
+
+.tikz-editor-ui .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+}
+
+.tikz-editor-ui .tool-btn {
+    width: 32px;
+    height: 32px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tikz-editor-ui .tool-btn:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .tool-btn.active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .text-toggle {
+    font-size: 0.75em;
+    font-weight: 700;
+}
+
+.tikz-editor-ui .wire-icon {
+    width: 16px;
+    height: 2px;
+    background-color: currentColor;
+    position: relative;
+}
+
+.tikz-editor-ui .wire-icon::before,
+.tikz-editor-ui .wire-icon::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: currentColor;
+    top: -1px;
+}
+
+.tikz-editor-ui .wire-icon::before { left: -2px; }
+.tikz-editor-ui .wire-icon::after { right: -2px; }
+
+.tikz-editor-ui .divider {
+    width: 1px;
+    height: 20px;
+    background-color: var(--background-modifier-border);
+    margin: 0 4px;
+}
+
+.tikz-editor-ui .search-box {
+    padding: 8px;
+    position: relative;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tikz-editor-ui .search-box input {
+    width: 100%;
+    padding: 6px 10px 6px 28px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+
+.tikz-editor-ui .search-box input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.tikz-editor-ui .library {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tikz-editor-ui .category-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tikz-editor-ui .category-header {
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tikz-editor-ui .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.tikz-editor-ui .comp-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-secondary-alt);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 8px;
+    height: auto !important;
+    min-height: 72px !important;
+}
+
+.tikz-editor-ui .comp-card:hover {
+    border-color: var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tikz-editor-ui .comp-card.active-template {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.tikz-editor-ui .pin-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px !important;
+    padding: 0;
+    border-radius: var(--radius-s);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.tikz-editor-ui .pin-btn:hover,
+.tikz-editor-ui .pin-btn.pinned {
+    color: var(--text-on-accent);
+    background-color: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .svg-container {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .comp-label {
+    font-size: 0.75em;
+    text-align: center;
+    color: var(--text-normal);
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.tikz-editor-ui .empty-library {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.tikz-editor-ui .packages-section {
+    padding: 10px 12px;
+    border-top: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+    position: relative;
+    flex-shrink: 0; /* Prevents squishing in sidebar */
+}
+
+.tikz-editor-ui .packages-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.tikz-editor-ui .packages-header .title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .add-pkg-btn {
+    width: 24px;
+    height: 24px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.tikz-editor-ui .add-pkg-btn:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+.tikz-editor-ui .pkg-manager {
+    position: absolute;
+    bottom: 45px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    overflow: hidden;
+}
+
+.tikz-editor-ui .pkg-manager-header {
+    padding: 8px 12px;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8em;
+    font-weight: bold;
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .pkg-manager-header .close-btn {
+    font-size: 1.2em;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    height: auto !important;
+}
+
+.tikz-editor-ui .pkg-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tikz-editor-ui .pkg-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.tikz-editor-ui .pkg-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tikz-editor-ui .pkg-name {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .pkg-status {
+    font-size: 0.7em;
+    color: var(--text-muted);
+}
+
+.tikz-editor-ui .pkg-btn {
+    padding: 4px 8px;
+    font-size: 0.75em;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+    height: auto !important;
+}
+
+.tikz-editor-ui .pkg-btn.install {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.tikz-editor-ui .pkg-btn.install:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+.tikz-editor-ui .pkg-btn.uninstall {
+    background-color: transparent;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+.tikz-editor-ui .pkg-btn.uninstall:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .pkg-btn.loading {
+    background-color: var(--background-secondary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.tikz-editor-ui .spin {
+    animation: spin-anim 1s linear infinite;
+    display: inline-flex;
+    align-items: center;
+}
+
+@keyframes spin-anim {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Canvas Area */
+.tikz-editor-ui .canvas-area {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.tikz-editor-ui .canvas-grid-container {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: var(--background-secondary-alt);
+    position: relative;
+}
+
+.tikz-editor-ui .tikz-canvas-controls {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    z-index: 10;
+    padding: 2px 4px;
+}
+
+.tikz-editor-ui .tikz-canvas-controls button {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: auto !important;
+}
+
+.tikz-editor-ui .tikz-canvas-controls button:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.tikz-editor-ui .tikz-canvas-controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tikz-editor-ui .tikz-canvas-controls .zoom-label {
+    font-size: 0.8em;
+    font-weight: 600;
+    min-width: 44px;
+    text-align: center;
+    color: var(--text-normal);
+    padding: 0 8px;
+    user-select: none;
+}
+
+.tikz-editor-ui .tikz-canvas-controls .divider {
+    width: 1px;
+    height: 16px;
+    background-color: var(--background-modifier-border);
+    margin: 0 6px;
+}
+
+.tikz-editor-ui .canvas-workspace {
+    width: 1120px;
+    height: 720px;
+    position: relative;
+    transform-origin: 0 0;
+    cursor: crosshair;
+}
+
+.tikz-editor-ui .grid-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle at 0px 0px, var(--text-muted) 1.8px, transparent 1.8px);
+    background-size: 80px 80px;
+    background-position: 120px 360px;
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.tikz-editor-ui .grid-background.half-grid {
+    background-image: radial-gradient(circle at 0px 0px, var(--text-muted) 1.5px, transparent 1.5px);
+    background-size: 40px 40px;
+    background-position: 120px 360px;
+    opacity: 0.35;
+}
+
+.tikz-editor-ui .canvas-grid-container.is-grab,
+.tikz-editor-ui .canvas-grid-container.is-grab * {
+    cursor: grab !important;
+}
+
+.tikz-editor-ui .canvas-grid-container.is-grabbing,
+.tikz-editor-ui .canvas-grid-container.is-grabbing * {
+    cursor: grabbing !important;
+}
+
+.tikz-editor-ui .axis-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.tikz-editor-ui .axis-overlay line {
+    stroke: var(--text-muted);
+    stroke-width: 1;
+    opacity: 0.15;
+}
+
+.tikz-editor-ui .axis-overlay text {
+    fill: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-anchor: middle;
+    user-select: none;
+    opacity: 0.12;
+}
+
+.tikz-editor-ui .wires-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: auto;
+    z-index: 2;
+}
+
+.tikz-editor-ui .wire-group {
+    pointer-events: auto;
+}
+
+.tikz-editor-ui .wire-group line {
+    transition: stroke 0.15s ease;
+}
+
+.tikz-editor-ui .wire-group:hover line {
+    stroke: var(--text-accent);
+}
+
+.tikz-editor-ui .placed-element {
+    position: absolute;
+    width: 0;
+    height: 0;
+    z-index: 3;
+    pointer-events: auto;
+    cursor: move;
+}
+
+.tikz-editor-ui .placed-element.selected .node-visual {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+    border-radius: 50%;
+}
+
+.tikz-editor-ui .placed-element:hover .node-visual {
+    outline: 1.5px dashed var(--background-modifier-border);
+    outline-offset: 2px;
+    border-radius: 50%;
+}
+
+.tikz-editor-ui .node-visual {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tikz-editor-ui .node-label {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    pointer-events: none;
+    font-weight: 500;
+    text-align: center;
+}
+
+.tikz-editor-ui .placed-element.is-text .text-element-content {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    user-select: none;
+    padding: 4px 8px;
+    background-color: var(--background-primary);
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--radius-s);
+}
+
+.tikz-editor-ui .placed-element.is-text:hover .text-element-content {
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .placed-element.is-text.selected .text-element-content {
+    border: 1px solid var(--interactive-accent);
+    background-color: rgba(var(--interactive-accent), 0.05);
+}
+
+.tikz-editor-ui .comp-svg-fill svg {
+    fill: var(--background-primary);
+}
+
+/* Right Sidebar */
+.tikz-editor-ui .right-sidebar {
+    width: 320px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    position: relative;
+    z-index: 5;
+    flex-shrink: 0;
+}
+
+.tikz-editor-ui .tabs-header {
+    display: flex;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+}
+
+.tikz-editor-ui .tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    height: auto !important;
+}
+
+.tikz-editor-ui .tab-btn * {
+    pointer-events: none;
+}
+
+.tikz-editor-ui .tab-btn:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
+.tikz-editor-ui .tab-btn.active {
+    color: var(--text-accent);
+    border-bottom-color: var(--interactive-accent);
+    font-weight: 600;
+}
+
+.tikz-editor-ui .tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.tikz-editor-ui .section-title {
+    font-size: 0.95em;
+    font-weight: bold;
+    color: var(--text-normal);
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 8px;
+}
+
+.tikz-editor-ui .comp-name {
+    color: var(--text-accent);
+}
+
+.tikz-editor-ui .control-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tikz-editor-ui .control-group label, 
+.tikz-editor-ui .control-group .label-heading {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.tikz-editor-ui .row {
+    display: flex;
+    align-items: center;
+}
+
+.tikz-editor-ui .row.gap {
+    gap: 10px;
+}
+
+.tikz-editor-ui input[type="text"], 
+.tikz-editor-ui select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: 0.9em;
+}
+
+.tikz-editor-ui input[type="text"]:focus, 
+.tikz-editor-ui select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .color-picker-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.tikz-editor-ui .color-picker-wrap input[type="color"] {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    width: 42px;
+    height: 42px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.tikz-editor-ui .style-btns {
+    gap: 8px;
+}
+
+.tikz-editor-ui .style-btns button {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-muted);
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    height: auto !important;
+}
+
+.tikz-editor-ui .style-btns button:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
+.tikz-editor-ui .style-btns button.active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui input[type="range"] {
+    width: 100%;
+    accent-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .presets-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.tikz-editor-ui .preset-btn {
+    flex: 1;
+    padding: 4px 0;
+    font-size: 0.8em;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    height: auto !important;
+}
+
+.tikz-editor-ui .preset-btn:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.tikz-editor-ui .delete-btn-wrap {
+    margin-top: 32px;
+}
+
+.tikz-editor-ui .delete-btn {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-red);
+    border-radius: var(--radius-m);
+    background-color: transparent;
+    color: var(--color-red);
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    height: auto !important;
+}
+
+.tikz-editor-ui .delete-btn:hover {
+    background-color: var(--color-red);
+    color: white;
+}
+
+.tikz-editor-ui .empty-state {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    padding: 32px;
+}
+
+.tikz-editor-ui .code-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 12px;
+}
+
+.tikz-editor-ui .code-panel textarea {
+    flex: 1;
+    width: 100%;
+    font-family: var(--font-monospace);
+    font-size: 0.85em;
+    padding: 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    resize: none;
+}
+
+.tikz-editor-ui .code-panel textarea:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.tikz-editor-ui .code-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tikz-editor-ui .action-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius-m);
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    height: auto !important;
+}
+
+.tikz-editor-ui .action-btn.primary {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.tikz-editor-ui .action-btn.primary:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+.tikz-editor-ui .action-btn.secondary {
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.tikz-editor-ui .action-btn.secondary:hover {
+    background-color: var(--background-modifier-hover);
 }

@@ -572,106 +572,116 @@ class RowLayoutWidget extends WidgetType {
   }
 }
 
-export const createLivePreviewRowLayoutPlugin = (plugin: LatexReferencer): Extension => {
-  const layoutField = StateField.define<DecorationSet>({
-    create() {
-      return Decoration.none;
-    },
-    update(decorations, tr) {
-      // Re-evaluate whenever the document contents or selections change
-      if (!tr.docChanged && !tr.selection) {
-        return decorations;
-      }
+let layoutField: StateField<DecorationSet> | null = null;
+let activePlugin: LatexReferencer | null = null;
 
-      const { state } = tr;
-
-      const livePreview = state.field(editorLivePreviewField, false);
-      if (!livePreview) {
+function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
+  activePlugin = plugin;
+  if (!layoutField) {
+    layoutField = StateField.define<DecorationSet>({
+      create() {
         return Decoration.none;
-      }
+      },
+      update(decorations, tr) {
+        // Re-evaluate whenever the document contents or selections change
+        if (!tr.docChanged && !tr.selection) {
+          return decorations;
+        }
 
-      const info = state.field(editorInfoField, false);
-      const file = info?.file;
-      const sourcePath = file?.path ?? '';
-      if (!sourcePath) {
-        return Decoration.none;
-      }
+        const { state } = tr;
 
-      const builder = new RangeSetBuilder<Decoration>();
-      const docText = state.doc.toString();
-      const lines = docText.split(/\r?\n/);
+        const livePreview = state.field(editorLivePreviewField, false);
+        if (!livePreview) {
+          return Decoration.none;
+        }
 
-      let inRow = false;
-      let startPos = -1;
-      let startLineIdx = -1;
-      let widths: string[] = [];
+        const info = state.field(editorInfoField, false);
+        const file = info?.file;
+        const sourcePath = file?.path ?? '';
+        if (!sourcePath) {
+          return Decoration.none;
+        }
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!inRow) {
-          if (line.startsWith(';;;row')) {
-            inRow = true;
-            startLineIdx = i;
-            startPos = state.doc.line(i + 1).from;
+        const builder = new RangeSetBuilder<Decoration>();
+        const docText = state.doc.toString();
+        const lines = docText.split(/\r?\n/);
 
-            const widthsPart = line.substring(';;;row'.length).trim().replace(/^:/, '').trim();
-            if (widthsPart) {
-              widths = widthsPart
-                .split(/\s*\|\s*|\s*,\s*|\s+/)
-                .map(w => w.trim())
-                .filter(w => w)
-                .map(formatWidth);
-            } else {
-              widths = [];
-            }
-          }
-        } else {
-          if (line === ';;;') {
-            inRow = false;
-            const endPos = state.doc.line(i + 1).to;
+        let inRow = false;
+        let startPos = -1;
+        let startLineIdx = -1;
+        let widths: string[] = [];
 
-            // Decorate if cursor selection is completely outside this block
-            if (!selectionAndRangeOverlap(state.selection, startPos, endPos)) {
-              const columnsMarkdown: string[] = [];
-              const rowLines = lines.slice(startLineIdx + 1, i);
-              let currentColLines: string[] = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!inRow) {
+            if (line.startsWith(';;;row')) {
+              inRow = true;
+              startLineIdx = i;
+              startPos = state.doc.line(i + 1).from;
 
-              for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
-                const rLine = rowLines[rIdx];
-                if (rLine.trim() === ';;') {
-                  columnsMarkdown.push(currentColLines.join('\n'));
-                  currentColLines = [];
-                } else {
-                  currentColLines.push(rLine);
-                }
+              const widthsPart = line.substring(';;;row'.length).trim().replace(/^:/, '').trim();
+              if (widthsPart) {
+                widths = widthsPart
+                  .split(/\s*\|\s*|\s*,\s*|\s+/)
+                  .map(w => w.trim())
+                  .filter(w => w)
+                  .map(formatWidth);
+              } else {
+                widths = [];
               }
-              columnsMarkdown.push(currentColLines.join('\n'));
+            }
+          } else {
+            if (line === ';;;') {
+              inRow = false;
+              const endPos = state.doc.line(i + 1).to;
 
-              builder.add(
-                startPos,
-                endPos,
-                Decoration.replace({
-                  widget: new RowLayoutWidget(
-                    plugin,
-                    sourcePath,
-                    widths,
-                    columnsMarkdown,
-                    startPos
-                  ),
-                  block: true
-                })
-              );
+              // Decorate if cursor selection is completely outside this block
+              if (!selectionAndRangeOverlap(state.selection, startPos, endPos)) {
+                const columnsMarkdown: string[] = [];
+                const rowLines = lines.slice(startLineIdx + 1, i);
+                let currentColLines: string[] = [];
+
+                for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
+                  const rLine = rowLines[rIdx];
+                  if (rLine.trim() === ';;') {
+                    columnsMarkdown.push(currentColLines.join('\n'));
+                    currentColLines = [];
+                  } else {
+                    currentColLines.push(rLine);
+                  }
+                }
+                columnsMarkdown.push(currentColLines.join('\n'));
+
+                builder.add(
+                  startPos,
+                  endPos,
+                  Decoration.replace({
+                    widget: new RowLayoutWidget(
+                      activePlugin!,
+                      sourcePath,
+                      widths,
+                      columnsMarkdown,
+                      startPos
+                    ),
+                    block: true
+                  })
+                );
+              }
             }
           }
         }
+
+        return builder.finish();
+      },
+      provide(field) {
+        return EditorView.decorations.from(field);
       }
+    });
+  }
+  return layoutField;
+}
 
-      return builder.finish();
-    },
-    provide(field) {
-      return EditorView.decorations.from(field);
-    }
-  });
-
-  return Prec.highest(layoutField);
+export const createLivePreviewRowLayoutPlugin = (plugin: LatexReferencer): Extension => {
+  return Prec.highest(getLayoutField(plugin));
 };
+
