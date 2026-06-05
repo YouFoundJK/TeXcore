@@ -527,7 +527,10 @@ export class TikzJaxLoader {
       const height = bbox.maxY - bbox.minY + padding * 2;
       svg.setAttribute('width', `${width}pt`);
       svg.setAttribute('height', `${height}pt`);
-      svg.setAttribute('viewBox', `${bbox.minX - padding} ${bbox.minY - padding} ${width} ${height}`);
+      svg.setAttribute(
+        'viewBox',
+        `${bbox.minX - padding} ${bbox.minY - padding} ${width} ${height}`
+      );
       svg.classList.add('tikz-cropped');
       svg.setAttribute('data-bbox-minx', bbox.minX.toString());
       svg.setAttribute('data-bbox-miny', bbox.minY.toString());
@@ -570,7 +573,9 @@ interface Matrix2D {
   f: number;
 }
 
-function getSvgBoundingBox(svg: SVGElement): { minX: number; minY: number; maxX: number; maxY: number } | null {
+function getSvgBoundingBox(
+  svg: SVGElement
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -590,7 +595,11 @@ function getSvgBoundingBox(svg: SVGElement): { minX: number; minY: number; maxX:
     let match;
     while ((match = regex.exec(transformStr)) !== null) {
       const type = match[1];
-      const args = match[2].trim().split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+      const args = match[2]
+        .trim()
+        .split(/[\s,]+/)
+        .map(Number)
+        .filter(n => !isNaN(n));
       if (type === 'translate') {
         const tx = args[0] || 0;
         const ty = args[1] || 0;
@@ -674,7 +683,7 @@ function getSvgBoundingBox(svg: SVGElement): { minX: number; minY: number; maxX:
     const x = parseFloat(use.getAttribute('x') || '0');
     const y = parseFloat(use.getAttribute('y') || '0');
     const matrix = getAbsoluteMatrix(use);
-    
+
     const pt = applyTransform(matrix, x, y);
     updateBounds(pt.x, pt.y);
 
@@ -746,16 +755,16 @@ function getSvgBoundingBox(svg: SVGElement): { minX: number; minY: number; maxX:
     const y = parseFloat(text.getAttribute('y') || '0');
     const matrix = getAbsoluteMatrix(text);
     const pt = applyTransform(matrix, x, y);
-    
+
     // Extract font size from style
     const style = text.getAttribute('style') || '';
     const fontSizeMatch = style.match(/font-size:\s*([\d.]+)/);
     const fontSize = fontSizeMatch ? parseFloat(fontSizeMatch[1]) : 10;
-    
+
     // Extract text content and estimate width
     const content = text.textContent || '';
     const estimatedWidth = content.length * fontSize * 0.6;
-    
+
     // Add text box bounds
     updateBounds(pt.x, pt.y);
     updateBounds(pt.x + estimatedWidth, pt.y);
