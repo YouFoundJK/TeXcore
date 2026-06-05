@@ -20,13 +20,13 @@ export class WhatsNewModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass('obsitexcore-whats-new-modal');
+    contentEl.addClass('TeXcore-whats-new-modal');
 
     // Header
-    const headerRow = contentEl.createDiv('obsitexcore-whats-new-header-row');
+    const headerRow = contentEl.createDiv('TeXcore-whats-new-header-row');
     headerRow.createEl('h2', { text: t('modals.whatsNew.title') });
 
-    const seeAllButtonWrap = headerRow.createDiv('obsitexcore-whats-new-header-actions');
+    const seeAllButtonWrap = headerRow.createDiv('TeXcore-whats-new-header-actions');
     new ButtonComponent(seeAllButtonWrap)
       .setButtonText(t('modals.whatsNew.openSettings'))
       .onClick(() => {
@@ -39,15 +39,15 @@ export class WhatsNewModal extends Modal {
       });
 
     // Content container
-    const bodyEl = contentEl.createDiv('obsitexcore-whats-new-body');
+    const bodyEl = contentEl.createDiv('TeXcore-whats-new-body');
     const latestVersion = changelogData[0];
 
-    const versionHeader = bodyEl.createDiv('obsitexcore-whats-new-version-header');
+    const versionHeader = bodyEl.createDiv('TeXcore-whats-new-version-header');
     versionHeader.createEl('h3', {
       text: `Version ${latestVersion.version} (${latestVersion.date})`
     });
 
-    const changeList = bodyEl.createDiv('obsitexcore-whats-new-list');
+    const changeList = bodyEl.createDiv('TeXcore-whats-new-list');
     latestVersion.changes.forEach(change => {
       const colonIndex = change.description.indexOf(':');
       let title: string;
@@ -85,18 +85,18 @@ export class WhatsNewModal extends Modal {
     });
 
     // Donation Footer
-    const donationFooter = contentEl.createDiv('obsitexcore-whats-new-donation-footer');
+    const donationFooter = contentEl.createDiv('TeXcore-whats-new-donation-footer');
     donationFooter.createEl('p', {
-      text: 'ObsiTeXcore is built to bring LaTeX-like equation indexing and referencing workflows to Obsidian. If this plugin provides value to you, please consider supporting the development!',
-      cls: 'obsitexcore-whats-new-donation-message'
+      text: 'TeXcore is built to bring LaTeX-like equation indexing and referencing workflows to Obsidian. If this plugin provides value to you, please consider supporting the development!',
+      cls: 'TeXcore-whats-new-donation-message'
     });
 
-    const donationActions = donationFooter.createDiv('obsitexcore-whats-new-donation-actions');
+    const donationActions = donationFooter.createDiv('TeXcore-whats-new-donation-actions');
     new ButtonComponent(donationActions)
       .setButtonText(t('modals.whatsNew.supportKofi'))
       .setCta()
       .onClick(() => {
-        window.open('https://youfoundjk.github.io/ObsiTeXcore/donation/ko-fi', '_blank');
+        window.open('https://youfoundjk.github.io/TeXcore/donation/ko-fi', '_blank');
       });
   }
 

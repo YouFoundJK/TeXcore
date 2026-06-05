@@ -1,6 +1,6 @@
 # Equation Numbering & Referencing
 
-The core feature of ObsiTeXcore is automatic equation numbering using LaTeX `\tag{}` commands and smart referencing via internal links.
+The core feature of TeXcore is automatic equation numbering using LaTeX `\tag{}` commands and smart referencing via internal links.
 
 ## How Equation IDs Work
 

@@ -1,8 +1,8 @@
-site_name: ObsiTeXcore
+site_name: TeXcore
 site_description: A powerful indexing & referencing system for theorems & equations in your vault.
-site_url: https://youfoundjk.github.io/ObsiTeXcore/
-repo_name: YouFoundJK/ObsiTeXcore
-repo_url: https://github.com/YouFoundJK/ObsiTeXcore
+site_url: https://youfoundjk.github.io/TeXcore/
+repo_name: YouFoundJK/TeXcore
+repo_url: https://github.com/YouFoundJK/TeXcore
 
 theme:
   name: material
@@ -86,7 +86,7 @@ plugins:
       enable_creation_date: true
       type: datetime
   - git-committers:
-      repository: YouFoundJK/ObsiTeXcore
+      repository: YouFoundJK/TeXcore
       cache_dir: .cache/plugin/git-committers
       branch: main
 
@@ -106,7 +106,7 @@ extra:
           note: Thanks for your feedback!
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/YouFoundJK/ObsiTeXcore
+      link: https://github.com/YouFoundJK/TeXcore
 
 nav:
   - Home: index.md

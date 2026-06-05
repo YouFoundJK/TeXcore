@@ -1,4 +1,4 @@
-# ObsiTeXcore
+# TeXcore
 
 A minimalistic Obsidian plugin for automatic equation numbering, referencing with support for PDE exports and .
 

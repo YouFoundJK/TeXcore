@@ -15,7 +15,7 @@ export interface DocsLink {
   path: string;
 }
 
-const DOCS_ROOT = 'https://youfoundjk.github.io/ObsiTeXcore/';
+const DOCS_ROOT = 'https://youfoundjk.github.io/TeXcore/';
 
 export function toDocsUrl(path: string): string {
   return `${DOCS_ROOT}${path.replace(/^\/+/, '')}`;

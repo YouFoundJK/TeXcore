@@ -1,13 +1,13 @@
 <div align="right">
-  <img src="https://img.shields.io/github/downloads/YouFoundJK/ObsiTeXcore/total?label=Downloads" alt="Downloads" />
-  <a href="https://youfoundjk.github.io/ObsiTeXcore/"><img src="https://img.shields.io/badge/Version-v_0.0.1-blue" alt="Version" /></a>
+  <img src="https://img.shields.io/github/downloads/YouFoundJK/TeXcore/total?label=Downloads" alt="Downloads" />
+  <a href="https://youfoundjk.github.io/TeXcore/"><img src="https://img.shields.io/badge/Version-v_0.0.1-blue" alt="Version" /></a>
 </div>
 
-# ObsiTeXcore for Obsidian
+# TeXcore for Obsidian
 
 A minimalistic [Obsidian.md](https://obsidian.md/) plugin for automatic equation numbering and referencing.
 
-📚 **[Full Documentation](https://youfoundjk.github.io/ObsiTeXcore/)**
+📚 **[Full Documentation](https://youfoundjk.github.io/TeXcore/)**
 
 ## Key Differences from Original
 
@@ -80,13 +80,13 @@ Use the "Fix callout equations" command to repair broken indentation.
 ### From Community Plugins
 
 1. Open Obsidian Settings → **Community plugins**
-2. Click **Browse** and search for "ObsiTeXcore"
+2. Click **Browse** and search for "TeXcore"
 3. Click **Install**, then **Enable**
 
 ### Manual Installation
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YouFoundJK/ObsiTeXcore/releases)
-2. Create folder: `<vault>/.obsidian/plugins/obsitexcore/`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YouFoundJK/TeXcore/releases)
+2. Create folder: `<vault>/.obsidian/plugins/TeXcore/`
 3. Copy the files into this folder
 4. Restart Obsidian and enable the plugin
 
@@ -109,7 +109,7 @@ Use the "Fix callout equations" command to repair broken indentation.
 
 ## Configuration
 
-See the [Settings Reference](https://youfoundjk.github.io/ObsiTeXcore/configuration/settings/) for all configuration options.
+See the [Settings Reference](https://youfoundjk.github.io/TeXcore/configuration/settings/) for all configuration options.
 
 
 ## License

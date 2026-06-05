@@ -1,5 +1,5 @@
 {
-  "name": "obsitexcore",
+  "name": "TeXcore",
   "version": "0.0.1",
   "description": "Automatic equation numbering, Tex Diagrams rendering, and more for Obsidian.md",
   "main": "main.js",

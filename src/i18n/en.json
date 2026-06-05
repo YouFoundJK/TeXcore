@@ -1,6 +1,6 @@
 {
   "settings": {
-    "title": "ObsiTeXcore settings",
+    "title": "TeXcore settings",
     "description": "Switch between focused setting groups to keep configuration lighter and easier to scan.",
     "tab": {
       "general": "General",
@@ -24,7 +24,7 @@
   },
   "modals": {
     "whatsNew": {
-      "title": "What's new in ObsiTeXcore",
+      "title": "What's new in TeXcore",
       "openSettings": "Open settings",
       "supportKofi": "Support development / ko-fi"
     }

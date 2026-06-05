@@ -2,7 +2,7 @@
 window.cleanUmamiUrl = function (type, payload) {
   if (payload && payload.url) {
     // Strip the repository name from the URL prefix for cleaner dashboard visibility
-    payload.url = payload.url.replace('/ObsiTeXcore', '') || '/';
+    payload.url = payload.url.replace('/TeXcore', '') || '/';
   }
   return payload;
 };
@@ -32,7 +32,7 @@ function investigateUmamiEvent(eventName, eventData) {
   if (window.umami && typeof window.umami.track === 'function') {
     // Ensure the repository subdirectory name is stripped from custom events too
     if (eventData && eventData.page) {
-      eventData.page = eventData.page.replace('/ObsiTeXcore', '') || '/';
+      eventData.page = eventData.page.replace('/TeXcore', '') || '/';
     }
 
     window.umami.track(eventName, eventData);

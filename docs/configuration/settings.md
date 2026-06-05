@@ -1,6 +1,6 @@
 # Settings Reference
 
-Complete reference for all ObsiTeXcore settings.
+Complete reference for all TeXcore settings.
 
 ## Equation Numbering & Referencing
 

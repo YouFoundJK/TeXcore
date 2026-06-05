@@ -60,18 +60,18 @@ export class MathSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    const shellEl = containerEl.createDiv('obsitexcore-settings-shell');
+    const shellEl = containerEl.createDiv('TeXcore-settings-shell');
 
     // Header
-    const headerEl = shellEl.createDiv('obsitexcore-settings-header');
+    const headerEl = shellEl.createDiv('TeXcore-settings-header');
     headerEl.createEl('p', {
       text: t('settings.description'),
-      cls: 'obsitexcore-settings-header-desc'
+      cls: 'TeXcore-settings-header-desc'
     });
 
     // Tabs & Search row
-    const tabsRowEl = shellEl.createDiv('obsitexcore-settings-tabs-row');
-    const tabsEl = tabsRowEl.createDiv('obsitexcore-settings-tabs');
+    const tabsRowEl = shellEl.createDiv('TeXcore-settings-tabs-row');
+    const tabsEl = tabsRowEl.createDiv('TeXcore-settings-tabs');
 
     TABS.forEach(tab => {
       const isActive = tab.id === this.activeTab;
@@ -89,16 +89,16 @@ export class MathSettingTab extends PluginSettingTab {
     });
 
     // Search wrap
-    const searchWrapEl = tabsRowEl.createDiv('obsitexcore-settings-search-wrap');
+    const searchWrapEl = tabsRowEl.createDiv('TeXcore-settings-search-wrap');
 
     const searchButtonEl = searchWrapEl.createEl('button', {
-      cls: 'clickable-icon obsitexcore-settings-search-trigger'
+      cls: 'clickable-icon TeXcore-settings-search-trigger'
     });
     searchButtonEl.type = 'button';
     searchButtonEl.ariaLabel = 'Search settings';
     setIcon(searchButtonEl, 'search');
 
-    const inputWrapEl = searchWrapEl.createDiv('obsitexcore-settings-search-input-wrap');
+    const inputWrapEl = searchWrapEl.createDiv('TeXcore-settings-search-input-wrap');
     setCssProps(inputWrapEl, {
       position: 'relative',
       width: this.searchExpanded || this.searchQuery ? '170px' : '0px',
@@ -107,14 +107,14 @@ export class MathSettingTab extends PluginSettingTab {
     });
 
     const searchInputEl = inputWrapEl.createEl('input', {
-      cls: 'obsitexcore-settings-search-input'
+      cls: 'TeXcore-settings-search-input'
     });
     searchInputEl.type = 'text';
     searchInputEl.placeholder = 'Search settings...';
     searchInputEl.value = this.searchQuery;
 
     const clearButtonEl = inputWrapEl.createEl('button', {
-      cls: 'clickable-icon obsitexcore-settings-search-clear'
+      cls: 'clickable-icon TeXcore-settings-search-clear'
     });
     clearButtonEl.type = 'button';
     clearButtonEl.ariaLabel = 'Clear search';
@@ -170,7 +170,7 @@ export class MathSettingTab extends PluginSettingTab {
     });
 
     // Content Panel
-    const contentEl = shellEl.createDiv('obsitexcore-settings-content');
+    const contentEl = shellEl.createDiv('TeXcore-settings-content');
     this.renderSettingsContent(contentEl);
 
     // Footer
@@ -184,10 +184,10 @@ export class MathSettingTab extends PluginSettingTab {
     if (!query) {
       const activeTab = TABS.find(t => t.id === this.activeTab);
       if (activeTab) {
-        const introEl = containerEl.createDiv('obsitexcore-settings-category-intro');
+        const introEl = containerEl.createDiv('TeXcore-settings-category-intro');
         introEl.createEl('p', { text: t(activeTab.descKey) });
       }
-      const panelEl = containerEl.createDiv('obsitexcore-settings-panel');
+      const panelEl = containerEl.createDiv('TeXcore-settings-panel');
       this.renderCategoryContent(this.activeTab, panelEl);
       return;
     }
@@ -196,12 +196,12 @@ export class MathSettingTab extends PluginSettingTab {
     for (const tab of TABS) {
       if (tab.id === 'changelog') continue; // Skip changelog in search filters
 
-      const sectionEl = containerEl.createDiv('obsitexcore-settings-search-section');
-      const introEl = sectionEl.createDiv('obsitexcore-settings-category-intro');
+      const sectionEl = containerEl.createDiv('TeXcore-settings-search-section');
+      const introEl = sectionEl.createDiv('TeXcore-settings-category-intro');
       new Setting(introEl).setName(t(tab.labelKey)).setHeading();
       introEl.createEl('p', { text: t(tab.descKey) });
 
-      const panelEl = sectionEl.createDiv('obsitexcore-settings-panel');
+      const panelEl = sectionEl.createDiv('TeXcore-settings-panel');
       this.renderCategoryContent(tab.id, panelEl);
 
       const sectionHasMatches = this.applySearchFilter(panelEl, query);
@@ -213,7 +213,7 @@ export class MathSettingTab extends PluginSettingTab {
     }
 
     if (!hasAnyMatches) {
-      const emptyEl = containerEl.createDiv('obsitexcore-settings-search-empty');
+      const emptyEl = containerEl.createDiv('TeXcore-settings-search-empty');
       emptyEl.createEl('p', { text: `No settings match "${query}".` });
     }
   }
@@ -857,10 +857,10 @@ export class MathSettingTab extends PluginSettingTab {
 
   private renderChangelog(containerEl: HTMLElement): void {
     new Setting(containerEl).setName(t('settings.header.whatsNew')).setHeading();
-    const changelogList = containerEl.createDiv('obsitexcore-changelog-view-list');
+    const changelogList = containerEl.createDiv('TeXcore-changelog-view-list');
 
     changelogData.forEach(version => {
-      const verContainer = changelogList.createDiv('obsitexcore-changelog-version-container');
+      const verContainer = changelogList.createDiv('TeXcore-changelog-version-container');
       new Setting(verContainer)
         .setName(`Version ${version.version} (${version.date})`)
         .setHeading();
@@ -915,21 +915,21 @@ export class MathSettingTab extends PluginSettingTab {
     linksContainer.createEl('a', {
       text: t('settings.footer.supportOnKofi'),
       attr: {
-        href: 'https://youfoundjk.github.io/ObsiTeXcore/donation/ko-fi'
+        href: 'https://youfoundjk.github.io/TeXcore/donation/ko-fi'
       },
       cls: 'full-calendar-settings-footer-link'
     });
     linksContainer.createEl('a', {
       text: t('settings.footer.suggestFeature'),
       attr: {
-        href: 'https://github.com/YouFoundJK/ObsiTeXcore/discussions'
+        href: 'https://github.com/YouFoundJK/TeXcore/discussions'
       },
       cls: 'full-calendar-settings-footer-link'
     });
     linksContainer.createEl('a', {
       text: t('settings.footer.reportBug'),
       attr: {
-        href: 'https://github.com/YouFoundJK/ObsiTeXcore/issues'
+        href: 'https://github.com/YouFoundJK/TeXcore/issues'
       },
       cls: 'full-calendar-settings-footer-link'
     });

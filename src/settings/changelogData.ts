@@ -1,6 +1,6 @@
 /**
  * @file changelogData.ts
- * @brief Version changelog data for ObsiTeXcore.
+ * @brief Version changelog data for TeXcore.
  */
 
 export interface ChangelogItem {
