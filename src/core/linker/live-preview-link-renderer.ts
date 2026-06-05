@@ -186,7 +186,8 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
 
         this.decorations = builder.finish();
         if (this.decorations.size > 0) {
-          const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }).MathJax;
+          const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } })
+            .MathJax;
           if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
             void finishRenderMath();
           }

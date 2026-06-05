@@ -1,5 +1,111 @@
-import { dvi2html } from 'dvi2html';
+import HTMLMachine from 'dvi2html/lib/html';
+import { dviParser, mergeText, specials } from 'dvi2html';
 import { Writable } from 'stream';
+
+interface FontMetricCharacter {
+  width: number;
+  height: number;
+  depth: number;
+}
+
+interface DviRule {
+  a: number;
+  b: number;
+}
+
+interface DviParsedCommand {
+  opcode?: number;
+  width?: number;
+  height?: number;
+  execute(machine: HTMLMachine): void;
+}
+
+class CustomHTMLMachine extends HTMLMachine {
+  override putSVG(svgStr: string): void {
+    const left = this.position.h * this.pointsPerDviUnit;
+    const top = this.position.v * this.pointsPerDviUnit;
+
+    this.svgDepth = this.svgDepth || 0;
+    this.svgDepth += (svgStr.match(/<svg/g) || []).length;
+    this.svgDepth -= (svgStr.match(/<\/svg>/g) || []).length;
+
+    let replacedSvg = svgStr.replace(
+      '<svg beginpicture>',
+      `<svg beginpicture width="10pt" height="10pt" viewBox="0 0 10 10" style="overflow: visible; position: relative;">`
+    );
+    replacedSvg = replacedSvg.replace(
+      '<svg>',
+      `<svg width="10pt" height="10pt" viewBox="0 0 10 10" style="overflow: visible; position: relative;">`
+    );
+
+    replacedSvg = replacedSvg.replace(/{\?x}/g, left.toString());
+    replacedSvg = replacedSvg.replace(/{\?y}/g, top.toString());
+    this.output.write(replacedSvg);
+  }
+
+  override putRule(rule: DviRule): void {
+    const a = rule.a * this.pointsPerDviUnit;
+    const b = rule.b * this.pointsPerDviUnit;
+    const left = this.position.h * this.pointsPerDviUnit;
+    const bottom = this.position.v * this.pointsPerDviUnit;
+    const top = bottom - a;
+
+    if (this.svgDepth === 0) {
+      this.output.write(
+        `<span style="background: ${this.color}; position: absolute; top: ${top}pt; left: ${left}pt; width:${b}pt; height: ${a}pt;"></span>\n`
+      );
+    } else {
+      this.output.write(
+        `<rect x="${left}" y="${top}" width="${b}" height="${a}" fill="${this.color}" />\n`
+      );
+    }
+  }
+
+  override putText(text: number[] | Buffer): number {
+    let textWidth = 0;
+    let textHeight = 0;
+    let textDepth = 0;
+    let htmlText = '';
+    const chars = this.font.metrics.characters as Record<number, FontMetricCharacter | undefined>;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const metrics = chars[c];
+      if (metrics === undefined) {
+        throw new Error(`Could not find font metric for ${c}`);
+      }
+      textWidth += metrics.width;
+      textHeight = Math.max(textHeight, metrics.height);
+      textDepth = Math.max(textDepth, metrics.depth);
+      if (c < 32) {
+        const shifted = Math.floor(c / 10) * 12 + (c % 10) + 161;
+        htmlText += `&#${shifted};`;
+      } else {
+        htmlText += String.fromCharCode(c);
+      }
+    }
+
+    const dviUnitsPerFontUnit = (this.font.metrics.designSize / 1048576.0) * (65536 / 1048576);
+    const left = this.position.h * this.pointsPerDviUnit;
+    const height = textHeight * this.pointsPerDviUnit * dviUnitsPerFontUnit;
+    const top = this.position.v * this.pointsPerDviUnit;
+    const fontsize =
+      ((this.font.metrics.designSize / 1048576.0) * this.font.scaleFactor) / this.font.designSize;
+
+    if (this.svgDepth === 0) {
+      this.output.write(
+        `<span style="color: ${this.color}; font-family: ${this.font.name}; font-size: ${fontsize}pt; position: absolute; top: ${top - height}pt; left: ${left}pt; overflow: visible;"><span style="margin-top: -${fontsize}pt; line-height: 0pt; height: ${fontsize}pt; display: inline-block; vertical-align: baseline; ">${htmlText}</span><span style="display: inline-block; vertical-align: ${height}pt; height: 0pt; line-height: 0;"></span></span>\n`
+      );
+    } else {
+      const bottom = this.position.v * this.pointsPerDviUnit;
+      this.output.write(
+        `<text alignment-baseline="baseline" y="${bottom}" x="${left}" style="font-family: ${this.font.name}; font-size: ${fontsize};">${htmlText}</text>\n`
+      );
+    }
+    return (textWidth * dviUnitsPerFontUnit * this.font.scaleFactor) / this.font.designSize;
+  }
+}
+
 import zlib from 'zlib';
 import { requestUrl, type Notice } from 'obsidian';
 import { showNotice } from 'utils/obsidian';
@@ -255,6 +361,26 @@ export class TikzJaxLoader {
             name => name.startsWith('tex_files/simplekv') || name.startsWith('tex_files/t-chemfig')
           )
           .forEach(name => assetsToLoad.add(name));
+      } else if (pkg === 'tikz-cd') {
+        availableAssets
+          .filter(
+            name =>
+              name.startsWith('tex_files/tikzlibrarycd') || name.startsWith('tex_files/tikz-cd')
+          )
+          .forEach(name => assetsToLoad.add(name));
+      } else if (pkg === 'tikz-feynhand' || pkg === 'tikzfeynhand') {
+        availableAssets
+          .filter(
+            name =>
+              name.startsWith('tex_files/tikzlibraryfeynhand') ||
+              name.startsWith('tex_files/tikzfeynhand') ||
+              name.startsWith('tex_files/tikz-feynhand')
+          )
+          .forEach(name => assetsToLoad.add(name));
+      } else if (pkg === 'pgfcalendar') {
+        availableAssets
+          .filter(name => name.startsWith('tex_files/pgfcalendar'))
+          .forEach(name => assetsToLoad.add(name));
       }
     }
 
@@ -270,8 +396,9 @@ export class TikzJaxLoader {
     for (const asset of assetsToLoad) {
       const data = await this.loadAssetFile(asset);
       if (data) {
-        // Map the virtual path inside the worker (without .gz)
-        const workerVirtualPath = asset.replace(/\.gz$/, '');
+        // Strip the 'tex_files/' prefix and '.gz' suffix so TeX can find
+        // files by their bare name (e.g. 'tikz.sty', not 'tex_files/tikz.sty.gz')
+        const workerVirtualPath = asset.replace(/^tex_files\//, '').replace(/\.gz$/, '');
         filesToLoad[workerVirtualPath] = data;
       }
     }
@@ -322,6 +449,10 @@ export class TikzJaxLoader {
    * Converts DVI format to SVG
    */
   private async dviToSvg(dvi: Uint8Array): Promise<SVGElement> {
+    if (dvi.length === 0) {
+      throw new Error('TikZJax Error: The generated DVI file is completely empty.');
+    }
+
     let html = '';
     const page = new Writable({
       write(chunk: unknown, _, callback) {
@@ -335,21 +466,78 @@ export class TikzJaxLoader {
       return;
     }
 
-    const machine = await dvi2html(streamBuffer(), page);
+    // Reconstruct the parser pipeline using dvi2html primitives
+    const parser = specials.papersize(
+      specials.svg(specials.color(mergeText(dviParser(streamBuffer()))))
+    );
 
-    // Parse SVG safely using DOMParser
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html.trim(), 'image/svg+xml');
-    const svg = doc.querySelector('svg');
+    const machine = new CustomHTMLMachine(page);
 
-    if (!svg) {
-      throw new Error('DVI conversion succeeded but no SVG element was generated.');
+    let currentPageIndex = -1;
+    const pageSizes: { width: number; height: number }[] = [];
+
+    for await (const rawCommand of parser) {
+      const command = rawCommand as DviParsedCommand;
+      if (command.opcode === 139) {
+        // Bop
+        if (currentPageIndex >= 0) {
+          page.write('</div>');
+        }
+        currentPageIndex++;
+        pageSizes[currentPageIndex] = { width: 0, height: 0 };
+        page.write(`<div class="texcore-page" data-page="${currentPageIndex}">`);
+      } else if (command.width !== undefined && command.height !== undefined) {
+        if (currentPageIndex >= 0) {
+          pageSizes[currentPageIndex] = {
+            width: command.width,
+            height: command.height
+          };
+        }
+      }
+      command.execute(machine);
     }
 
-    // Apply viewport attributes
-    svg.setAttribute('width', `${machine.paperwidth}pt`);
-    svg.setAttribute('height', `${machine.paperheight}pt`);
-    svg.setAttribute('viewBox', `-72 -72 ${machine.paperwidth} ${machine.paperheight}`);
+    if (currentPageIndex >= 0) {
+      page.write('</div>');
+    }
+
+    const domParser = new DOMParser();
+    const doc = domParser.parseFromString(html.trim(), 'text/html');
+
+    // LaTeX generated multiple pages. Let's grab all SVGs from the HTML.
+    const svgs = Array.from(doc.querySelectorAll('svg'));
+
+    if (svgs.length === 0) {
+      console.error('[TeXcore] Raw HTML output:', html);
+      throw new Error('TikZJax Error: DVI conversion succeeded but no SVGs were found.');
+    }
+
+    // If there are multiple pages, one might be a blank cropping artifact.
+    // Grab the first SVG that actually contains drawing elements, or default to the first.
+    const svg =
+      svgs.find(s =>
+        s.querySelector('path, use, rect, circle, ellipse, line, polyline, polygon, text')
+      ) || svgs[0];
+
+    // Find the corresponding page container to retrieve the paper size dimensions
+    const pageContainer = svg.closest('.texcore-page');
+    const pageIndexStr = pageContainer?.getAttribute('data-page');
+    const pageIndex = pageIndexStr ? parseInt(pageIndexStr, 10) : 0;
+    const pageSize = pageSizes[pageIndex];
+
+    // Apply bounding boxes starting at -72 -72 for standalone cropped outputs
+    if (pageSize && pageSize.width && pageSize.height) {
+      svg.setAttribute('width', `${pageSize.width}pt`);
+      svg.setAttribute('height', `${pageSize.height}pt`);
+      svg.setAttribute('viewBox', `-72 -72 ${pageSize.width} ${pageSize.height}`);
+    } else {
+      // Fallback: If paper dimensions are missing, check if width/height attributes are on the SVG
+      const w = svg.getAttribute('width')?.replace('pt', '');
+      const h = svg.getAttribute('height')?.replace('pt', '');
+      if (w && h && w !== '10' && h !== '10') {
+        svg.setAttribute('viewBox', `-72 -72 ${w} ${h}`);
+      }
+    }
 
     return svg;
   }

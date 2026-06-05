@@ -7,8 +7,14 @@ export class TikzRenderer {
   private tikzjaxCss: string = '';
   private isLoaded: boolean = false;
 
+  private renderCache = new Map<string, string>();
+
   constructor(public plugin: LatexReferencer) {
     this.loader = new TikzJaxLoader(this.plugin);
+  }
+
+  public clearCache() {
+    this.renderCache.clear();
   }
 
   async onLoad() {
@@ -61,11 +67,17 @@ export class TikzRenderer {
     this.removeCssAllWindows();
   }
 
-  /**
-   * Renders the TikZ source string directly to an SVG element
-   */
   public async render(source: string): Promise<SVGElement> {
     const code = this.tidyTikzSource(source);
+
+    // Check cache first
+    const cachedHtml = this.renderCache.get(code);
+    if (cachedHtml !== undefined) {
+      const domParser = new DOMParser();
+      const doc = domParser.parseFromString(cachedHtml, 'text/html');
+      const svg = doc.querySelector('svg') as unknown as SVGElement;
+      return svg;
+    }
 
     // Lazy-load tikzjax.css if not loaded yet
     if (!this.tikzjaxCss) {
@@ -90,6 +102,10 @@ export class TikzRenderer {
 
     const svg = await this.loader.render(code);
     this.postProcessSvg(svg);
+
+    // Save outerHTML of post-processed SVG to cache
+    this.renderCache.set(code, svg.outerHTML);
+
     return svg;
   }
 
@@ -113,8 +129,8 @@ export class TikzRenderer {
           display: flex;
           justify-content: center;
           align-items: center;
-          padding: 1rem 0;
-          margin: 1.5em 0;
+          padding: 0;
+          margin: 0.3em 0;
           overflow-x: auto;
           background-color: transparent;
         }

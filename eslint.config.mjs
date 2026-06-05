@@ -114,7 +114,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
       '@typescript-eslint/prefer-as-const': 'warn',
       '@typescript-eslint/no-unsafe-return': 'warn',
-      
+
       // Code style
       eqeqeq: ['error', 'always'], // Require === and !== instead of == and !=
       'prefer-template': 'warn', // Use template literals instead of string concatenation
