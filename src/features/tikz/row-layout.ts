@@ -169,7 +169,20 @@ function preprocessContainerRows(container: HTMLElement) {
   }
 }
 
-function tightenColumn(colEl: HTMLElement) {
+function tightenColumn(colEl: HTMLElement, colIdx: number, numColumns: number) {
+  let align = 'center';
+  if (numColumns > 1) {
+    if (colIdx === 0) {
+      align = 'right';
+    } else if (colIdx === numColumns - 1) {
+      align = 'left';
+    }
+  }
+
+  const colAlignItems = align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
+  const childJustifyContent = align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
+  const childTextAlign = align;
+
   setCssProps(
     colEl,
     {
@@ -180,7 +193,7 @@ function tightenColumn(colEl: HTMLElement) {
       display: 'flex',
       'flex-direction': 'column',
       'justify-content': 'center',
-      'align-items': 'center'
+      'align-items': colAlignItems
     },
     'important'
   );
@@ -221,7 +234,8 @@ function tightenColumn(colEl: HTMLElement) {
         {
           display: displayType,
           'align-items': 'center',
-          'justify-content': 'center',
+          'justify-content': childJustifyContent,
+          'text-align': childTextAlign,
           'vertical-align': 'middle'
         },
         'important'
@@ -379,7 +393,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
           margin: '-0.5em 0'
         });
 
-        columnsElements.forEach(colEls => {
+        columnsElements.forEach((colEls, colIdx) => {
           const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
           setCssProps(colEl, {
             display: 'flex',
@@ -391,10 +405,10 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
           // Move existing elements into the column
           colEls.forEach(item => colEl.appendChild(item));
 
-          tightenColumn(colEl);
-          window.setTimeout(() => tightenColumn(colEl), 50);
-          window.setTimeout(() => tightenColumn(colEl), 150);
-          window.setTimeout(() => tightenColumn(colEl), 500);
+          tightenColumn(colEl, colIdx, numColumns);
+          window.setTimeout(() => tightenColumn(colEl, colIdx, numColumns), 50);
+          window.setTimeout(() => tightenColumn(colEl, colIdx, numColumns), 150);
+          window.setTimeout(() => tightenColumn(colEl, colIdx, numColumns), 500);
         });
 
         // Replace start element and remove all old intermediate DOM nodes
@@ -457,7 +471,7 @@ class RowLayoutWidget extends WidgetType {
       margin: '-0.5em 0'
     });
 
-    this.columnsMarkdown.forEach(colMarkdown => {
+    this.columnsMarkdown.forEach((colMarkdown, colIdx) => {
       const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
       setCssProps(colEl, {
         display: 'flex',
@@ -472,10 +486,10 @@ class RowLayoutWidget extends WidgetType {
       this.components.push(comp);
       MarkdownRenderer.render(this.plugin.app, colMarkdown, colEl, this.sourcePath, comp)
         .then(() => {
-          tightenColumn(colEl);
-          window.setTimeout(() => tightenColumn(colEl), 50);
-          window.setTimeout(() => tightenColumn(colEl), 150);
-          window.setTimeout(() => tightenColumn(colEl), 500);
+          tightenColumn(colEl, colIdx, numColumns);
+          window.setTimeout(() => tightenColumn(colEl, colIdx, numColumns), 50);
+          window.setTimeout(() => tightenColumn(colEl, colIdx, numColumns), 150);
+          window.setTimeout(() => tightenColumn(colEl, colIdx, numColumns), 500);
         })
         .catch(err =>
           console.error('Latex Referencer: Failed to render Live Preview column markdown', err)
