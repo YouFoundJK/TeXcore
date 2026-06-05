@@ -6,8 +6,9 @@ import { setCssProps } from 'utils/obsidian';
 import { createDescWithDocs } from './docsLinks';
 import { changelogData } from './changelogData';
 import { t } from '../i18n/t';
+import { SettingsGroupModal } from '../ui/modals/SettingsGroupModal';
 
-type SettingsTabId = 'general' | 'pdf' | 'tikz' | 'hotkeys' | 'changelog';
+type SettingsTabId = 'general' | 'integrations' | 'hotkeys' | 'changelog';
 
 interface TabCategory {
   id: SettingsTabId;
@@ -22,14 +23,9 @@ const TABS: TabCategory[] = [
     descKey: 'settings.tab.generalDesc'
   },
   {
-    id: 'pdf',
-    labelKey: 'settings.tab.pdf',
-    descKey: 'settings.tab.pdfDesc'
-  },
-  {
-    id: 'tikz',
-    labelKey: 'settings.tab.tikz',
-    descKey: 'settings.tab.tikzDesc'
+    id: 'integrations',
+    labelKey: 'settings.tab.integrations',
+    descKey: 'settings.tab.integrationsDesc'
   },
   {
     id: 'hotkeys',
@@ -68,7 +64,10 @@ export class MathSettingTab extends PluginSettingTab {
 
     // Header
     const headerEl = shellEl.createDiv('obsitexcore-settings-header');
-    new Setting(headerEl).setName(t('settings.title')).setHeading();
+    headerEl.createEl('p', {
+      text: t('settings.description'),
+      cls: 'obsitexcore-settings-header-desc'
+    });
 
     // Tabs & Search row
     const tabsRowEl = shellEl.createDiv('obsitexcore-settings-tabs-row');
@@ -224,11 +223,8 @@ export class MathSettingTab extends PluginSettingTab {
       case 'general':
         this.renderGeneral(panelEl);
         break;
-      case 'pdf':
-        this.renderPdf(panelEl);
-        break;
-      case 'tikz':
-        this.renderTikz(panelEl);
+      case 'integrations':
+        this.renderIntegrations(panelEl);
         break;
       case 'hotkeys':
         this.renderHotkeys(panelEl);
@@ -240,6 +236,46 @@ export class MathSettingTab extends PluginSettingTab {
   }
 
   private renderGeneral(containerEl: HTMLElement): void {
+    const isSearching = !!this.searchQuery.trim();
+
+    if (isSearching) {
+      this.renderDetailedGeneralSettings(containerEl);
+      this.renderDetailedAutocompleteSettings(containerEl);
+      return;
+    }
+
+    new Setting(containerEl)
+      .setName('Equation numbering & referencing')
+      .setDesc(
+        'Configure automatic numbering prefixes, suffixes, initial counts, styles, and link formatting.'
+      )
+      .addExtraButton(button => {
+        button
+          .setIcon('gear')
+          .setTooltip('Configure options')
+          .onClick(() => {
+            new SettingsGroupModal(this.app, 'Equation Numbering & Referencing', bodyEl =>
+              this.renderDetailedGeneralSettings(bodyEl)
+            ).open();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Autocomplete & search')
+      .setDesc('Configure triggers, autocompletion options, and rendering behaviors.')
+      .addExtraButton(button => {
+        button
+          .setIcon('gear')
+          .setTooltip('Configure options')
+          .onClick(() => {
+            new SettingsGroupModal(this.app, 'Autocomplete & Search', bodyEl =>
+              this.renderDetailedAutocompleteSettings(bodyEl)
+            ).open();
+          });
+      });
+  }
+
+  private renderDetailedGeneralSettings(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Equation numbering & referencing').setHeading();
 
     new Setting(containerEl)
@@ -316,7 +352,9 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         })
       );
+  }
 
+  private renderDetailedAutocompleteSettings(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Autocomplete & search').setHeading();
 
     new Setting(containerEl)
@@ -346,8 +384,21 @@ export class MathSettingTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+  }
 
+  private renderDetailedZoteroSettings(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Zotero cleanup').setHeading();
+
+    new Setting(containerEl)
+      .setName('Enable Zotero cleanup')
+      .setDesc('Enable the command to remove duplicate Zotero annotations in your active notes.')
+      .addToggle(toggle =>
+        toggle.setValue(this.plugin.settings.enableZoteroCleanup).onChange(async value => {
+          this.plugin.settings.enableZoteroCleanup = value;
+          await this.plugin.saveSettings();
+          this.plugin.registerZoteroCommand();
+        })
+      );
 
     new Setting(containerEl)
       .setName('Directories to search')
@@ -363,7 +414,7 @@ export class MathSettingTab extends PluginSettingTab {
       });
   }
 
-  private renderPdf(containerEl: HTMLElement): void {
+  private renderDetailedPdfSettings(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('Pdf export').setHeading();
 
     new Setting(containerEl)
@@ -518,7 +569,7 @@ export class MathSettingTab extends PluginSettingTab {
       });
   }
 
-  private renderTikz(containerEl: HTMLElement): void {
+  private renderDetailedTikzSettings(containerEl: HTMLElement): void {
     new Setting(containerEl).setName('TikZJax rendering').setHeading();
 
     new Setting(containerEl)
@@ -544,6 +595,59 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         })
       );
+  }
+
+  private renderIntegrations(containerEl: HTMLElement): void {
+    const isSearching = !!this.searchQuery.trim();
+
+    if (isSearching) {
+      this.renderDetailedPdfSettings(containerEl);
+      this.renderDetailedTikzSettings(containerEl);
+      this.renderDetailedZoteroSettings(containerEl);
+      return;
+    }
+
+    new Setting(containerEl)
+      .setName('Pdf export options')
+      .setDesc('Configure layout, templates, and rendering limits for pdf exports.')
+      .addExtraButton(button => {
+        button
+          .setIcon('gear')
+          .setTooltip('Configure options')
+          .onClick(() => {
+            new SettingsGroupModal(this.app, 'PDF Export Options', bodyEl =>
+              this.renderDetailedPdfSettings(bodyEl)
+            ).open();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Tikzjax rendering')
+      .setDesc('Configure TikZ rendering options and dark mode behavior.')
+      .addExtraButton(button => {
+        button
+          .setIcon('gear')
+          .setTooltip('Configure options')
+          .onClick(() => {
+            new SettingsGroupModal(this.app, 'TikZJax Rendering Options', bodyEl =>
+              this.renderDetailedTikzSettings(bodyEl)
+            ).open();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Zotero cleanup')
+      .setDesc('Configure Zotero search directories and automatic annotations cleanup.')
+      .addExtraButton(button => {
+        button
+          .setIcon('gear')
+          .setTooltip('Configure options')
+          .onClick(() => {
+            new SettingsGroupModal(this.app, 'Zotero Cleanup Options', bodyEl =>
+              this.renderDetailedZoteroSettings(bodyEl)
+            ).open();
+          });
+      });
   }
 
   private renderHotkeys(containerEl: HTMLElement): void {
@@ -779,7 +883,9 @@ export class MathSettingTab extends PluginSettingTab {
           emoji = '🛠️';
         }
 
-        const itemEl = verContainer.createDiv(`full-calendar-change-item full-calendar-change-type-${change.type}`);
+        const itemEl = verContainer.createDiv(
+          `full-calendar-change-item full-calendar-change-type-${change.type}`
+        );
         itemEl.createDiv({
           cls: 'full-calendar-change-icon',
           text: emoji

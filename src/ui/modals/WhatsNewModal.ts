@@ -66,7 +66,9 @@ export class WhatsNewModal extends Modal {
         emoji = '🛠️';
       }
 
-      const itemEl = changeList.createDiv(`full-calendar-change-item full-calendar-change-type-${change.type}`);
+      const itemEl = changeList.createDiv(
+        `full-calendar-change-item full-calendar-change-type-${change.type}`
+      );
       itemEl.createDiv({
         cls: 'full-calendar-change-icon',
         text: emoji

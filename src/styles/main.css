@@ -360,13 +360,19 @@
 .obsitexcore-settings-shell {
     display: flex;
     flex-direction: column;
-    gap: var(--size-4-3);
-    margin-top: 15px;
+    gap: var(--size-4-5);
 }
 
 .obsitexcore-settings-header {
-    border-bottom: 1px solid var(--background-modifier-border);
-    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-2);
+}
+
+.obsitexcore-settings-header-desc {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--font-ui-medium);
 }
 
 .obsitexcore-settings-tabs-row {
@@ -441,9 +447,17 @@
 }
 
 .obsitexcore-settings-category-intro {
-    font-size: 0.95em;
-    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-1);
+    padding-bottom: var(--size-4-2);
+    border-bottom: 1px solid var(--background-modifier-border);
     margin-bottom: 15px;
+}
+
+.obsitexcore-settings-category-intro p {
+    margin: 0;
+    color: var(--text-muted);
 }
 
 .obsitexcore-settings-panel {
@@ -537,4 +551,43 @@
 .full-calendar-change-description {
     font-size: var(--font-ui-small);
     color: var(--text-muted);
+}
+
+/* ====== Settings Modals (Exact styles from full-calendar) ====== */
+.ofc-settings-modal-wide {
+    width: min(900px, 88vw);
+    max-width: 900px;
+    max-height: min(860px, 88vh);
+}
+
+.ofc-settings-modal-wide .modal-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+.ofc-settings-modal-shell {
+    display: flex;
+    flex-direction: column;
+    max-height: min(860px, 88vh);
+    min-height: min(620px, 82vh);
+}
+
+.ofc-settings-modal-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 18px 22px;
+}
+
+.ofc-settings-modal-footer {
+    align-items: center;
+    background-color: var(--background-primary);
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex: 0 0 auto;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 12px 22px;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
 }

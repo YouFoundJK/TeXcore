@@ -68,6 +68,7 @@ export interface PluginSettings {
   concurrency: string;
 
   // Zotero Cleanup
+  enableZoteroCleanup: boolean;
   zoteroCleanDirectories: string;
 
   // Custom Note Hotkeys
@@ -146,6 +147,7 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
   concurrency: '5',
 
   // Zotero Cleanup
+  enableZoteroCleanup: false,
   zoteroCleanDirectories: '',
 
   // Custom Note Hotkeys

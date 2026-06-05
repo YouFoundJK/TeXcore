@@ -90,15 +90,7 @@ export default class LatexReferencer extends Plugin {
     this.addSettingTab(new MathSettingTab(this.app, this));
 
     // Commands
-    this.addCommand({
-      id: 'remove-duplicate-zotero-annotations',
-      name: 'Remove duplicate Zotero annotations',
-      editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
-        if (ctx instanceof MarkdownView) {
-          void processZoteroCleanup(this, ctx);
-        }
-      }
-    });
+    this.registerZoteroCommand();
 
     this.addCommand({
       id: 'fix-callout-equations',
@@ -346,6 +338,34 @@ export default class LatexReferencer extends Plugin {
     });
 
     this.register(uninstaller);
+  }
+
+  registerZoteroCommand() {
+    const commandId = 'remove-duplicate-zotero-annotations';
+    const fullCommandId = `${this.manifest.id}:${commandId}`;
+    const appCommands = this.app.commands;
+
+    // 1. Unregister if it exists
+    if (appCommands && typeof appCommands.removeCommand === 'function') {
+      try {
+        appCommands.removeCommand(fullCommandId);
+      } catch {
+        // Safe to ignore
+      }
+    }
+
+    // 2. Register if enabled
+    if (this.settings.enableZoteroCleanup) {
+      this.addCommand({
+        id: commandId,
+        name: 'Remove duplicate Zotero annotations',
+        editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
+          if (ctx instanceof MarkdownView) {
+            void processZoteroCleanup(this, ctx);
+          }
+        }
+      });
+    }
   }
 
   async generateToc(root: TFolder | TFile) {
