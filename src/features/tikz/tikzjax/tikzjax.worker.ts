@@ -271,6 +271,54 @@ export function rewrite(length: number, pointer: number): number {
   return openSync(filename, 'w');
 }
 
+export function inputln(
+  descriptor: number,
+  bypass_eof: number,
+  buffer_pointer: number,
+  first_pointer: number,
+  last_pointer: number,
+  max_length_pointer: number,
+  length: number
+): number {
+  if (!memory) return 0;
+  const file = files[descriptor];
+  const r = new Uint8Array(memory, buffer_pointer, length);
+  const X = new Uint32Array(memory, first_pointer, 4);
+  const H = new Uint32Array(memory, last_pointer, 4);
+
+  H[0] = X[0];
+
+  if (bypass_eof && !file.eof && file.eoln) {
+    file.position = file.position + 1;
+  }
+
+  let t = file.buffer.indexOf(10, file.position);
+  if (t < 0) {
+    t = file.buffer.length;
+  }
+
+  if (file.position >= file.buffer.length) {
+    file.eof = true;
+    return 0;
+  }
+
+  const sourceSlice = file.buffer.subarray(file.position, t);
+  r.subarray(X[0]).set(sourceSlice);
+  H[0] = X[0] + t - file.position;
+
+  while (H[0] > X[0] && r[H[0] - 1] === 32) {
+    H[0] = H[0] - 1;
+  }
+
+  file.position = t;
+  file.eoln = true;
+  return 1;
+}
+
+export function tex_final_end() {
+  // Finalizer function called when the TeX engine completes execution.
+}
+
 export function close(descriptor: number) {
   const file = files[descriptor];
   if (file && file.descriptor !== undefined) {
@@ -368,7 +416,7 @@ async function compile(
 
   writeFileSync('sample.tex', textEncoder.encode(input));
 
-  const pages = 1000;
+  const pages = 1100;
   const memoryInstance = new WebAssembly.Memory({ initial: pages, maximum: pages });
   const memoryBuffer = new Uint8Array(memoryInstance.buffer, 0, pages * 65536);
 
@@ -396,12 +444,14 @@ async function compile(
       printNewline,
       reset,
       rewrite,
+      inputln,
       close,
       eof,
       erstat,
       eoln,
       get,
-      put
+      put,
+      tex_final_end
     },
     env: {
       memory: memoryInstance

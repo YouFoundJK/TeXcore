@@ -26,7 +26,7 @@ async function build() {
     entryPoints: ['src/main.ts'],
     bundle: true,
     plugins: [
-      inlineWorkerPlugin(),
+      inlineWorkerPlugin({ format: 'iife' }),
       esbuildSvelte({ compilerOptions: { css: 'injected' } }),
       {
         name: 'copy-to-dev-vault-plugin',
