@@ -67,3 +67,16 @@ declare global {
     activeWindow: Window;
   }
 }
+
+declare module 'dvi2html' {
+  export function dvi2html(
+    stream: unknown,
+    writer: unknown
+  ): Promise<{ paperwidth: number; paperheight: number }>;
+  export function tfmData(fontname: string): unknown;
+}
+
+declare module '*.worker' {
+  const WorkerConstructor: new () => Worker;
+  export default WorkerConstructor;
+}

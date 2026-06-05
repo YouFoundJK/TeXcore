@@ -117,6 +117,7 @@ nav:
       - LaTeX Snippets: features/snippets.md
       - Equation Search: features/search.md
       - Quick Preview: features/quick-preview.md
+      - TikZ Diagrams: features/tikz.md
       - Callout Support: features/callout-support.md
   - Configuration:
       - Settings Reference: configuration/settings.md

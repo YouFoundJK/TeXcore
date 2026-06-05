@@ -195,22 +195,27 @@ class TikzLivePreviewOverlay {
       return;
     }
 
-    let code = this.currentSource.trim();
-    code = code.replaceAll('&nbsp;', '');
-    code = code
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l)
-      .join('\n');
+    const source = this.currentSource;
+    this.containerEl.createEl('div', { text: 'Rendering TikZ diagram...' });
 
-    if (!code.includes('\\begin{document}')) {
-      code = `\\begin{document}\n${code}\n\\end{document}`;
-    }
-
-    const script = this.containerEl.createEl('script');
-    script.setAttribute('type', 'text/tikz');
-    script.setAttribute('data-show-console', 'true');
-    script.textContent = code;
+    this.plugin.tikzRenderer
+      .render(source)
+      .then(svg => {
+        if (this.currentSource !== source) return;
+        if (this.containerEl) {
+          this.containerEl.empty();
+          this.containerEl.appendChild(svg);
+        }
+      })
+      .catch((err: unknown) => {
+        if (this.currentSource !== source) return;
+        if (this.containerEl) {
+          this.containerEl.empty();
+          const errorEl = this.containerEl.createDiv({ cls: 'tikzjax-error' });
+          const msg = err instanceof Error ? err.message : String(err);
+          errorEl.textContent = `TikZJax Error: ${msg}`;
+        }
+      });
   }
 
   private exportSvg() {

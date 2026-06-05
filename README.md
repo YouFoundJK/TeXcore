@@ -17,6 +17,7 @@ This fork has been redesigned with a focus on simplicity and performance:
 - **Equation-only** — No theorem/proof support, just equation referencing
 - **Custom ID system** — Uses `% id: eq-xxx` LaTeX comments instead of Obsidian's block references
 - **Zero dependencies** — Quick Preview and Math Links functionality built-in
+- **Offline TikZ Diagrams** — Decoupled, lazy-loaded LaTeX/TikZ rendering via background Web Workers with zero network dependencies
 
 ## Features
 
@@ -41,6 +42,16 @@ Reference it with `[[#^eq-einstein]]` and the equation is automatically numbered
 - Fuzzy or simple search to find equations quickly
 - Rendered math preview in suggestions
 - Hover over links to see equation popups
+
+### 🎨 TikZ Diagrams
+
+Render TikZ code blocks (` ```tikz `) fully offline and on-demand:
+
+- **Fully Offline** — Requires no active internet connection. All TeX format files and packages are cached locally in the plugin directory.
+- **Lazy Loading** — Core assets (`tex.wasm` and `core.dump`) are cached in memory on first compile. Supplementary packages (like `tikz-cd`, `circuitikz`, or `pgfplots`) are read and decompressed from disk only when requested.
+- **Background Compiler** — Compiles TeX within a Web Worker to ensure Obsidian's interface remains smooth and responsive.
+
+*Assets are derived from Glenn Rice's (`drgrice1`) and Jim Fowler's (`kisonecat`) [TikZJax](https://github.com/kisonecat/tikzjax) compiler project, packaged offline by `artisticat1`.*
 
 ### 📄 PDF Export
 

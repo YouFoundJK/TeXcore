@@ -23,7 +23,7 @@
     "coverage": "jest --coverage --passWithNoTests",
     "fl": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\"",
     "ra": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\" && pnpm run compile && eslint src -o lint_report.txt --no-color && eslint -c eslint.css.config.mjs \"src/**/*.css\" -o css_report.txt --no-color && jest --ci --silent=true --passWithNoTests",
-    "prod:release": "pnpm run prod && node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const outputDir=path.join(root,'release-artifacts');fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(outputDir,{recursive:true});for(const fileName of ['main.js','styles.css']){if(fs.existsSync(path.join(root,fileName))){fs.copyFileSync(path.join(root,fileName),path.join(outputDir,fileName));}}if(fs.existsSync(path.join(root,'manifest.json'))){fs.copyFileSync(path.join(root,'manifest.json'),path.join(outputDir,'manifest.json'));}\""
+    "prod:release": "pnpm run prod && node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const outputDir=path.join(root,'release-artifacts');fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(outputDir,{recursive:true});for(const fileName of ['main.js','styles.css']){if(fs.existsSync(path.join(root,fileName))){fs.copyFileSync(path.join(root,fileName),path.join(outputDir,fileName));}}if(fs.existsSync(path.join(root,'manifest.json'))){fs.copyFileSync(path.join(root,'manifest.json'),path.join(outputDir,'manifest.json'));}if(fs.existsSync(path.join(root,'tikzjax-assets'))){fs.cpSync(path.join(root,'tikzjax-assets'),path.join(outputDir,'tikzjax-assets'),{recursive:true});}\""
   },
   "keywords": [],
   "author": {
@@ -70,6 +70,7 @@
     "@codemirror/view": "^6.43.0",
     "@lezer/common": "^1.5.2",
     "@lucide/svelte": "^1.17.0",
+    "dvi2html": "0.0.2",
     "esbuild-plugin-inline-worker": "^0.1.1",
     "flatqueue": "^3.0.0",
     "monkey-around": "^3.0.0",

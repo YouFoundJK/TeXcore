@@ -1,13 +1,15 @@
-import { requestUrl } from 'obsidian';
 import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../main';
+import { TikzJaxLoader } from './tikzjax/loader';
 
 export class TikzRenderer {
-  private tikzjaxJs: string = '';
+  private loader: TikzJaxLoader;
   private tikzjaxCss: string = '';
   private isLoaded: boolean = false;
 
-  constructor(public plugin: LatexReferencer) {}
+  constructor(public plugin: LatexReferencer) {
+    this.loader = new TikzJaxLoader(this.plugin);
+  }
 
   async onLoad() {
     if (!this.plugin.settings.enableTikzjax) {
@@ -15,15 +17,27 @@ export class TikzRenderer {
     }
 
     try {
-      await this.ensureResourcesCached();
-      await this.loadResourcesFromCache();
+      const adapter = this.plugin.app.vault.adapter;
+      const pluginDir = this.plugin.manifest.dir;
 
-      // Support pop-out windows and main window
+      if (!pluginDir) {
+        throw new Error('Plugin manifest directory is not defined.');
+      }
+
+      // Load tikzjax.css (containing base64 math fonts)
+      const cssPath = `${pluginDir}/tikzjax-assets/tikzjax.css`;
+      if (await adapter.exists(cssPath)) {
+        this.tikzjaxCss = await adapter.read(cssPath);
+      } else {
+        console.warn('Latex Referencer: tikzjax.css not found in tikzjax-assets directory.');
+      }
+
+      // Inject styling for main window and pop-outs
       this.plugin.app.workspace.onLayoutReady(() => {
-        this.loadTikZJaxAllWindows();
+        this.injectCssAllWindows();
         this.plugin.registerEvent(
           this.plugin.app.workspace.on('window-open', (win, window) => {
-            this.loadTikZJax(window.document);
+            this.injectCss(window.document);
           })
         );
       });
@@ -38,204 +52,74 @@ export class TikzRenderer {
 
   onUnload() {
     if (!this.isLoaded) return;
-    this.unloadTikZJaxAllWindows();
+    this.removeCssAllWindows();
   }
 
-  private async fetchWithFallback(urls: string[]): Promise<string> {
-    let lastError: unknown = null;
-    for (const url of urls) {
-      try {
-        const res = await requestUrl({
-          url,
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36',
-            Accept: '*/*',
-            Referer: 'https://tikzjax.com/'
-          }
-        });
-        if (res.status === 200) {
-          return res.text;
-        }
-        throw new Error(`Request failed with status ${res.status}`);
-      } catch (err) {
-        console.warn(
-          `Latex Referencer: Failed to fetch TikZJax asset from ${url}. Trying next fallback.`,
-          err
-        );
-        lastError = err;
-      }
-    }
-    throw lastError instanceof Error ? lastError : new Error('All download attempts failed.');
+  /**
+   * Renders the TikZ source string directly to an SVG element
+   */
+  public async render(source: string): Promise<SVGElement> {
+    const code = this.tidyTikzSource(source);
+    const svg = await this.loader.render(code);
+    this.postProcessSvg(svg);
+    return svg;
   }
 
-  private async ensureResourcesCached() {
-    const adapter = this.plugin.app.vault.adapter;
-    const pluginDir = this.plugin.manifest.dir;
+  private injectCss(doc: Document) {
+    if (doc.getElementById('tikzjax-css')) return;
 
-    if (!pluginDir) {
-      throw new Error('Plugin manifest directory is not defined.');
-    }
-
-    const jsPath = `${pluginDir}/tikzjax.js`;
-
-    // If the cached file is the wrong one (official 458KB instead of 7MB offline version), delete it to trigger redownload
-    if (await adapter.exists(jsPath)) {
-      const content = await adapter.read(jsPath);
-      if (!content.includes('MutationObserver')) {
-        showNotice(
-          'Outdated TikZJax engine detected. Clearing cache to fetch offline-capable version...'
-        );
-        await adapter.remove(jsPath);
-      }
-    }
-
-    // Check and fetch tikzjax.js
-    if (!(await adapter.exists(jsPath))) {
-      showNotice('Downloading TikZJax engine (one-time setup)...');
-      const jsUrls = [
-        'https://cdn.jsdelivr.net/gh/artisticat1/obsidian-tikzjax@main/tikzjax.js',
-        'https://raw.githubusercontent.com/artisticat1/obsidian-tikzjax/main/tikzjax.js'
-      ];
-      try {
-        const text = await this.fetchWithFallback(jsUrls);
-        await adapter.write(jsPath, text);
-        showNotice('TikZJax engine cached successfully.');
-      } catch (err) {
-        console.error('Failed to download tikzjax.js', err);
-        throw new Error('Failed to download TikZJax JavaScript resource.', { cause: err });
-      }
-    }
-
-    // Check and fetch styles.css (cached locally as tikzjax.css)
-    const cssPath = `${pluginDir}/tikzjax.css`;
-    if (!(await adapter.exists(cssPath))) {
-      const cssUrls = [
-        'https://cdn.jsdelivr.net/gh/artisticat1/obsidian-tikzjax@main/styles.css',
-        'https://raw.githubusercontent.com/artisticat1/obsidian-tikzjax/main/styles.css'
-      ];
-      try {
-        const text = await this.fetchWithFallback(cssUrls);
-        await adapter.write(cssPath, text);
-      } catch (err) {
-        console.error('Failed to download tikzjax.css', err);
-        throw new Error('Failed to download TikZJax CSS resource.', { cause: err });
-      }
-    }
-  }
-
-  private async loadResourcesFromCache() {
-    const adapter = this.plugin.app.vault.adapter;
-    const pluginDir = this.plugin.manifest.dir;
-
-    if (!pluginDir) return;
-
-    let jsText = await adapter.read(`${pluginDir}/tikzjax.js`);
-
-    // Patch tikzjax.js to handle dynamic execution, reload, and proper cleanup
-    const originalTrigger = `"complete"==document.readyState?w():window.addEventListener("load",w),window.addEventListener("unload",(async function(){u&&u.disconnect(),await e.terminate(await H)}))`;
-
-    const patchedTrigger = `window.TikzJaxCleanup=async function(){u&&u.disconnect();if(H){try{await e.terminate(await H)}catch(err){}}window.TikzJax=undefined;window.TikzJaxCleanup=undefined;},document.readyState!=="loading"?w():window.addEventListener("load",w),window.addEventListener("unload",(async function(){if(window.TikzJaxCleanup)await window.TikzJaxCleanup();}))`;
-
-    if (jsText.includes(originalTrigger)) {
-      jsText = jsText.replace(originalTrigger, patchedTrigger);
-    } else {
-      console.warn('Latex Referencer: Could not find original trigger in tikzjax.js for patching.');
-    }
-
-    // Patch tikzjax-load-finished dispatchEvent calls to use optional chaining to prevent uncaught null reference errors
-    if (jsText.includes('.dispatchEvent(new CustomEvent("tikzjax-load-finished"')) {
-      jsText = jsText.replaceAll(
-        '.dispatchEvent(new CustomEvent("tikzjax-load-finished"',
-        '?.dispatchEvent(new CustomEvent("tikzjax-load-finished"'
-      );
-    }
-    if (jsText.includes(".dispatchEvent(new CustomEvent('tikzjax-load-finished'")) {
-      jsText = jsText.replaceAll(
-        ".dispatchEvent(new CustomEvent('tikzjax-load-finished'",
-        "?.dispatchEvent(new CustomEvent('tikzjax-load-finished'"
-      );
-    }
-
-    this.tikzjaxJs = jsText;
-
-    if (await adapter.exists(`${pluginDir}/tikzjax.css`)) {
-      this.tikzjaxCss = await adapter.read(`${pluginDir}/tikzjax.css`);
-    }
-  }
-
-  private loadTikZJax(doc: Document) {
-    if (doc.getElementById('tikzjax')) return;
-
-    // Ingest TikZJax styles (specifically font-face mappings for math glyphs)
-    if (!doc.getElementById('tikzjax-css') && this.tikzjaxCss) {
+    // Inject core TikZJax styles (math glyph font-faces)
+    if (this.tikzjaxCss) {
       const style = doc.createElement('style');
       style.id = 'tikzjax-css';
       style.textContent = this.tikzjaxCss;
       doc.head.appendChild(style);
     }
 
-    // Ingest Custom Styling to integrate seamlessly with the note theme
-    const customStyle = doc.createElement('style');
-    customStyle.id = 'tikzjax-custom-styles';
-    customStyle.textContent = `
-            .block-language-tikz {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 1rem 0;
-                margin: 1.5em 0;
-                overflow-x: auto;
-                background-color: transparent;
-            }
-            .block-language-tikz svg {
-                max-width: 100%;
-                height: auto;
-                color: var(--text-normal);
-            }
-            .block-language-tikz .tikzjax-error {
-                color: var(--text-error);
-                font-family: var(--font-monospace);
-                font-size: 0.9em;
-                padding: 1rem;
-            }
-        `;
-    doc.head.appendChild(customStyle);
-
-    // Ingest JS Script
-    const script = doc.createElement('script');
-    script.id = 'tikzjax';
-    script.type = 'text/javascript';
-    script.textContent = this.tikzjaxJs;
-    doc.body.appendChild(script);
-
-    doc.addEventListener('tikzjax-load-finished', this.postProcessSvg);
+    // Inject note theme integration styles
+    if (!doc.getElementById('tikzjax-custom-styles')) {
+      const customStyle = doc.createElement('style');
+      customStyle.id = 'tikzjax-custom-styles';
+      customStyle.textContent = `
+        .block-language-tikz {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 1rem 0;
+          margin: 1.5em 0;
+          overflow-x: auto;
+          background-color: transparent;
+        }
+        .block-language-tikz svg {
+          max-width: 100%;
+          height: auto;
+          color: var(--text-normal);
+        }
+        .block-language-tikz .tikzjax-error {
+          color: var(--text-error);
+          font-family: var(--font-monospace);
+          font-size: 0.9em;
+          padding: 1rem;
+        }
+      `;
+      doc.head.appendChild(customStyle);
+    }
   }
 
-  private unloadTikZJax(doc: Document) {
-    // Trigger the cleanup function in the document's window context if it exists
-    const win = doc.defaultView as unknown as { TikzJaxCleanup?: () => Promise<void> } | null;
-    if (win && typeof win.TikzJaxCleanup === 'function') {
-      win
-        .TikzJaxCleanup()
-        .catch((err: unknown) => console.error('Latex Referencer: Error cleaning up TikZJax', err));
-    }
-
-    doc.getElementById('tikzjax')?.remove();
+  private removeCss(doc: Document) {
     doc.getElementById('tikzjax-css')?.remove();
     doc.getElementById('tikzjax-custom-styles')?.remove();
-    doc.removeEventListener('tikzjax-load-finished', this.postProcessSvg);
   }
 
-  private loadTikZJaxAllWindows() {
+  private injectCssAllWindows() {
     for (const win of this.getAllWindows()) {
-      this.loadTikZJax(win.document);
+      this.injectCss(win.document);
     }
   }
 
-  private unloadTikZJaxAllWindows() {
+  private removeCssAllWindows() {
     for (const win of this.getAllWindows()) {
-      this.unloadTikZJax(win.document);
+      this.removeCss(win.document);
     }
   }
 
@@ -245,7 +129,7 @@ export class TikzRenderer {
       windows.push(window);
     }
 
-    // Retrieve pop-out windows from workspace
+    // Retrieve floating pop-out windows
     const workspace = this.plugin.app.workspace as unknown as {
       floatingSplit?: {
         children: {
@@ -269,13 +153,10 @@ export class TikzRenderer {
     return windows;
   }
 
-  private postProcessSvg = (e: Event) => {
+  private postProcessSvg(svg: SVGElement) {
     if (!this.plugin.settings.invertColorsInDarkMode) return;
 
-    const svg = e.target as SVGElement;
-    if (!svg || svg.tagName.toLowerCase() !== 'svg') return;
-
-    // Ensure text and lines adapt cleanly in dark mode
+    // Ensure text and lines adapt cleanly to light/dark themes
     const elements = svg.querySelectorAll('[stroke], [fill]');
     elements.forEach(el => {
       const stroke = el.getAttribute('stroke');
@@ -288,10 +169,10 @@ export class TikzRenderer {
         el.setAttribute('fill', 'currentColor');
       }
     });
-  };
+  }
 
   private tidyTikzSource(tikzSource: string): string {
-    // Remove non-breaking space characters, otherwise we get errors
+    // Remove non-breaking space characters which cause parsing errors
     tikzSource = tikzSource.replaceAll('&nbsp;', '');
 
     let lines = tikzSource.split('\n');
@@ -312,16 +193,20 @@ export class TikzRenderer {
         return;
       }
 
-      let code = this.tidyTikzSource(source);
-      // Wrap in LaTeX document template if not already present
-      if (!code.includes('\\begin{document}')) {
-        code = `\\begin{document}\n${code}\n\\end{document}`;
-      }
+      const container = el.createDiv({ cls: 'block-language-tikz' });
+      container.createEl('div', { text: 'Rendering TikZ diagram...' });
 
-      const script = el.createEl('script');
-      script.setAttribute('type', 'text/tikz');
-      script.setAttribute('data-show-console', 'true');
-      script.textContent = code;
+      this.render(source)
+        .then(svg => {
+          container.empty();
+          container.appendChild(svg);
+        })
+        .catch((err: unknown) => {
+          container.empty();
+          const errorEl = container.createDiv({ cls: 'tikzjax-error' });
+          const msg = err instanceof Error ? err.message : String(err);
+          errorEl.textContent = `TikZJax Error: ${msg}`;
+        });
     });
   }
 }
