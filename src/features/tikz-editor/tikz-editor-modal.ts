@@ -4,8 +4,8 @@ import { AssetsManager } from './assets-manager';
 import {
   type EditorElement,
   type ComponentTemplate,
-  type TikzPackage,
-  type TikzEditorContext
+  type TikzEditorContext,
+  type SelectedVertex
 } from './types';
 import { showNotice } from 'utils/obsidian';
 import { LeftSidebar } from './components/left-sidebar';
@@ -34,7 +34,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   private elements: EditorElement[] = [];
   private activeTool: 'select' | 'wire' | 'text' | 'erase' = 'select';
   private activeTemplate: ComponentTemplate | null = null;
-  private selectedElementId: string | null = null;
+  private selectedVertices: SelectedVertex[] = [];
   private snapToGrid = true;
   private halfGrid = false;
   private pictureOptions = '';
@@ -103,8 +103,11 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   getActiveTemplate() {
     return this.activeTemplate;
   }
-  getSelectedElementId() {
-    return this.selectedElementId;
+  getSelectedVertices() {
+    return this.selectedVertices;
+  }
+  setSelectedVertices(vertices: SelectedVertex[]) {
+    this.selectedVertices = vertices;
   }
   isSnapToGrid() {
     return this.snapToGrid;
@@ -195,7 +198,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     const previous = this.historyManager.undo();
     if (previous !== null) {
       this.elements = previous;
-      this.selectedElementId = null;
+      this.selectedVertices = [];
       this.renderCanvas();
       this.renderRightSidebar();
       this.updateHistoryButtons();
@@ -206,7 +209,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     const next = this.historyManager.redo();
     if (next !== null) {
       this.elements = next;
-      this.selectedElementId = null;
+      this.selectedVertices = [];
       this.renderCanvas();
       this.renderRightSidebar();
       this.updateHistoryButtons();
@@ -224,10 +227,9 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     if (redoBtn) redoBtn.disabled = !this.historyManager.canRedo();
   }
 
-  // Operations callbacks
-  handleSelectElement(id: string | null) {
-    this.selectedElementId = id;
-    if (id !== null) {
+  handleSelectVertices(vertices: SelectedVertex[]) {
+    this.selectedVertices = vertices;
+    if (vertices.length > 0) {
       this.activeTool = 'select';
       this.activeTemplate = null;
       this.leftSidebar.updateToolbarClasses();
@@ -243,7 +245,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
       id: newId
     };
     this.elements = [...this.elements, newElem];
-    this.selectedElementId = newId;
+    this.selectedVertices =
+      newElem.type === 'wire'
+        ? [
+            { elementId: newId, vertex: 'start' },
+            { elementId: newId, vertex: 'end' }
+          ]
+        : [{ elementId: newId, vertex: 'center' }];
 
     if (this.activeTool === 'text') {
       this.activeTool = 'select';
@@ -256,7 +264,14 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     this.renderRightSidebar();
   }
 
-  handleUpdateElementPosition(id: string, x: number, y: number, x2?: number, y2?: number, saveHistory = true) {
+  handleUpdateElementPosition(
+    id: string,
+    x: number,
+    y: number,
+    x2?: number,
+    y2?: number,
+    saveHistory = true
+  ) {
     this.elements = this.elements.map(el => {
       if (el.id === id) {
         return { ...el, x, y, x2, y2 };
@@ -277,11 +292,21 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     this.renderCanvas();
   }
 
+  handleUpdateElements(updatedElements: EditorElement[], saveHistory = true) {
+    const updateMap = new Map(updatedElements.map(el => [el.id, el]));
+    this.elements = this.elements.map(el => {
+      const updated = updateMap.get(el.id);
+      return updated ? updated : el;
+    });
+    if (saveHistory) {
+      this.saveHistoryState();
+    }
+    this.renderCanvas();
+  }
+
   handleDeleteElement(id: string) {
     this.elements = this.elements.filter(el => el.id !== id);
-    if (this.selectedElementId === id) {
-      this.selectedElementId = null;
-    }
+    this.selectedVertices = this.selectedVertices.filter(v => v.elementId !== id);
     this.saveHistoryState();
     this.renderCanvas();
     this.renderRightSidebar();
@@ -290,7 +315,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   handleSelectTool(tool: 'select' | 'wire' | 'text' | 'erase') {
     this.activeTool = tool;
     this.activeTemplate = null;
-    this.selectedElementId = null;
+    this.selectedVertices = [];
     this.leftSidebar.updateToolbarClasses();
     this.renderLeftSidebar();
     this.renderCanvas();
@@ -324,9 +349,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
   handleInsertCode() {
     if (this.onSaveCallback) {
-      const code = (this.activeTab === 'code' && this.codeDirty)
-        ? this.editableCode
-        : this.generateTikzSource();
+      const code =
+        this.activeTab === 'code' && this.codeDirty ? this.editableCode : this.generateTikzSource();
       this.onSaveCallback(code);
     }
     this.close();
@@ -408,7 +432,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
         this.editableCode = this.generateTikzSource();
       } catch (err) {
         console.error('[TikzEditorModal] Error generating TikZ code:', err);
-        this.editableCode = '% Error generating TikZ code: ' + (err instanceof Error ? err.message : String(err));
+        this.editableCode =
+          '% Error generating TikZ code: ' + (err instanceof Error ? err.message : String(err));
       }
     }
     this.renderRightSidebar();
@@ -436,7 +461,12 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     // Check if typing in input/textarea
     const activeEl = activeDocument.activeElement;
-    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || (activeEl as HTMLElement).isContentEditable)) {
+    if (
+      activeEl &&
+      (activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        (activeEl as HTMLElement).isContentEditable)
+    ) {
       return;
     }
 
@@ -478,7 +508,12 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   private handleKeyUp = (e: KeyboardEvent) => {
     if (e.key === ' ' || e.code === 'Space') {
       const activeEl = activeDocument.activeElement;
-      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || (activeEl as HTMLElement).isContentEditable)) {
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
         return;
       }
       this.isSpacePressed = false;
@@ -493,9 +528,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     contentEl.empty();
 
     // Debug click interceptor
-    this.modalEl.addEventListener('click', (e) => {
-      console.log('[TikzEditorDebug] Click target:', e.target);
-    }, true);
+    this.modalEl.addEventListener(
+      'click',
+      e => {
+        console.log('[TikzEditorDebug] Click target:', e.target);
+      },
+      true
+    );
 
     // Set custom CSS classes and sizes
     this.modalEl.addClass('tikz-editor-modal');
@@ -522,11 +561,11 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     // Build overall UI layout elements
     this.uiEl = contentEl.createDiv({ cls: 'tikz-editor-ui' });
     this.leftSidebarEl = this.uiEl.createDiv({ cls: 'left-sidebar' });
-    
+
     // Canvas area wrapper that stays fixed (so floating controls do not scroll)
     const canvasAreaEl = this.uiEl.createDiv({ cls: 'canvas-area' });
     this.canvasContainerEl = canvasAreaEl.createDiv({ cls: 'canvas-grid-container' });
-    
+
     this.rightSidebarEl = this.uiEl.createDiv({ cls: 'right-sidebar' });
 
     // Initialize package manager listings
@@ -670,80 +709,93 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     );
 
     // Panning handler via spacebar holding
-    this.canvasContainerEl.addEventListener('mousedown', e => {
-      if (this.isSpacePressed) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.isPanning = true;
-        this.canvasContainerEl.removeClass('is-grab');
-        this.canvasContainerEl.addClass('is-grabbing');
-        this.panStartMouse = { x: e.clientX, y: e.clientY };
-        this.panStartScroll = {
-          left: this.canvasContainerEl.scrollLeft,
-          top: this.canvasContainerEl.scrollTop
-        };
+    this.canvasContainerEl.addEventListener(
+      'mousedown',
+      e => {
+        if (this.isSpacePressed) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.isPanning = true;
+          this.canvasContainerEl.removeClass('is-grab');
+          this.canvasContainerEl.addClass('is-grabbing');
+          this.panStartMouse = { x: e.clientX, y: e.clientY };
+          this.panStartScroll = {
+            left: this.canvasContainerEl.scrollLeft,
+            top: this.canvasContainerEl.scrollTop
+          };
 
-        const onMouseMove = (moveEvent: MouseEvent) => {
-          if (!this.isPanning) return;
-          const dx = moveEvent.clientX - this.panStartMouse.x;
-          const dy = moveEvent.clientY - this.panStartMouse.y;
-          this.canvasContainerEl.scrollLeft = this.panStartScroll.left - dx;
-          this.canvasContainerEl.scrollTop = this.panStartScroll.top - dy;
-        };
+          const onMouseMove = (moveEvent: MouseEvent) => {
+            if (!this.isPanning) return;
+            const dx = moveEvent.clientX - this.panStartMouse.x;
+            const dy = moveEvent.clientY - this.panStartMouse.y;
+            this.canvasContainerEl.scrollLeft = this.panStartScroll.left - dx;
+            this.canvasContainerEl.scrollTop = this.panStartScroll.top - dy;
+          };
 
-        const onMouseUp = () => {
-          this.isPanning = false;
-          this.canvasContainerEl.removeClass('is-grabbing');
-          if (this.isSpacePressed) {
-            this.canvasContainerEl.addClass('is-grab');
-          } else {
-            this.canvasContainerEl.removeClass('is-grab');
-          }
-          activeDocument.removeEventListener('mousemove', onMouseMove);
-          activeDocument.removeEventListener('mouseup', onMouseUp);
-        };
+          const onMouseUp = () => {
+            this.isPanning = false;
+            this.canvasContainerEl.removeClass('is-grabbing');
+            if (this.isSpacePressed) {
+              this.canvasContainerEl.addClass('is-grab');
+            } else {
+              this.canvasContainerEl.removeClass('is-grab');
+            }
+            activeDocument.removeEventListener('mousemove', onMouseMove);
+            activeDocument.removeEventListener('mouseup', onMouseUp);
+          };
 
-        activeDocument.addEventListener('mousemove', onMouseMove);
-        activeDocument.addEventListener('mouseup', onMouseUp);
-      }
-    }, true); // Use capture phase to intercept before canvas events
+          activeDocument.addEventListener('mousemove', onMouseMove);
+          activeDocument.addEventListener('mouseup', onMouseUp);
+        }
+      },
+      true
+    ); // Use capture phase to intercept before canvas events
 
     // Scroll container behavior initial state
     this.canvasContainerEl.scrollLeft = 0;
     this.canvasContainerEl.scrollTop = 0;
 
     // Mouse wheel zoom listener (centered on cursor)
-    this.canvasContainerEl.addEventListener('wheel', e => {
-      const activeEl = activeDocument.activeElement;
-      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || (activeEl as HTMLElement).isContentEditable)) {
-        return;
-      }
-      e.preventDefault();
+    this.canvasContainerEl.addEventListener(
+      'wheel',
+      e => {
+        const activeEl = activeDocument.activeElement;
+        if (
+          activeEl &&
+          (activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            (activeEl as HTMLElement).isContentEditable)
+        ) {
+          return;
+        }
+        e.preventDefault();
 
-      const oldZoom = this.zoom;
-      const zoomFactor = e.ctrlKey ? 0.05 : 0.03;
-      if (e.deltaY < 0) {
-        this.zoom = Math.min(this.zoom + zoomFactor, 2.0);
-      } else {
-        this.zoom = Math.max(this.zoom - zoomFactor, 0.5);
-      }
+        const oldZoom = this.zoom;
+        const zoomFactor = e.ctrlKey ? 0.05 : 0.03;
+        if (e.deltaY < 0) {
+          this.zoom = Math.min(this.zoom + zoomFactor, 2.0);
+        } else {
+          this.zoom = Math.max(this.zoom - zoomFactor, 0.5);
+        }
 
-      const zoomLabel = this.contentEl.querySelector('.zoom-label');
-      if (zoomLabel) {
-        zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
-      }
-      this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
+        const zoomLabel = this.contentEl.querySelector('.zoom-label');
+        if (zoomLabel) {
+          zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
+        }
+        this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
 
-      // Adjust scroll to zoom towards mouse pointer
-      const rect = this.canvasContainerEl.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+        // Adjust scroll to zoom towards mouse pointer
+        const rect = this.canvasContainerEl.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-      const canvasX = (mouseX + this.canvasContainerEl.scrollLeft) / oldZoom;
-      const canvasY = (mouseY + this.canvasContainerEl.scrollTop) / oldZoom;
+        const canvasX = (mouseX + this.canvasContainerEl.scrollLeft) / oldZoom;
+        const canvasY = (mouseY + this.canvasContainerEl.scrollTop) / oldZoom;
 
-      this.canvasContainerEl.scrollLeft = canvasX * this.zoom - mouseX;
-      this.canvasContainerEl.scrollTop = canvasY * this.zoom - mouseY;
-    }, { passive: false });
+        this.canvasContainerEl.scrollLeft = canvasX * this.zoom - mouseX;
+        this.canvasContainerEl.scrollTop = canvasY * this.zoom - mouseY;
+      },
+      { passive: false }
+    );
   }
 }

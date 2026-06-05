@@ -684,4 +684,3 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
 export const createLivePreviewRowLayoutPlugin = (plugin: LatexReferencer): Extension => {
   return Prec.highest(getLayoutField(plugin));
 };
-

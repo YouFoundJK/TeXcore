@@ -38,11 +38,12 @@ export class RightSidebar {
     const tabContent = this.containerEl.createDiv({ cls: 'tab-content' });
 
     if (activeTab === 'edit') {
-      const selectedElementId = this.context.getSelectedElementId();
-      const selectedElement =
-        this.context.getElements().find(el => el.id === selectedElementId) || null;
+      const selectedVertices = this.context.getSelectedVertices();
+      const uniqueIds = Array.from(new Set(selectedVertices.map(v => v.elementId)));
+      const selectedElements = this.context.getElements().filter(el => uniqueIds.includes(el.id));
 
-      if (selectedElement) {
+      if (selectedElements.length === 1) {
+        const selectedElement = selectedElements[0];
         const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
         editPanel.createDiv({ cls: 'section-title' }).innerHTML =
           `Edit component: <span class="comp-name">${selectedElement.name}</span>`;
@@ -181,8 +182,15 @@ export class RightSidebar {
         });
 
         const applyRotation = (angle: number) => {
-          if (selectedElement.type === 'wire' && selectedElement.x2 !== undefined && selectedElement.y2 !== undefined) {
-            const len = Math.hypot(selectedElement.x2 - selectedElement.x, selectedElement.y2 - selectedElement.y);
+          if (
+            selectedElement.type === 'wire' &&
+            selectedElement.x2 !== undefined &&
+            selectedElement.y2 !== undefined
+          ) {
+            const len = Math.hypot(
+              selectedElement.x2 - selectedElement.x,
+              selectedElement.y2 - selectedElement.y
+            );
             const rad = (angle * Math.PI) / 180;
             let targetX2 = selectedElement.x + len * Math.cos(rad);
             let targetY2 = selectedElement.y + len * Math.sin(rad);
@@ -271,6 +279,123 @@ export class RightSidebar {
         deleteBtn.onclick = () => {
           console.log('[RightSidebar] Click delete element:', selectedElement.id);
           this.context.handleDeleteElement(selectedElement.id);
+        };
+      } else if (selectedElements.length > 1) {
+        const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
+        editPanel.createDiv({ cls: 'section-title' }).innerHTML =
+          `Edit multiple components <span class="comp-name">(${selectedElements.length})</span>`;
+
+        const firstElement = selectedElements[0];
+
+        // Shared Style Properties (Color, Thickness, Styles)
+        const fontColorGroup = editPanel.createDiv({ cls: 'control-group' });
+        fontColorGroup.createEl('label', { text: 'Shared Styles' });
+        const fontColorRow = fontColorGroup.createDiv({ cls: 'row gap' });
+
+        const fontSizeSelect = fontColorRow.createEl('select', {
+          attr: { id: 'font-size-select' }
+        });
+        [10, 12, 14, 18, 24].forEach(pt => {
+          const opt = fontSizeSelect.createEl('option', { value: pt.toString(), text: `${pt} pt` });
+          if (firstElement.style.fontSize === pt) opt.selected = true;
+        });
+        fontSizeSelect.onchange = () => {
+          const size = parseInt(fontSizeSelect.value) || 12;
+          const updated = selectedElements.map(el => ({
+            ...el,
+            style: { ...el.style, fontSize: size }
+          }));
+          this.context.handleUpdateElements(updated);
+        };
+
+        const colorPickerWrap = fontColorRow.createDiv({ cls: 'color-picker-wrap' });
+        const colorInput = colorPickerWrap.createEl('input', {
+          type: 'color',
+          value: /^#[0-9a-f]{6}$/i.test(firstElement.style.color)
+            ? firstElement.style.color
+            : '#f8e7ad'
+        });
+        colorInput.oninput = () => {
+          const updated = selectedElements.map(el => ({
+            ...el,
+            style: { ...el.style, color: colorInput.value }
+          }));
+          this.context.handleUpdateElements(updated);
+        };
+
+        const thicknessGroup = editPanel.createDiv({ cls: 'control-group' });
+        const currentThickness = firstElement.style.thickness ?? 1.0;
+        const thicknessLabel = thicknessGroup.createEl('label', {
+          attr: { for: 'thickness-slider' },
+          text: `Thickness (${currentThickness} pt)`
+        });
+        const thicknessSlider = thicknessGroup.createEl('input', {
+          type: 'range',
+          value: currentThickness.toString(),
+          attr: { id: 'thickness-slider', min: '0.1', max: '10', step: '0.1' }
+        });
+        thicknessSlider.oninput = () => {
+          const val = parseFloat(thicknessSlider.value) || 1.0;
+          thicknessLabel.textContent = `Thickness (${val} pt)`;
+          const updated = selectedElements.map(el => ({
+            ...el,
+            style: { ...el.style, thickness: val }
+          }));
+          this.context.handleUpdateElements(updated);
+        };
+
+        const styleGroup = editPanel.createDiv({ cls: 'control-group' });
+        styleGroup.createSpan({ cls: 'label-heading', text: 'Styles' });
+        const styleBtnsRow = styleGroup.createDiv({ cls: 'row style-btns' });
+
+        const boldBtn = styleBtnsRow.createEl('button', {
+          cls: firstElement.style.bold ? 'active' : '',
+          text: 'B',
+          title: 'Bold'
+        });
+        boldBtn.onclick = () => {
+          const val = !firstElement.style.bold;
+          const updated = selectedElements.map(el => ({
+            ...el,
+            style: { ...el.style, bold: val }
+          }));
+          this.context.handleUpdateElements(updated);
+        };
+
+        const italicBtn = styleBtnsRow.createEl('button', {
+          cls: firstElement.style.italic ? 'active' : '',
+          text: 'I',
+          title: 'Italic'
+        });
+        italicBtn.onclick = () => {
+          const val = !firstElement.style.italic;
+          const updated = selectedElements.map(el => ({
+            ...el,
+            style: { ...el.style, italic: val }
+          }));
+          this.context.handleUpdateElements(updated);
+        };
+
+        const mathBtn = styleBtnsRow.createEl('button', {
+          cls: firstElement.style.math ? 'active' : '',
+          text: '$',
+          title: 'Math Formula ($...$)'
+        });
+        mathBtn.onclick = () => {
+          const val = !firstElement.style.math;
+          const updated = selectedElements.map(el => ({
+            ...el,
+            style: { ...el.style, math: val }
+          }));
+          this.context.handleUpdateElements(updated);
+        };
+
+        // Delete elements
+        const deleteWrap = editPanel.createDiv({ cls: 'delete-btn-wrap' });
+        const deleteBtn = deleteWrap.createEl('button', { cls: 'delete-btn' });
+        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete All Selected`;
+        deleteBtn.onclick = () => {
+          selectedElements.forEach(el => this.context.handleDeleteElement(el.id));
         };
       } else {
         tabContent.createDiv({ cls: 'empty-state' }).innerHTML =

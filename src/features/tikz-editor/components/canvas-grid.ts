@@ -5,8 +5,11 @@ export class CanvasGrid {
   private draggingId: string | null = null;
   private dragStartCoords: { x: number; y: number } | null = null;
   private dragOffset: { x: number; y: number } | null = null;
+  private dragInitialState: EditorElement[] = [];
   private wireStart: { x: number; y: number } | null = null;
   private wireCurrent: { x: number; y: number } | null = null;
+  private lassoStart: { x: number; y: number } | null = null;
+  private lassoCurrent: { x: number; y: number } | null = null;
 
   constructor(
     private context: TikzEditorContext,
@@ -81,7 +84,7 @@ export class CanvasGrid {
   public renderWires() {
     this.wiresOverlayEl.innerHTML = '';
     const svgNS = 'http://www.w3.org/2000/svg';
-    const selectedElementId = this.context.getSelectedElementId();
+    const selectedVertices = this.context.getSelectedVertices();
     const elements = this.context.getElements();
 
     // Draw elements
@@ -91,7 +94,7 @@ export class CanvasGrid {
       const group = activeDocument.createElementNS(svgNS, 'g');
       group.setAttribute(
         'class',
-        'wire-group' + (selectedElementId === elem.id ? ' selected' : '')
+        'wire-group' + (selectedVertices.some(v => v.elementId === elem.id) ? ' selected' : '')
       );
       group.addEventListener('mousedown', e => this.handleElementMouseDown(e, elem));
 
@@ -113,7 +116,7 @@ export class CanvasGrid {
         line.setAttribute('y2', elem.y2.toString());
         line.setAttribute(
           'stroke',
-          selectedElementId === elem.id
+          selectedVertices.some(v => v.elementId === elem.id)
             ? 'var(--text-accent)'
             : elem.style.color || 'var(--text-normal)'
         );
@@ -140,7 +143,7 @@ export class CanvasGrid {
         line1.setAttribute('y2', startY.toString());
         line1.setAttribute(
           'stroke',
-          selectedElementId === elem.id
+          selectedVertices.some(v => v.elementId === elem.id)
             ? 'var(--text-accent)'
             : elem.style.color || 'var(--text-normal)'
         );
@@ -154,7 +157,7 @@ export class CanvasGrid {
         line2.setAttribute('y2', elem.y2.toString());
         line2.setAttribute(
           'stroke',
-          selectedElementId === elem.id
+          selectedVertices.some(v => v.elementId === elem.id)
             ? 'var(--text-accent)'
             : elem.style.color || 'var(--text-normal)'
         );
@@ -178,10 +181,9 @@ export class CanvasGrid {
 
         const svgWrap = activeDocument.createElementNS(svgNS, 'g');
         svgWrap.setAttribute('class', 'comp-svg-fill');
-        svgWrap.style.color =
-          selectedElementId === elem.id
-            ? 'var(--text-accent)'
-            : elem.style.color || 'var(--text-normal)';
+        svgWrap.style.color = selectedVertices.some(v => v.elementId === elem.id)
+          ? 'var(--text-accent)'
+          : elem.style.color || 'var(--text-normal)';
         svgWrap.innerHTML = elem.svgMarkup;
         innerG.appendChild(svgWrap);
         group.appendChild(innerG);
@@ -207,7 +209,9 @@ export class CanvasGrid {
             try {
               const mathEl = renderMath(elem.label, false);
               div.appendChild(mathEl);
-              const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }).MathJax;
+              const MathJax = (
+                window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
+              ).MathJax;
               if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
                 void finishRenderMath();
               }
@@ -233,7 +237,7 @@ export class CanvasGrid {
       }
 
       // Draw handles if this wire is selected
-      if (selectedElementId === elem.id) {
+      if (selectedVertices.some(v => v.elementId === elem.id)) {
         const handleStart = activeDocument.createElementNS(svgNS, 'circle');
         handleStart.setAttribute('cx', elem.x.toString());
         handleStart.setAttribute('cy', elem.y.toString());
@@ -318,6 +322,26 @@ export class CanvasGrid {
         this.wiresOverlayEl.appendChild(line);
       }
     }
+
+    // Draw lasso
+    if (this.lassoStart && this.lassoCurrent) {
+      const rect = activeDocument.createElementNS(svgNS, 'rect');
+      const left = Math.min(this.lassoStart.x, this.lassoCurrent.x);
+      const right = Math.max(this.lassoStart.x, this.lassoCurrent.x);
+      const top = Math.min(this.lassoStart.y, this.lassoCurrent.y);
+      const bottom = Math.max(this.lassoStart.y, this.lassoCurrent.y);
+
+      rect.setAttribute('x', left.toString());
+      rect.setAttribute('y', top.toString());
+      rect.setAttribute('width', (right - left).toString());
+      rect.setAttribute('height', (bottom - top).toString());
+      rect.setAttribute('fill', 'var(--interactive-accent)');
+      rect.setAttribute('fill-opacity', '0.2');
+      rect.setAttribute('stroke', 'var(--interactive-accent)');
+      rect.setAttribute('stroke-width', '1');
+      rect.setAttribute('stroke-dasharray', '4,4');
+      this.wiresOverlayEl.appendChild(rect);
+    }
   }
 
   private renderPlacedElements() {
@@ -331,7 +355,7 @@ export class CanvasGrid {
       const el = activeDocument.createElement('div');
       el.className =
         'placed-element' +
-        (selectedElementId === elem.id ? ' selected' : '') +
+        (selectedVertices.some(v => v.elementId === elem.id) ? ' selected' : '') +
         (elem.type === 'text' ? ' is-text' : '');
       el.style.left = `${elem.x}px`;
       el.style.top = `${elem.y}px`;
@@ -350,7 +374,8 @@ export class CanvasGrid {
           try {
             const mathEl = renderMath(elem.label, false);
             content.appendChild(mathEl);
-            const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }).MathJax;
+            const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } })
+              .MathJax;
             if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
               void finishRenderMath();
             }
@@ -365,7 +390,7 @@ export class CanvasGrid {
         const visual = activeDocument.createElement('div');
         visual.className = 'node-visual';
         visual.style.color = elem.style.color || 'var(--text-normal)';
-        
+
         let svg = elem.svgMarkup;
         if (elem.radius !== undefined) {
           const svgRadius = elem.radius * 2.5;
@@ -383,7 +408,9 @@ export class CanvasGrid {
             try {
               const mathEl = renderMath(elem.label, false);
               label.appendChild(mathEl);
-              const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }).MathJax;
+              const MathJax = (
+                window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
+              ).MathJax;
               if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
                 void finishRenderMath();
               }
@@ -443,7 +470,14 @@ export class CanvasGrid {
         y: coords.y,
         label: '',
         rotation: 0,
-        style: { bold: false, italic: false, math: false, color: '#f8e7ad', fontSize: 12, thickness: 1.0 },
+        style: {
+          bold: false,
+          italic: false,
+          math: false,
+          color: '#f8e7ad',
+          fontSize: 12,
+          thickness: 1.0
+        },
         svgMarkup: activeTemplate.svgMarkup,
         tikzCommand: activeTemplate.tikzCommand
       });
@@ -470,7 +504,13 @@ export class CanvasGrid {
             this.wireCurrent.y - this.wireStart.y
           );
           if (dist > 10) {
-            const angleVal = Math.round(Math.atan2(this.wireCurrent.y - this.wireStart.y, this.wireCurrent.x - this.wireStart.x) * (180 / Math.PI));
+            const angleVal = Math.round(
+              Math.atan2(
+                this.wireCurrent.y - this.wireStart.y,
+                this.wireCurrent.x - this.wireStart.x
+              ) *
+                (180 / Math.PI)
+            );
             const normalizedAngle = (angleVal + 360) % 360;
 
             if (activeTemplate && activeTemplate.type === 'wire') {
@@ -483,7 +523,14 @@ export class CanvasGrid {
                 y2: this.wireCurrent.y,
                 label: activeTemplate.name,
                 rotation: normalizedAngle,
-                style: { bold: false, italic: false, math: false, color: '#f8e7ad', fontSize: 12, thickness: 1.0 },
+                style: {
+                  bold: false,
+                  italic: false,
+                  math: false,
+                  color: '#f8e7ad',
+                  fontSize: 12,
+                  thickness: 1.0
+                },
                 svgMarkup: activeTemplate.svgMarkup,
                 tikzCommand: activeTemplate.tikzCommand
               });
@@ -497,7 +544,14 @@ export class CanvasGrid {
                 y2: this.wireCurrent.y,
                 label: '',
                 rotation: normalizedAngle,
-                style: { bold: false, italic: false, math: false, color: '#f8e7ad', fontSize: 12, thickness: 1.0 },
+                style: {
+                  bold: false,
+                  italic: false,
+                  math: false,
+                  color: '#f8e7ad',
+                  fontSize: 12,
+                  thickness: 1.0
+                },
                 svgMarkup: `<svg viewBox="0 0 40 40"><line x1="0" y1="20" x2="40" y2="20" stroke="currentColor" stroke-width="2"/></svg>`,
                 tikzCommand: '\\draw[line width=0.8pt] ({x}, {y}) -- ({x2}, {y2});'
               });
@@ -528,86 +582,36 @@ export class CanvasGrid {
         y: coords.y,
         label: template.name === 'Text' ? 'Label Text' : template.name,
         rotation: 0,
-        style: { bold: false, italic: false, math: true, color: '#f8e7ad', fontSize: 12, thickness: 1.0 },
+        style: {
+          bold: false,
+          italic: false,
+          math: true,
+          color: '#f8e7ad',
+          fontSize: 12,
+          thickness: 1.0
+        },
         svgMarkup: template.svgMarkup,
         tikzCommand: template.tikzCommand
       });
     } else if (activeTool === 'select') {
-      this.context.handleSelectElement(null);
-    }
-  }
+      this.context.handleSelectVertices([]);
 
-  private handleElementMouseDown(e: MouseEvent, elem: EditorElement) {
-    const activeTool = this.context.getActiveTool();
-    console.log(
-      '[CanvasGrid] handleElementMouseDown element:',
-      elem.id,
-      elem.name,
-      'activeTool:',
-      activeTool
-    );
-    e.stopPropagation();
-    if (e.button !== 0) return;
-
-    if (activeTool === 'erase') {
-      this.context.handleDeleteElement(elem.id);
-      return;
-    }
-
-    this.context.handleSelectElement(elem.id);
-
-    if (activeTool === 'select') {
-      this.draggingId = elem.id;
-      this.dragStartCoords = { x: e.clientX, y: e.clientY };
-      this.dragOffset = { x: elem.x, y: elem.y };
+      this.lassoStart = coords;
+      this.lassoCurrent = coords;
 
       const onMouseMove = (moveEvent: MouseEvent) => {
-        if (!this.draggingId || !this.dragStartCoords || !this.dragOffset) return;
-        console.log('[CanvasGrid] handleElementMouseMove draggingId:', this.draggingId);
-
-        const zoom = this.context.getZoom();
-        const dx = (moveEvent.clientX - this.dragStartCoords.x) / zoom;
-        const dy = (moveEvent.clientY - this.dragStartCoords.y) / zoom;
-
-        let newX = this.dragOffset.x + dx;
-        let newY = this.dragOffset.y + dy;
-
-        if (this.context.isSnapToGrid() && !moveEvent.ctrlKey) {
-          const gridSize = this.context.isHalfGrid()
-            ? this.context.PX_PER_UNIT / 2
-            : this.context.PX_PER_UNIT;
-          newX = Math.round((newX - this.context.ORIGIN_X) / gridSize) * gridSize + this.context.ORIGIN_X;
-          newY = Math.round((newY - this.context.ORIGIN_Y) / gridSize) * gridSize + this.context.ORIGIN_Y;
-        } else {
-          newX = Math.round(newX);
-          newY = Math.round(newY);
-        }
-
-        const el = this.context.getElements().find(item => item.id === this.draggingId);
-        if (!el) return;
-
-        if (el.type === 'wire' && el.x2 !== undefined && el.y2 !== undefined) {
-          const wireDx = el.x2 - el.x;
-          const wireDy = el.y2 - el.y;
-          this.context.handleUpdateElementPosition(
-            this.draggingId,
-            newX,
-            newY,
-            newX + wireDx,
-            newY + wireDy,
-            false
-          );
-        } else {
-          this.context.handleUpdateElementPosition(this.draggingId, newX, newY, undefined, undefined, false);
-        }
+        const mCoords = this.getCanvasCoords(moveEvent);
+        this.lassoCurrent = mCoords;
+        this.renderWires();
       };
 
       const onMouseUp = () => {
-        console.log('[CanvasGrid] handleElementMouseUp finished dragging');
-        this.context.saveHistoryState();
-        this.draggingId = null;
-        this.dragStartCoords = null;
-        this.dragOffset = null;
+        if (this.lassoStart && this.lassoCurrent) {
+          this.applyLassoSelection();
+        }
+        this.lassoStart = null;
+        this.lassoCurrent = null;
+        this.renderWires();
         activeDocument.removeEventListener('mousemove', onMouseMove);
         activeDocument.removeEventListener('mouseup', onMouseUp);
       };
@@ -617,7 +621,149 @@ export class CanvasGrid {
     }
   }
 
-  private handleWireHandleMouseDown(e: MouseEvent, elem: EditorElement, handleType: 'start' | 'end') {
+  private applyLassoSelection() {
+    if (!this.lassoStart || !this.lassoCurrent) return;
+
+    const left = Math.min(this.lassoStart.x, this.lassoCurrent.x);
+    const right = Math.max(this.lassoStart.x, this.lassoCurrent.x);
+    const top = Math.min(this.lassoStart.y, this.lassoCurrent.y);
+    const bottom = Math.max(this.lassoStart.y, this.lassoCurrent.y);
+
+    const isInside = (x: number, y: number) => {
+      return x >= left && x <= right && y >= top && y <= bottom;
+    };
+
+    const newSelection: import('../types').SelectedVertex[] = [];
+    this.context.getElements().forEach(elem => {
+      if (elem.type === 'wire' && elem.x2 !== undefined && elem.y2 !== undefined) {
+        if (isInside(elem.x, elem.y)) {
+          newSelection.push({ elementId: elem.id, vertex: 'start' });
+        }
+        if (isInside(elem.x2, elem.y2)) {
+          newSelection.push({ elementId: elem.id, vertex: 'end' });
+        }
+      } else {
+        if (isInside(elem.x, elem.y)) {
+          newSelection.push({ elementId: elem.id, vertex: 'center' });
+        }
+      }
+    });
+
+    this.context.handleSelectVertices(newSelection);
+  }
+
+  private handleElementMouseDown(e: MouseEvent, elem: EditorElement) {
+    const activeTool = this.context.getActiveTool();
+    e.stopPropagation();
+    if (e.button !== 0) return;
+
+    if (activeTool === 'erase') {
+      this.context.handleDeleteElement(elem.id);
+      return;
+    }
+
+    const clickedVertices: import('../types').SelectedVertex[] =
+      elem.type === 'wire'
+        ? [
+            { elementId: elem.id, vertex: 'start' as const },
+            { elementId: elem.id, vertex: 'end' as const }
+          ]
+        : [{ elementId: elem.id, vertex: 'center' as const }];
+
+    const selectedVertices = this.context.getSelectedVertices();
+    const isAlreadySelected = selectedVertices.some(v => v.elementId === elem.id);
+
+    if (!isAlreadySelected) {
+      this.context.handleSelectVertices(clickedVertices);
+    }
+
+    if (activeTool === 'select') {
+      this.dragStartCoords = { x: e.clientX, y: e.clientY };
+      // Copy initial state of all elements to calculate relative moves
+      this.dragInitialState = JSON.parse(JSON.stringify(this.context.getElements()));
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!this.dragStartCoords) return;
+
+        const zoom = this.context.getZoom();
+        const dx = (moveEvent.clientX - this.dragStartCoords.x) / zoom;
+        const dy = (moveEvent.clientY - this.dragStartCoords.y) / zoom;
+
+        let newPrimaryX = elem.x + dx;
+        let newPrimaryY = elem.y + dy;
+
+        if (this.context.isSnapToGrid() && !moveEvent.ctrlKey) {
+          const gridSize = this.context.isHalfGrid()
+            ? this.context.PX_PER_UNIT / 2
+            : this.context.PX_PER_UNIT;
+          newPrimaryX =
+            Math.round((newPrimaryX - this.context.ORIGIN_X) / gridSize) * gridSize +
+            this.context.ORIGIN_X;
+          newPrimaryY =
+            Math.round((newPrimaryY - this.context.ORIGIN_Y) / gridSize) * gridSize +
+            this.context.ORIGIN_Y;
+        } else {
+          newPrimaryX = Math.round(newPrimaryX);
+          newPrimaryY = Math.round(newPrimaryY);
+        }
+
+        const snappedDx = newPrimaryX - elem.x;
+        const snappedDy = newPrimaryY - elem.y;
+
+        const currentSelVertices = this.context.getSelectedVertices();
+
+        const newElements = this.dragInitialState.map(initialEl => {
+          const el = { ...initialEl };
+
+          if (el.type === 'wire' && el.x2 !== undefined && el.y2 !== undefined) {
+            const hasStart = currentSelVertices.some(
+              v => v.elementId === el.id && v.vertex === 'start'
+            );
+            const hasEnd = currentSelVertices.some(
+              v => v.elementId === el.id && v.vertex === 'end'
+            );
+            if (hasStart) {
+              el.x = initialEl.x + snappedDx;
+              el.y = initialEl.y + snappedDy;
+            }
+            if (hasEnd) {
+              el.x2 = initialEl.x2! + snappedDx;
+              el.y2 = initialEl.y2! + snappedDy;
+            }
+          } else {
+            const hasCenter = currentSelVertices.some(
+              v => v.elementId === el.id && v.vertex === 'center'
+            );
+            if (hasCenter) {
+              el.x = initialEl.x + snappedDx;
+              el.y = initialEl.y + snappedDy;
+            }
+          }
+          return el as EditorElement;
+        });
+
+        this.context.setElements(newElements);
+        this.context.renderCanvas();
+      };
+
+      const onMouseUp = () => {
+        this.context.saveHistoryState();
+        this.dragStartCoords = null;
+        this.dragInitialState = [];
+        activeDocument.removeEventListener('mousemove', onMouseMove);
+        activeDocument.removeEventListener('mouseup', onMouseUp);
+      };
+
+      activeDocument.addEventListener('mousemove', onMouseMove);
+      activeDocument.addEventListener('mouseup', onMouseUp);
+    }
+  }
+
+  private handleWireHandleMouseDown(
+    e: MouseEvent,
+    elem: EditorElement,
+    handleType: 'start' | 'end'
+  ) {
     e.stopPropagation();
     if (e.button !== 0) return;
 
@@ -639,14 +785,17 @@ export class CanvasGrid {
       const angleVal = Math.round(Math.atan2(newY2 - newY, newX2 - newX) * (180 / Math.PI));
       const normalizedAngle = (angleVal + 360) % 360;
 
-      this.context.handleUpdateElement({
-        ...elem,
-        x: newX,
-        y: newY,
-        x2: newX2,
-        y2: newY2,
-        rotation: normalizedAngle
-      }, false);
+      this.context.handleUpdateElement(
+        {
+          ...elem,
+          x: newX,
+          y: newY,
+          x2: newX2,
+          y2: newY2,
+          rotation: normalizedAngle
+        },
+        false
+      );
     };
 
     const onMouseUp = () => {

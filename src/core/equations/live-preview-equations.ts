@@ -370,4 +370,3 @@ export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
   const eqField = getEquationField();
   return [mathBlockPositionsField, eqField, createTagManagerPlugin(plugin, eqField)];
 }
-

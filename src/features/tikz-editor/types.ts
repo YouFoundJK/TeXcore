@@ -38,13 +38,19 @@ export interface TikzPackage {
   components: ComponentTemplate[];
 }
 
+export interface SelectedVertex {
+  elementId: string;
+  vertex: 'center' | 'start' | 'end';
+}
+
 export interface TikzEditorContext {
   // State getters
   getElements(): EditorElement[];
   setElements(elements: EditorElement[]): void;
   getActiveTool(): 'select' | 'wire' | 'text' | 'erase';
   getActiveTemplate(): ComponentTemplate | null;
-  getSelectedElementId(): string | null;
+  getSelectedVertices(): SelectedVertex[];
+  setSelectedVertices(vertices: SelectedVertex[]): void;
   isSnapToGrid(): boolean;
   isHalfGrid(): boolean;
   getPictureOptions(): string;
@@ -85,10 +91,18 @@ export interface TikzEditorContext {
   handleUndo(): void;
   handleRedo(): void;
   updateHistoryButtons(): void;
-  handleSelectElement(id: string | null): void;
+  handleSelectVertices(vertices: SelectedVertex[]): void;
   handleAddElement(elem: Omit<EditorElement, 'id'>): void;
-  handleUpdateElementPosition(id: string, x: number, y: number, x2?: number, y2?: number, saveHistory?: boolean): void;
+  handleUpdateElementPosition(
+    id: string,
+    x: number,
+    y: number,
+    x2?: number,
+    y2?: number,
+    saveHistory?: boolean
+  ): void;
   handleUpdateElement(updated: EditorElement, saveHistory?: boolean): void;
+  handleUpdateElements(updatedElements: EditorElement[], saveHistory?: boolean): void;
   handleDeleteElement(id: string): void;
   handleSelectTool(tool: 'select' | 'wire' | 'text' | 'erase'): void;
   handleSelectTemplate(template: ComponentTemplate): void;
