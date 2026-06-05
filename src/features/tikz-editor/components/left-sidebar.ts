@@ -20,10 +20,10 @@ export class LeftSidebar {
       iconHtml: string
     ) => {
       const btn = toolbar.createEl('button', { cls: 'tool-btn', title: label });
+      // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
       btn.innerHTML = iconHtml;
       if (this.context.getActiveTool() === tool) btn.addClass('active');
       btn.onclick = () => {
-        console.log(`[LeftSidebar] Select tool ${tool}`);
         this.context.handleSelectTool(tool);
       };
     };
@@ -35,11 +35,11 @@ export class LeftSidebar {
     );
 
     // Wire button
-    const wireBtn = toolbar.createEl('button', { cls: 'tool-btn', title: 'Wire [W]' });
+    const wireBtn = toolbar.createEl('button', { cls: 'tool-btn', title: 'Wire [w]' });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     wireBtn.innerHTML = `<div class="wire-icon"></div>`;
     if (this.context.getActiveTool() === 'wire') wireBtn.addClass('active');
     wireBtn.onclick = () => {
-      console.log('[LeftSidebar] Select tool wire');
       this.context.handleSelectTool('wire');
     };
 
@@ -59,41 +59,41 @@ export class LeftSidebar {
     // Snap to grid (Full)
     const snapBtn = toolbar.createEl('button', {
       cls: 'tool-btn',
-      title: 'Snap to grid (Full) [G]'
+      title: 'Snap to grid (full) [g]'
     });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     snapBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>`;
     if (this.context.isSnapToGrid() && !this.context.isHalfGrid()) snapBtn.addClass('active');
     snapBtn.onclick = () => {
-      console.log('[LeftSidebar] Set snapping mode to grid');
       this.context.setSnappingMode('grid');
     };
 
     // Half grid
     const halfGridBtn = toolbar.createEl('button', {
       cls: 'tool-btn text-toggle',
-      title: 'Snap to half grid [H]'
+      title: 'Snap to half grid [h]'
     });
     halfGridBtn.textContent = '.5';
     if (this.context.isSnapToGrid() && this.context.isHalfGrid()) halfGridBtn.addClass('active');
     halfGridBtn.onclick = () => {
-      console.log('[LeftSidebar] Set snapping mode to half');
       this.context.setSnappingMode('half');
     };
 
     // Unsnapped / Free movement
     const unsnapBtn = toolbar.createEl('button', {
       cls: 'tool-btn',
-      title: 'Unsnapped (Free movement) [U]'
+      title: 'Unsnapped (free movement) [u]'
     });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     unsnapBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="22" y2="22"/><path d="M7 21v-8M7 9V3M17 21v-2M17 13V3M3 7h4M13 7h8M3 17h18"/></svg>`;
     if (!this.context.isSnapToGrid()) unsnapBtn.addClass('active');
     unsnapBtn.onclick = () => {
-      console.log('[LeftSidebar] Set snapping mode to none');
       this.context.setSnappingMode('none');
     };
 
     // 2. Search
     const searchBox = this.containerEl.createDiv({ cls: 'search-box' });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     searchBox.createEl('span', { cls: 'search-icon' }).innerHTML =
       `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
     const searchInput = searchBox.createEl('input', {
@@ -115,6 +115,7 @@ export class LeftSidebar {
     const pkgHeader = pkgSection.createDiv({ cls: 'packages-header' });
 
     const pkgTitle = pkgHeader.createDiv({ cls: 'title' });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     pkgTitle.createSpan().innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
     pkgTitle.createSpan({ text: ' Packages' });
 
@@ -122,9 +123,9 @@ export class LeftSidebar {
       cls: 'add-pkg-btn',
       title: 'Manage packages'
     });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     addPkgBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
     addPkgBtn.onclick = () => {
-      console.log('[LeftSidebar] Click toggle package manager');
       this.context.togglePackageManager();
     };
 
@@ -135,9 +136,9 @@ export class LeftSidebar {
       popHeader.createSpan({ text: 'Manage Packages' });
 
       const closePopover = popHeader.createEl('button', { cls: 'close-btn' });
+      // eslint-disable-next-line @microsoft/sdl/no-inner-html
       closePopover.innerHTML = '&times;';
       closePopover.onclick = () => {
-        console.log('[LeftSidebar] Close package manager');
         this.context.togglePackageManager();
       };
 
@@ -155,6 +156,7 @@ export class LeftSidebar {
         } else if (this.context.getInstallingPackage() === pkg.name) {
           const btn = actions.createEl('button', { cls: 'pkg-btn loading' });
           btn.disabled = true;
+          // eslint-disable-next-line @microsoft/sdl/no-inner-html
           btn.innerHTML = `<span class="spin"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></span>`;
         } else {
           const btn = actions.createEl('button', { cls: 'pkg-btn install', text: 'Install' });
@@ -219,7 +221,7 @@ export class LeftSidebar {
       comps.forEach(comp => {
         const isActive = this.context.getActiveTemplate()?.name === comp.name;
         const card = grid.createDiv({
-          cls: 'comp-card' + (isActive ? ' active-template' : ''),
+          cls: `comp-card${isActive ? ' active-template' : ''}`,
           attr: { role: 'button', tabindex: '0', title: `Click to select ${comp.name}` }
         });
 
@@ -227,13 +229,13 @@ export class LeftSidebar {
         if (searchQuery.trim() && !core.some(coreComp => coreComp.name === comp.name)) {
           const isPinned = pinnedComponents.includes(comp.name);
           const pinBtn = card.createEl('button', {
-            cls: 'pin-btn' + (isPinned ? ' pinned' : ''),
+            cls: `pin-btn${isPinned ? ' pinned' : ''}`,
             title: isPinned ? 'Pinned in Basic' : 'Pin to Basic'
           });
+          // eslint-disable-next-line @microsoft/sdl/no-inner-html
           pinBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.47A2 2 0 0 1 15 9.3V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4.3a2 2 0 0 1-.78 1.23l-2.78 3.5a2 2 0 0 0-.44 1.24z"/></svg>`;
           pinBtn.onclick = e => {
             e.stopPropagation();
-            console.log('[LeftSidebar] Click toggle pin for:', comp.name);
             if (isPinned) {
               this.context.setPinnedComponents(pinnedComponents.filter(name => name !== comp.name));
             } else {
@@ -244,11 +246,11 @@ export class LeftSidebar {
         }
 
         const svgContainer = card.createDiv({ cls: 'svg-container' });
+        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
         svgContainer.innerHTML = comp.svgMarkup;
         card.createEl('span', { cls: 'comp-label', text: comp.name });
 
         card.onclick = () => {
-          console.log('[LeftSidebar] Click select template:', comp.name);
           this.context.handleSelectTemplate(comp);
         };
         card.onkeydown = e => {

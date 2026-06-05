@@ -183,7 +183,7 @@ export class AssetsManager {
     if (!pkg) return false;
 
     // Simulate package metadata and asset download latency
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => window.setTimeout(resolve, 1500));
 
     // Optional: Real fetch for additional dynamic data if required, e.g.
     // try {

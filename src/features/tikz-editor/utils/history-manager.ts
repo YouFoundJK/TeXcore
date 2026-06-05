@@ -13,7 +13,7 @@ export class HistoryManager {
       if (currentJSON === lastJSON) return;
     }
 
-    this.historyStack.push(JSON.parse(currentJSON));
+    this.historyStack.push(JSON.parse(currentJSON) as EditorElement[]);
     if (this.historyStack.length > this.maxDepth) {
       this.historyStack.shift();
     }
@@ -24,7 +24,9 @@ export class HistoryManager {
     if (this.historyStack.length > 1) {
       const popped = this.historyStack.pop()!;
       this.redoStack.push(popped);
-      return JSON.parse(JSON.stringify(this.historyStack[this.historyStack.length - 1]));
+      return JSON.parse(
+        JSON.stringify(this.historyStack[this.historyStack.length - 1])
+      ) as EditorElement[];
     }
     return null;
   }
@@ -33,7 +35,7 @@ export class HistoryManager {
     if (this.redoStack.length > 0) {
       const next = this.redoStack.pop()!;
       this.historyStack.push(next);
-      return JSON.parse(JSON.stringify(next));
+      return JSON.parse(JSON.stringify(next)) as EditorElement[];
     }
     return null;
   }

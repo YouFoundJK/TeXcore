@@ -9,14 +9,12 @@ export class Progress {
   private renderStates: { filename: string; status: number; element?: HTMLDivElement }[] = [];
 
   constructor(options: { target: HTMLElement; props: Props }) {
-    console.log('[Progress] Initializing with props:', options.props);
     this.container = options.target.createDiv({ cls: 'progress' });
-    this.container.style.fontSize = '14px';
+    this.container.setCssStyles({ fontSize: '14px' });
     this.container.createDiv({ text: 'Rendering...' });
   }
 
   initRenderStates(data: ParamType[]) {
-    console.log('[Progress] initRenderStates with data:', data);
     this.renderStates = [];
 
     // Clear previous items if any
@@ -25,13 +23,11 @@ export class Progress {
 
     data.forEach(param => {
       const itemDiv = this.container.createDiv({ cls: 'progress-item' });
-      itemDiv.style.display = 'flex';
-      itemDiv.style.alignItems = 'center';
-      itemDiv.style.gap = '6px';
-      itemDiv.style.marginTop = '4px';
+      itemDiv.setCssStyles({ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' });
 
       const iconSpan = itemDiv.createSpan({ cls: 'progress-icon' });
       // Lucide-like loader SVG (with some basic style to rotate if desired)
+      // eslint-disable-next-line @microsoft/sdl/no-inner-html
       iconSpan.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader spin-icon" style="animation: spin 1s linear infinite;">
           <path d="M12 2v4"/>
@@ -55,21 +51,21 @@ export class Progress {
     });
 
     // Ensure CSS keyframes for rotation are added to the document if not present
-    if (!document.getElementById('progress-spin-style')) {
-      const style = document.createElement('style');
+    if (!activeDocument.getElementById('progress-spin-style')) {
+      const style = activeDocument.createElement('style');
       style.id = 'progress-spin-style';
+      // eslint-disable-next-line @microsoft/sdl/no-inner-html
       style.innerHTML = `
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
       `;
-      document.head.appendChild(style);
+      activeDocument.head?.appendChild(style);
     }
   }
 
   updateRenderStates(i: number) {
-    console.log('[Progress] updateRenderStates at index:', i);
     if (this.renderStates[i]) {
       this.renderStates[i].status = 1;
       const itemDiv = this.renderStates[i].element;
@@ -89,7 +85,6 @@ export class Progress {
   }
 
   destroy() {
-    console.log('[Progress] destroy');
     if (this.container) {
       this.container.remove();
     }

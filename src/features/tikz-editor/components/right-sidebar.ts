@@ -1,4 +1,4 @@
-import { type TikzEditorContext, type EditorElement } from '../types';
+import { type TikzEditorContext } from '../types';
 
 export class RightSidebar {
   constructor(
@@ -14,24 +14,24 @@ export class RightSidebar {
 
     const activeTab = this.context.getActiveTab();
     const editTabBtn = tabsHeader.createEl('button', {
-      cls: 'tab-btn' + (activeTab === 'edit' ? ' active' : ''),
-      text: 'Edit Component'
+      cls: `tab-btn${activeTab === 'edit' ? ' active' : ''}`,
+      text: 'Edit component'
     });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     editTabBtn.createSpan({ cls: 'tab-icon' }).innerHTML =
       `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="10" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/></svg> `;
     editTabBtn.onclick = () => {
-      console.log('[RightSidebar] Switch to tab: edit');
       this.context.switchTab('edit');
     };
 
     const codeTabBtn = tabsHeader.createEl('button', {
-      cls: 'tab-btn' + (activeTab === 'code' ? ' active' : ''),
+      cls: `tab-btn${activeTab === 'code' ? ' active' : ''}`,
       text: 'Code'
     });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     codeTabBtn.createSpan({ cls: 'tab-icon' }).innerHTML =
       `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> `;
     codeTabBtn.onclick = () => {
-      console.log('[RightSidebar] Switch to tab: code');
       this.context.switchTab('code');
     };
 
@@ -45,12 +45,13 @@ export class RightSidebar {
       if (selectedElements.length === 1) {
         const selectedElement = selectedElements[0];
         const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
+        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
         editPanel.createDiv({ cls: 'section-title' }).innerHTML =
           `Edit component: <span class="comp-name">${selectedElement.name}</span>`;
 
         // 1. Label text input
         const labelGroup = editPanel.createDiv({ cls: 'control-group' });
-        labelGroup.createEl('label', { attr: { for: 'label-input' }, text: 'Label Text' });
+        labelGroup.createEl('label', { attr: { for: 'label-input' }, text: 'Label text' });
         const inputRow = labelGroup.createDiv({ cls: 'input-row' });
         const labelInput = inputRow.createEl('input', {
           type: 'text',
@@ -58,7 +59,6 @@ export class RightSidebar {
           attr: { id: 'label-input', placeholder: 'Enter label...' }
         });
         labelInput.oninput = () => {
-          console.log('[RightSidebar] handleLabelChange to:', labelInput.value);
           this.context.handleUpdateElement({
             ...selectedElement,
             label: labelInput.value
@@ -82,7 +82,6 @@ export class RightSidebar {
         });
         fontSizeSelect.onchange = () => {
           const size = parseInt(fontSizeSelect.value) || 12;
-          console.log('[RightSidebar] handleFontSizeChange to:', size);
           this.context.handleUpdateElement({
             ...selectedElement,
             style: { ...selectedElement.style, fontSize: size }
@@ -97,7 +96,6 @@ export class RightSidebar {
             : '#f8e7ad'
         });
         colorInput.oninput = () => {
-          console.log('[RightSidebar] handleColorChange to:', colorInput.value);
           this.context.handleUpdateElement({
             ...selectedElement,
             style: { ...selectedElement.style, color: colorInput.value }
@@ -136,7 +134,6 @@ export class RightSidebar {
           title: 'Bold'
         });
         boldBtn.onclick = () => {
-          console.log('[RightSidebar] toggleStyle bold to:', !selectedElement.style.bold);
           this.context.handleUpdateElement({
             ...selectedElement,
             style: { ...selectedElement.style, bold: !selectedElement.style.bold }
@@ -149,7 +146,6 @@ export class RightSidebar {
           title: 'Italic'
         });
         italicBtn.onclick = () => {
-          console.log('[RightSidebar] toggleStyle italic to:', !selectedElement.style.italic);
           this.context.handleUpdateElement({
             ...selectedElement,
             style: { ...selectedElement.style, italic: !selectedElement.style.italic }
@@ -159,10 +155,9 @@ export class RightSidebar {
         const mathBtn = styleBtnsRow.createEl('button', {
           cls: selectedElement.style.math ? 'active' : '',
           text: '$',
-          title: 'Math Formula ($...$)'
+          title: 'Math formula ($...$)'
         });
         mathBtn.onclick = () => {
-          console.log('[RightSidebar] toggleStyle math to:', !selectedElement.style.math);
           this.context.handleUpdateElement({
             ...selectedElement,
             style: { ...selectedElement.style, math: !selectedElement.style.math }
@@ -224,7 +219,6 @@ export class RightSidebar {
           const btn = presetsRow.createEl('button', { cls: 'preset-btn', text: `${preset} deg` });
           btn.onclick = () => {
             const newAngle = (preset + 360) % 360;
-            console.log('[RightSidebar] handleRotateChange preset to:', preset, '->', newAngle);
             slider.value = newAngle.toString();
             rotationLabel.textContent = `Rotation (${newAngle} deg)`;
             applyRotation(newAngle);
@@ -275,13 +269,14 @@ export class RightSidebar {
         // 5. Delete element
         const deleteWrap = editPanel.createDiv({ cls: 'delete-btn-wrap' });
         const deleteBtn = deleteWrap.createEl('button', { cls: 'delete-btn' });
+        // eslint-disable-next-line @microsoft/sdl/no-inner-html
         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete Element`;
         deleteBtn.onclick = () => {
-          console.log('[RightSidebar] Click delete element:', selectedElement.id);
           this.context.handleDeleteElement(selectedElement.id);
         };
       } else if (selectedElements.length > 1) {
         const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
+        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
         editPanel.createDiv({ cls: 'section-title' }).innerHTML =
           `Edit multiple components <span class="comp-name">(${selectedElements.length})</span>`;
 
@@ -289,7 +284,7 @@ export class RightSidebar {
 
         // Shared Style Properties (Color, Thickness, Styles)
         const fontColorGroup = editPanel.createDiv({ cls: 'control-group' });
-        fontColorGroup.createEl('label', { text: 'Shared Styles' });
+        fontColorGroup.createEl('label', { text: 'Shared styles' });
         const fontColorRow = fontColorGroup.createDiv({ cls: 'row gap' });
 
         const fontSizeSelect = fontColorRow.createEl('select', {
@@ -379,7 +374,7 @@ export class RightSidebar {
         const mathBtn = styleBtnsRow.createEl('button', {
           cls: firstElement.style.math ? 'active' : '',
           text: '$',
-          title: 'Math Formula ($...$)'
+          title: 'Math formula ($...$)'
         });
         mathBtn.onclick = () => {
           const val = !firstElement.style.math;
@@ -393,11 +388,13 @@ export class RightSidebar {
         // Delete elements
         const deleteWrap = editPanel.createDiv({ cls: 'delete-btn-wrap' });
         const deleteBtn = deleteWrap.createEl('button', { cls: 'delete-btn' });
+        // eslint-disable-next-line @microsoft/sdl/no-inner-html
         deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete All Selected`;
         deleteBtn.onclick = () => {
           selectedElements.forEach(el => this.context.handleDeleteElement(el.id));
         };
       } else {
+        // eslint-disable-next-line @microsoft/sdl/no-inner-html
         tabContent.createDiv({ cls: 'empty-state' }).innerHTML =
           `<p>Select a component on the canvas to configure its styles and properties.</p>`;
       }
@@ -409,7 +406,6 @@ export class RightSidebar {
       const textArea = codePanel.createEl('textarea');
       textArea.value = this.context.getEditableCode();
       textArea.oninput = () => {
-        console.log('[RightSidebar] Textarea edit code');
         const codeValue = textArea.value;
         this.context.setEditableCode(codeValue);
         this.context.setCodeDirty(codeValue !== this.context.generateTikzSource());
@@ -417,13 +413,12 @@ export class RightSidebar {
 
       const codeActions = codePanel.createDiv({ cls: 'code-actions' });
       const copyBtn = codeActions.createEl('button', { cls: 'action-btn secondary' });
+      // eslint-disable-next-line @microsoft/sdl/no-inner-html
       copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy Code`;
       copyBtn.onclick = () => {
         if (this.context.isCodeDirty()) {
-          console.log('[RightSidebar] Copy custom modified code');
-          navigator.clipboard.writeText(this.context.getEditableCode());
+          void navigator.clipboard.writeText(this.context.getEditableCode());
         } else {
-          console.log('[RightSidebar] Copy generated code');
           this.context.handleCopyCode();
         }
       };

@@ -24,7 +24,7 @@ export class CanvasGrid {
   public render() {
     const gridBg = this.workspaceEl.querySelector('.grid-background');
     if (gridBg) {
-      gridBg.className = 'grid-background' + (this.context.isHalfGrid() ? ' half-grid' : '');
+      gridBg.className = `grid-background${this.context.isHalfGrid() ? ' half-grid' : ''}`;
     }
 
     // Axes
@@ -94,7 +94,7 @@ export class CanvasGrid {
       const group = activeDocument.createElementNS(svgNS, 'g');
       group.setAttribute(
         'class',
-        'wire-group' + (selectedVertices.some(v => v.elementId === elem.id) ? ' selected' : '')
+        `wire-group${selectedVertices.some(v => v.elementId === elem.id) ? ' selected' : ''}`
       );
       group.addEventListener('mousedown', e => this.handleElementMouseDown(e, elem));
 
@@ -105,7 +105,7 @@ export class CanvasGrid {
       lineClick.setAttribute('y2', elem.y2.toString());
       lineClick.setAttribute('stroke', 'transparent');
       lineClick.setAttribute('stroke-width', '12');
-      lineClick.style.cursor = 'pointer';
+      lineClick.setCssStyles({ cursor: 'pointer' });
       group.appendChild(lineClick);
 
       if (elem.name === 'Wire') {
@@ -184,6 +184,7 @@ export class CanvasGrid {
         svgWrap.style.color = selectedVertices.some(v => v.elementId === elem.id)
           ? 'var(--text-accent)'
           : elem.style.color || 'var(--text-normal)';
+        // eslint-disable-next-line no-unsanitized/property
         svgWrap.innerHTML = elem.svgMarkup;
         innerG.appendChild(svgWrap);
         group.appendChild(innerG);
@@ -195,16 +196,18 @@ export class CanvasGrid {
             foreign.setAttribute('y', (midY - 28).toString());
             foreign.setAttribute('width', '200');
             foreign.setAttribute('height', '24');
-            foreign.style.overflow = 'visible';
+            foreign.setCssStyles({ overflow: 'visible' });
 
             const div = activeDocument.createElement('div');
-            div.style.display = 'flex';
-            div.style.justifyContent = 'center';
-            div.style.alignItems = 'center';
-            div.style.width = '100%';
-            div.style.height = '100%';
-            div.style.fontSize = `${elem.style.fontSize}px`;
-            div.style.color = elem.style.color || 'var(--text-normal)';
+            div.setCssStyles({
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+              height: '100%',
+              fontSize: `${elem.style.fontSize}px`,
+              color: elem.style.color || 'var(--text-normal)'
+            });
 
             try {
               const mathEl = renderMath(elem.label, false);
@@ -245,7 +248,7 @@ export class CanvasGrid {
         handleStart.setAttribute('fill', 'var(--interactive-accent)');
         handleStart.setAttribute('stroke', 'var(--text-on-accent)');
         handleStart.setAttribute('stroke-width', '1.5');
-        handleStart.style.cursor = 'move';
+        handleStart.setCssStyles({ cursor: 'move' });
         handleStart.addEventListener('mousedown', e => {
           this.handleWireHandleMouseDown(e, elem, 'start');
         });
@@ -258,7 +261,7 @@ export class CanvasGrid {
         handleEnd.setAttribute('fill', 'var(--interactive-accent)');
         handleEnd.setAttribute('stroke', 'var(--text-on-accent)');
         handleEnd.setAttribute('stroke-width', '1.5');
-        handleEnd.style.cursor = 'move';
+        handleEnd.setCssStyles({ cursor: 'move' });
         handleEnd.addEventListener('mousedown', e => {
           this.handleWireHandleMouseDown(e, elem, 'end');
         });
@@ -274,7 +277,7 @@ export class CanvasGrid {
       if (activeTemplate && activeTemplate.type === 'wire') {
         const dx = this.wireCurrent.x - this.wireStart.x;
         const dy = this.wireCurrent.y - this.wireStart.y;
-        const len = Math.hypot(dx, dy);
+
         const angle = Math.atan2(dy, dx) * (180 / Math.PI);
         const midX = this.wireStart.x + dx / 2;
         const midY = this.wireStart.y + dy / 2;
@@ -294,7 +297,7 @@ export class CanvasGrid {
           'transform',
           `translate(${midX}, ${midY}) rotate(${angle}) translate(-25, -10)`
         );
-        innerG.style.opacity = '0.7';
+        innerG.setCssStyles({ opacity: '0.7' });
 
         const rect = activeDocument.createElementNS(svgNS, 'rect');
         rect.setAttribute('x', '-2');
@@ -306,7 +309,8 @@ export class CanvasGrid {
         innerG.appendChild(rect);
 
         const svgWrap = activeDocument.createElementNS(svgNS, 'g');
-        svgWrap.style.color = 'var(--text-accent)';
+        svgWrap.setCssStyles({ color: 'var(--text-accent)' });
+        // eslint-disable-next-line no-unsanitized/property
         svgWrap.innerHTML = activeTemplate.svgMarkup;
         innerG.appendChild(svgWrap);
         this.wiresOverlayEl.appendChild(innerG);
@@ -346,17 +350,14 @@ export class CanvasGrid {
 
   private renderPlacedElements() {
     this.workspaceEl.querySelectorAll('.placed-element').forEach(el => el.remove());
-    const selectedElementId = this.context.getSelectedElementId();
+    const selectedVertices = this.context.getSelectedVertices();
     const elements = this.context.getElements();
 
     elements.forEach(elem => {
       if (elem.type !== 'component' && elem.type !== 'text') return;
 
       const el = activeDocument.createElement('div');
-      el.className =
-        'placed-element' +
-        (selectedVertices.some(v => v.elementId === elem.id) ? ' selected' : '') +
-        (elem.type === 'text' ? ' is-text' : '');
+      el.className = `placed-element${selectedVertices.some(v => v.elementId === elem.id) ? ' selected' : ''}${elem.type === 'text' ? ' is-text' : ''}`;
       el.style.left = `${elem.x}px`;
       el.style.top = `${elem.y}px`;
       el.style.transform = `rotate(${elem.rotation}deg)`;
@@ -396,6 +397,7 @@ export class CanvasGrid {
           const svgRadius = elem.radius * 2.5;
           svg = svg.replace(/r="\d+(\.\d+)?"/g, `r="${svgRadius}"`);
         }
+        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
         visual.innerHTML = svg;
         el.appendChild(visual);
 
@@ -449,18 +451,9 @@ export class CanvasGrid {
     const activeTool = this.context.getActiveTool();
     const activeTemplate = this.context.getActiveTemplate();
 
-    console.log(
-      '[CanvasGrid] handleCanvasMouseDown button:',
-      e.button,
-      'activeTool:',
-      activeTool,
-      'activeTemplate:',
-      activeTemplate?.name
-    );
     if (e.button !== 0) return;
 
     const coords = this.getCanvasCoords(e);
-    console.log('[CanvasGrid] handleCanvasMouseDown coords:', coords);
 
     if (activeTemplate && activeTemplate.type === 'component') {
       this.context.handleAddElement({
@@ -490,14 +483,13 @@ export class CanvasGrid {
       const onMouseMove = (moveEvent: MouseEvent) => {
         if (this.wireStart) {
           const mCoords = this.getCanvasCoords(moveEvent);
-          console.log('[CanvasGrid] handleCanvasMouseMove wire drawing coords:', mCoords);
+
           this.wireCurrent = mCoords;
           this.renderWires();
         }
       };
 
       const onMouseUp = (upEvent: MouseEvent) => {
-        console.log('[CanvasGrid] handleCanvasMouseUp wireStart:', this.wireStart);
         if (this.wireStart && this.wireCurrent) {
           const dist = Math.hypot(
             this.wireCurrent.x - this.wireStart.x,
@@ -680,7 +672,9 @@ export class CanvasGrid {
     if (activeTool === 'select') {
       this.dragStartCoords = { x: e.clientX, y: e.clientY };
       // Copy initial state of all elements to calculate relative moves
-      this.dragInitialState = JSON.parse(JSON.stringify(this.context.getElements()));
+      this.dragInitialState = JSON.parse(
+        JSON.stringify(this.context.getElements())
+      ) as EditorElement[];
 
       const onMouseMove = (moveEvent: MouseEvent) => {
         if (!this.dragStartCoords) return;
@@ -739,7 +733,7 @@ export class CanvasGrid {
               el.y = initialEl.y + snappedDy;
             }
           }
-          return el as EditorElement;
+          return el;
         });
 
         this.context.setElements(newElements);

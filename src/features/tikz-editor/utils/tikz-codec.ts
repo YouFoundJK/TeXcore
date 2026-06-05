@@ -141,7 +141,7 @@ export class TikzCodec {
           const parsedRadius = parseFloat(circleMatch[3]);
           const isFilled = circleMatch[1] === 'fill';
           const isLarge = !isNaN(parsedRadius) && parsedRadius >= 6.0;
-          let nodeName: 'Filled node' | 'Open node' | 'Circle' | 'Filled Circle' = 'Open node';
+          let nodeName: 'Filled node' | 'Open node' | 'Circle' | 'Filled Circle';
           if (isFilled) {
             nodeName = isLarge ? 'Filled Circle' : 'Filled node';
           } else {

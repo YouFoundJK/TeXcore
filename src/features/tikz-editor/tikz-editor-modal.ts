@@ -5,6 +5,7 @@ import {
   type EditorElement,
   type ComponentTemplate,
   type TikzEditorContext,
+  type TikzPackage,
   type SelectedVertex
 } from './types';
 import { showNotice } from 'utils/obsidian';
@@ -185,7 +186,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   createId() {
-    return 'elem_' + Math.random().toString(36).substring(2, 9);
+    return `elem_${Math.random().toString(36).substring(2, 9)}`;
   }
 
   // History operations
@@ -324,7 +325,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
   handleSelectTemplate(template: ComponentTemplate) {
     this.activeTemplate = template;
-    this.selectedElementId = null;
+    this.selectedVertices = [];
     if (template.type === 'text') {
       this.activeTool = 'text';
     } else if (template.type === 'wire') {
@@ -343,7 +344,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   handleCopyCode() {
-    navigator.clipboard.writeText(this.generateTikzSource());
+    void navigator.clipboard.writeText(this.generateTikzSource());
     showNotice('TikZ code copied to clipboard!');
   }
 
@@ -357,12 +358,10 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   async handleInstallPackage(pkgName: string) {
-    console.log('[LeftSidebar] handleInstallPackage package:', pkgName);
     this.installingPackage = pkgName;
     this.renderLeftSidebar();
     try {
       const success = await AssetsManager.installPackage(pkgName);
-      console.log('[LeftSidebar] handleInstallPackage success status:', success);
       if (success) {
         this.packages = [...AssetsManager.getRegistry()];
       }
@@ -375,10 +374,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   async handleUninstallPackage(pkgName: string) {
-    console.log('[LeftSidebar] handleUninstallPackage package:', pkgName);
     try {
       const success = await AssetsManager.uninstallPackage(pkgName);
-      console.log('[LeftSidebar] handleUninstallPackage success status:', success);
       if (success) {
         this.packages = [...AssetsManager.getRegistry()];
       }
@@ -432,8 +429,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
         this.editableCode = this.generateTikzSource();
       } catch (err) {
         console.error('[TikzEditorModal] Error generating TikZ code:', err);
-        this.editableCode =
-          '% Error generating TikZ code: ' + (err instanceof Error ? err.message : String(err));
+        this.editableCode = `% Error generating TikZ code: ${err instanceof Error ? err.message : String(err)}`;
       }
     }
     this.renderRightSidebar();
@@ -452,7 +448,6 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
   private handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
-      console.log('[TikzEditorModal] Escape key pressed manually');
       e.preventDefault();
       e.stopPropagation();
       this.close();
@@ -527,33 +522,27 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     const { contentEl, containerEl } = this;
     contentEl.empty();
 
-    // Debug click interceptor
-    this.modalEl.addEventListener(
-      'click',
-      e => {
-        console.log('[TikzEditorDebug] Click target:', e.target);
-      },
-      true
-    );
-
     // Set custom CSS classes and sizes
     this.modalEl.addClass('tikz-editor-modal');
+    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
     containerEl.style.setProperty('--dialog-width', '95vw');
+    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
     containerEl.style.setProperty('--dialog-height', '90vh');
 
     // Title of the modal
-    this.titleEl.setText('TikZ Graphical Editor');
-    this.titleEl.style.borderBottom = '1px solid var(--border-color)';
-    this.titleEl.style.paddingBottom = '10px';
-    this.titleEl.style.marginBottom = '0';
+    this.titleEl.setText('TikZ graphical editor');
+    this.titleEl.setCssStyles({
+      borderBottom: '1px solid var(--border-color)',
+      paddingBottom: '10px',
+      marginBottom: '0'
+    });
 
     if (this.onSaveCallback) {
       const headerBtn = this.modalEl.createEl('button', {
         cls: 'tikz-header-save-btn',
-        text: 'Update Block'
+        text: 'Update block'
       });
       headerBtn.onclick = () => {
-        console.log('[TikzEditorModal] Header Save clicked');
         this.handleInsertCode();
       };
     }
@@ -576,10 +565,9 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     activeDocument.addEventListener('keyup', this.handleKeyUp);
 
     // Add manual close button click handler
-    const closeBtn = this.modalEl.querySelector('.modal-close-button') as HTMLElement | null;
+    const closeBtn = this.modalEl.querySelector<HTMLElement>('.modal-close-button');
     if (closeBtn) {
       closeBtn.addEventListener('click', e => {
-        console.log('[TikzEditorModal] Close button clicked manually');
         e.preventDefault();
         e.stopPropagation();
         this.close();
@@ -592,7 +580,10 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
       const match = this.initialSource.match(/^\s*%\s*\[ObsiTeXState:(.*)\]\s*$/m);
       if (match && match[1]) {
         try {
-          const parsed = JSON.parse(match[1]);
+          const parsed = JSON.parse(match[1]) as {
+            elements?: EditorElement[];
+            pictureOptions?: string;
+          };
           if (Array.isArray(parsed.elements)) {
             this.elements = parsed.elements;
             this.pictureOptions = parsed.pictureOptions ?? '';
@@ -648,7 +639,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     // Floating controls
     const controls = canvasAreaEl.createDiv({ cls: 'tikz-canvas-controls' });
 
-    const zoomOutBtn = controls.createEl('button', { title: 'Zoom Out [Ctrl + -]' });
+    const zoomOutBtn = controls.createEl('button', { title: 'Zoom out [ctrl + -]' });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     zoomOutBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
     zoomOutBtn.onclick = () => {
       this.zoom = Math.max(this.zoom - 0.1, 0.5);
@@ -658,7 +650,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     const zoomLabel = controls.createSpan({ cls: 'zoom-label', text: '100%' });
 
-    const zoomInBtn = controls.createEl('button', { title: 'Zoom In [Ctrl + +]' });
+    const zoomInBtn = controls.createEl('button', { title: 'Zoom in [ctrl + +]' });
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     zoomInBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
     zoomInBtn.onclick = () => {
       this.zoom = Math.min(this.zoom + 0.1, 2.0);
@@ -670,17 +663,19 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     const undoBtn = controls.createEl('button', { title: 'Undo [Ctrl + Z]' });
     undoBtn.disabled = true;
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     undoBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
     undoBtn.onclick = () => this.handleUndo();
 
     const redoBtn = controls.createEl('button', { title: 'Redo [Ctrl + Y]' });
     redoBtn.disabled = true;
+    // eslint-disable-next-line @microsoft/sdl/no-inner-html
     redoBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`;
     redoBtn.onclick = () => this.handleRedo();
 
     // Workspace
     this.canvasWorkspaceEl = this.canvasContainerEl.createDiv({ cls: 'canvas-workspace' });
-    this.canvasWorkspaceEl.style.transformOrigin = '0 0';
+    this.canvasWorkspaceEl.setCssStyles({ transformOrigin: '0 0' });
     this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
 
     // Grid lines
@@ -694,7 +689,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     axisOverlay.setAttribute('height', this.CANVAS_HEIGHT.toString());
     this.canvasWorkspaceEl.appendChild(axisOverlay);
 
-    this.wiresOverlayEl = activeDocument.createElementNS(svgNS, 'svg') as unknown as SVGElement;
+    this.wiresOverlayEl = activeDocument.createElementNS(svgNS, 'svg') as SVGElement;
     this.wiresOverlayEl.setAttribute('class', 'wires-overlay');
     this.wiresOverlayEl.setAttribute('width', this.CANVAS_WIDTH.toString());
     this.wiresOverlayEl.setAttribute('height', this.CANVAS_HEIGHT.toString());
