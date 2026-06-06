@@ -112,6 +112,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Features:
+      - Overview: features/index.md
       - Equation Numbering: features/equations.md
       - PDF Export: features/pdf-export.md
       - LaTeX Snippets: features/snippets.md
@@ -120,4 +121,5 @@ nav:
       - TikZ Diagrams: features/tikz.md
       - Callout Support: features/callout-support.md
   - Configuration:
+      - Overview: configuration/index.md
       - Settings Reference: configuration/settings.md

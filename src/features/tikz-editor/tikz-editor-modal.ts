@@ -8,7 +8,7 @@ import {
   type TikzPackage,
   type SelectedVertex
 } from './types';
-import { showNotice } from 'utils/obsidian';
+import { showNotice, setCssProps } from 'utils/obsidian';
 import { LeftSidebar } from './components/left-sidebar';
 import { CanvasGrid } from './components/canvas-grid';
 import { RightSidebar } from './components/right-sidebar';
@@ -524,10 +524,11 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     // Set custom CSS classes and sizes
     this.modalEl.addClass('tikz-editor-modal');
-    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-    containerEl.style.setProperty('--dialog-width', '95vw');
-    // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-    containerEl.style.setProperty('--dialog-height', '90vh');
+
+    setCssProps(containerEl, {
+      '--dialog-width': '95vw',
+      '--dialog-height': '90vh'
+    });
 
     // Title of the modal
     this.titleEl.setText('TikZ graphical editor');
@@ -640,8 +641,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     const controls = canvasAreaEl.createDiv({ cls: 'tikz-canvas-controls' });
 
     const zoomOutBtn = controls.createEl('button', { title: 'Zoom out [ctrl + -]' });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    zoomOutBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
+
+    const zoomOutParser = new DOMParser();
+    const zoomOutDoc = zoomOutParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
+      'image/svg+xml'
+    );
+    zoomOutBtn.appendChild(activeDocument.importNode(zoomOutDoc.documentElement, true));
     zoomOutBtn.onclick = () => {
       this.zoom = Math.max(this.zoom - 0.1, 0.5);
       zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
@@ -651,8 +657,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     const zoomLabel = controls.createSpan({ cls: 'zoom-label', text: '100%' });
 
     const zoomInBtn = controls.createEl('button', { title: 'Zoom in [ctrl + +]' });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    zoomInBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
+
+    const zoomInParser = new DOMParser();
+    const zoomInDoc = zoomInParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
+      'image/svg+xml'
+    );
+    zoomInBtn.appendChild(activeDocument.importNode(zoomInDoc.documentElement, true));
     zoomInBtn.onclick = () => {
       this.zoom = Math.min(this.zoom + 0.1, 2.0);
       zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
@@ -663,14 +674,24 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     const undoBtn = controls.createEl('button', { title: 'Undo [Ctrl + Z]' });
     undoBtn.disabled = true;
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    undoBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
+
+    const undoParser = new DOMParser();
+    const undoDoc = undoParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
+      'image/svg+xml'
+    );
+    undoBtn.appendChild(activeDocument.importNode(undoDoc.documentElement, true));
     undoBtn.onclick = () => this.handleUndo();
 
     const redoBtn = controls.createEl('button', { title: 'Redo [Ctrl + Y]' });
     redoBtn.disabled = true;
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    redoBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`;
+
+    const redoParser = new DOMParser();
+    const redoDoc = redoParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
+      'image/svg+xml'
+    );
+    redoBtn.appendChild(activeDocument.importNode(redoDoc.documentElement, true));
     redoBtn.onclick = () => this.handleRedo();
 
     // Workspace

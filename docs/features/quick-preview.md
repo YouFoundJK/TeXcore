@@ -1,72 +1,42 @@
-# Quick Preview
+# Quick Hover Previews
 
-Hover over equation links to see a rendered preview popup.
+TeXcore integrates with Obsidian's core page preview mechanics to display real-time, mathematical popups whenever you hover over an equation link like `[[#^eq-einstein]]` or highlight items in the [Autocomplete Suggestions Menu](search.md).
 
-## Overview
+---
 
-When you hover over an equation reference like `[[#^eq-einstein]]`, a popup appears showing:
+## Technical Architecture
 
-- The rendered equation
-- Context around the equation
-
-This uses Obsidian's built-in Page Preview plugin, enhanced to work with equation block references.
-
-## How It Works
-
-The plugin patches Obsidian's `page-preview` internal plugin to:
-
-1. Detect equation links (format: `[[#^eq-xxx]]`)
-2. Look up the equation in the cache
-3. Scroll the preview to the correct line
+The preview lookup hooks into Obsidian's internal `page-preview` engine. TeXcore intercepts link hover events, references the identifier against the active document's equation cache, locates the line offset, and scrolls the popup container to display the equation in focus.
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant PagePreview
-    participant Plugin
-    participant Cache
+    participant User as Editor hover
+    participant PP as Page Preview Plugin
+    participant C as TeXcore Cache
+    participant V as Preview Popup View
     
-    User->>PagePreview: Hover on [[#^eq-id]]
-    PagePreview->>Plugin: onLinkHover
-    Plugin->>Cache: Lookup eq-id
-    Cache-->>Plugin: Line number
-    Plugin->>PagePreview: Show preview at line
-    PagePreview->>User: Popup displayed
+    User->>PP: Hover [[#^eq-id]]
+    PP->>C: Query eq-id coordinate
+    C-->>PP: Return line number
+    PP->>V: Compile MathJax & scroll to line
+    V->>User: Display preview popup
 ```
 
-## Requirements
+---
 
-The Page Preview core plugin must be enabled:
+## Requirements & Setup
 
-1. **Settings** → **Core plugins**
-2. Enable **Page preview**
+!!! important "Enable Core Page Preview"
+    This feature relies on Obsidian's core architecture. Open **Settings** → **Core plugins** and toggle **Page preview** to **Enable**. If this core dependency is deactivated, TeXcore will log a console warning and hover previews will fallback to standard text previews without viewport scrolling.
 
-If disabled, the plugin logs a message and hover previews won't work.
+---
 
-## Preview Content
+## Troubleshooting Previews
 
-The popup shows the full note context around the equation, similar to hovering over any Obsidian internal link. The equation is scrolled into view automatically.
+If preview boxes fail to load or scroll incorrectly, consult the diagnostic table below:
 
-## Autocomplete Preview
-
-When using the `\eqref` autocomplete:
-
-- Hover over suggestions to preview equations
-- Uses the same preview system
-- Works in both search modal and editor suggest
-
-## Configuration
-
-No additional configuration needed. The feature works automatically when:
-
-- Page Preview core plugin is enabled
-- Equations have valid `% id: eq-xxx` comments
-- Equation cache is up to date
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| No popup appears | Enable Page Preview core plugin |
-| Wrong content shown | Equation cache may be stale, edit the file to refresh |
-| Preview doesn't scroll | Equation ID may be malformed |
+| Symptom | Cause | Solution |
+| :--- | :--- | :--- |
+| **No preview modal opens** | Page Preview core plugin is toggled off. | Toggle on Page Preview in Obsidian settings. |
+| **Formula text displays raw LaTeX** | MathJax rendering is disabled for suggestions. | Toggle on [Render Math in Suggestions](configuration/settings.md#render-math-in-suggestions). |
+| **Preview focuses the wrong line** | Malformed `% id: eq-name` or stale index cache. | Touch-edit the note content to trigger a cache re-index. |

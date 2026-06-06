@@ -1,83 +1,72 @@
-# TikZ Diagrams
+# TikZ Diagrams & Graphical Editor
 
-Render LaTeX TikZ diagrams (` ```tikz `) fully offline and on-demand inside your notes.
-
-## Overview
-
-Unlike other plugins that require an internet connection to fetch heavy dependencies or freeze your UI during TeX compilation, this plugin leverages a decoupled, worker-based compiler.
-
-- **Fully Offline** — Requires no internet connection. All TeX format files and packages are cached locally in the plugin folder.
-- **Lazy Loaded Assets** — Core components (`tex.wasm.gz` and `core.dump.gz`) are read from disk, decompressed, and cached in memory on the first compile. Supplementary packages and libraries (like `circuitikz`, `pgfplots`, or `tikz-cd`) are only loaded and decompressed from disk when requested in your TikZ block's preamble.
-- **Web Worker Concurrency** — TeX compilation is CPU-bound. Offloading it to a background Web Worker ensures your Obsidian interface remains smooth and responsive.
-- **Theme Integration** — Hardcoded dark strokes and fills adapt automatically to Obsidian's active dark or light themes if dark-mode color inversion is enabled.
+TeXcore integrates an offline, background-compiled TikZ vector graphics renderer and a fully interactive **TikZ Graphical Editor**. You can write standard LaTeX TikZ scripts directly inside code blocks or edit them visually using a drag-and-drop CAD-like interface.
 
 ---
 
-## How It Works
+## Architecture & Worker Compilation
 
-1. The Markdown code block processor detects a ` ```tikz ` block.
-2. The plugin parses the code preamble for package requirements (e.g. `\usepackage{pgfplots}` or `\usetikzlibrary{calc}`).
-3. The main thread loads the WASM engine, core dump, and resolved package files, decompresses them natively using Node's `zlib` library, and transfers the buffers to the Web Worker.
-4. The background worker spins up a virtual filesystem in memory, loads the TeX format dump, and compiles the TikZ block to a binary DVI format.
-5. The main thread receives the DVI binary, translates it to SVG using `dvi2html` and the secure browser `DOMParser` API, and inserts it into the note.
+To prevent Obsidian UI freezes during heavy TeX compilations, TeXcore utilizes a decoupled **Web Worker Compiler** that operates fully offline:
 
 ```mermaid
 sequenceDiagram
-    participant Main as Obsidian Main Thread
+    participant Main as Obsidian Editor
     participant Worker as TikZJax Web Worker
+    participant Disk as Local Storage (WASM)
     
-    Note over Main: Markdown block processor triggered
-    Main->>Main: Parse preamble (detect packages & libraries)
-    Main->>Main: Read & decompress required .gz assets from local disk
-    Main->>Worker: Spawn worker & postMessage(startCompile, { code, files })
-    Note over Worker: Populate virtual filesystem in memory
-    Worker->>Worker: Run TeX WebAssembly engine (Sync)
-    Worker->>Worker: Output DVI format
-    Worker->>Main: postMessage(compileSuccess, { dviData })
-    Main->>Main: Translate DVI to SVG using dvi2html & DOMParser
-    Main->>Main: Render SVG inside Note View
+    Main->>Disk: Read & decompress core assets (tex.wasm.gz, core.dump.gz)
+    Main->>Worker: Spawn thread & send decompressed WebAssembly buffers
+    Note over Worker: Spin up virtual memory filesystem
+    Main->>Worker: Post compile command (TikZ code)
+    Worker->>Worker: Sync compile to DVI format
+    Worker-->>Main: Return DVI binary output
+    Main->>Main: Translate DVI to SVG using dvi2html & insert into note
 ```
 
 ---
 
-## Usage
+## Editor Workflows
 
-Create a code block in your markdown document and identify it with `tikz`. You can include packages in the preamble:
+=== "Using Code Blocks"
+    Create a code block in your markdown document and identify it with `tikz`. You can include packages like `pgfplots` or libraries in the preamble:
+    
+    ```tikz
+    \usepackage{pgfplots}
+    \begin{document}
+    \begin{tikzpicture}
+      \begin{axis}[xlabel=$x$, ylabel=$y$]
+        \addplot[color=red,mark=x] coordinates {
+          (2,-3) (3,5) (4,7)
+        };
+      \end{axis}
+    \end{tikzpicture}
+    \end{document}
+    ```
 
-```tikz
-\usepackage{pgfplots}
-\begin{document}
-\begin{tikzpicture}
-  \begin{axis}[
-    xlabel=$x$,
-    ylabel=$y$
-  ]
-    \addplot[color=red,mark=x] coordinates {
-      (2,-3)
-      (3,5)
-      (4,7)
-    };
-  \end{axis}
-\end{tikzpicture}
-\end{document}
-```
-
----
-
-## Asset Origins & Lineage
-
-The lazy-loaded assets stored inside the `tikzjax-assets` folder are compiled/extracted from:
-
-1. **[kisonecat/tikzjax](https://github.com/kisonecat/tikzjax)**: The original browser-based TeX compiler created by Jim Fowler, which compiles TeX's Pascal source to WebAssembly via `web2js`.
-2. **[drgrice1/tikzjax](https://github.com/drgrice1/tikzjax)**: Glenn Rice's fork which introduced Web Worker support and support for additional LaTeX packages and libraries.
-3. **[artisticat1/obsidian-tikzjax](https://github.com/artisticat1/obsidian-tikzjax)**: The Obsidian plugin wrapper created by `artisticat1` which packaged these components for offline usage in Obsidian.
+=== "Using the Graphical Editor"
+    1. Click the **Edit visually** button on any rendered TikZ SVG block, or use the Command Palette (++ctrl+p++ → `Insert display math` or search for the TikZ Editor commands).
+    2. A CAD-style modal opens:
+        - **Left Sidebar**: Component library featuring core shapes (lines, circles, rectangles) and package modules.
+        - **Center Canvas**: Interactive grid with zoom (++ctrl+scroll++), panning (++spacebar+drag++), and snapping (toggle via ++g++ or ++h++).
+        - **Right Sidebar**: Property editor (adjust color, bold, italics, font size, stroke thickness) and raw TikZ Code synchronization.
+    3. Press ++ctrl+z++ to undo and ++ctrl+y++ to redo actions. 
+    4. Click the **Update block** button to compile and insert the code block into your note.
 
 ---
 
-## Troubleshooting
+## Component Package Manager
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| **Diagram shows empty container** | Core assets are missing or disabled | Ensure the `tikzjax-assets` folder is present inside the plugin directory under `.obsidian/plugins/TeXcore/tikzjax-assets/`. |
-| **Error: Package not found** | The requested LaTeX package is not supported or not present | Only packages and libraries pre-compiled into the assets are supported. Ensure the package name matches standard packages (like `pgfplots`, `circuitikz`, `chemfig`, `tikz-cd`). |
-| **Compile hangs or freezes** | Complex intersections or recursive computations exceed WebAssembly boundaries | Break down complex calculations or verify diagram logic for syntax loops. |
+For complex diagrams (like circuits or flowcharts), the Graphical Editor features a **Component Package Manager** accessed via the footer button in the Left Sidebar.
+
+!!! info "Package Installation Flow"
+    Click **Manage Packages** and search for libraries like `circuitikz`. Installing a package decompresses and caches its TeX dependency files (`.tex`/`.sty`) in memory, dynamically expanding your visual element sidebar with custom shapes (e.g. resistors, logic gates, operational amplifiers) that can be drag-dropped onto the grid canvas.
+
+---
+
+## Diagnostics & Troubleshooting
+
+!!! warning "Common TikZ Compilation Hurdles"
+    - **Empty Container / Failed rendering**: Verify that the `tikzjax-assets` folder exists inside your plugin installation directory: `.obsidian/plugins/TeXcore/tikzjax-assets/`.
+    - **Package Not Found Error**: Double-check spelling inside your block preamble. Only packages included in the asset registry are available offline.
+    - **Canvas Panning Locked**: Ensure you hold down the ++spacebar++ while dragging on the canvas container to pan the grid layout.
+    - **Compilation Timed Out**: Avoid infinite loops or extremely dense coordinate calculations that exceed WebAssembly heap size allocations.

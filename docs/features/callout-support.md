@@ -1,141 +1,53 @@
 # Callout Support
 
-Use math blocks inside Obsidian callouts with automatic indentation handling.
+TeXcore seamlessly integrates with Obsidian's native Callout system. Writing display math inside block quotes requires prepending the callout character `>` to every single line. TeXcore parses these prefixes automatically to keep your formula coordinates indexed, numbered, and styled correctly without breaking the callout container.
 
-## The Challenge
+---
 
-Obsidian callouts require `>` prefixes on every line:
+## Indentation Syntax
 
-```markdown
-> [!note]
-> This is a callout with
-> multiple lines.
-```
+When drafting formulas inside a callout box, make sure that all lines inside the math block maintain the correct prefix.
 
-Math blocks inside callouts need the same treatment:
+=== "Standard Callout"
+    ```markdown
+    > [!theorem] Green's Theorem
+    > $$
+    > \oint_C (L \, dx + M \, dy) = \iint_D \left(\frac{\partial M}{\partial x} - \frac{\partial L}{\partial y}\right) dx \, dy
+    > % id: eq-greens
+    > $$
+    ```
 
-```markdown
-> [!theorem]
-> $$
-> E = mc^2
-> % id: eq-callout
-> $$
-```
+=== "Nested Callouts"
+    ```markdown
+    > [!note] Parent Callout
+    > Outer text body.
+    > > [!tip] Nested Equation
+    > > $$
+    > > e^{i\pi} + 1 = 0
+    > > % id: eq-euler
+    > > $$
+    ```
 
-Without proper indentation, the math block breaks the callout.
+---
 
-## Automatic Handling
+## Automatic Fix Command
 
-The plugin automatically handles callout prefixes when:
+Inconsistent callout prefixes (like a missing `>` on the `% id:` line or closing `$$`) will cause Obsidian to break out of the callout box. To resolve this, use the automatic fix tool:
 
-- Adding `\tag{}` commands
-- Inserting ID comments
-- Managing multi-line equations
+1. Open the Command Palette using ++ctrl+p++ (or ++cmd+p++ on macOS).
+2. Type and select `Fix callout equations in active note`.
+3. TeXcore will scan your active note, detect broken display blocks inside callouts, and automatically prepend missing prefixes or normalize spacing to a clean `> `.
 
-### Example
+| Prefix Error Pattern | Fix Applied | Result |
+| :--- | :--- | :--- |
+| **Missing `>` prefix on `% id` line** | Injects missing callout character. | `> % id: eq-name` |
+| **Missing `>` prefix on closing `$$`** | Injects missing callout character. | `> $$` |
+| **Inconsistent spacing (e.g. `>  $$`)** | Normalizes prefix spacing. | `> $$` |
 
-**Input (with proper prefixes):**
-```markdown
-> [!theorem] Einstein's Equation
-> $$
-> E = mc^2
-> % id: eq-einstein
-> $$
-```
+---
 
-**After plugin processing:**
-```markdown
-> [!theorem] Einstein's Equation
-> $$
-> E = mc^2 \tag{1}
-> % id: eq-einstein
-> $$
-```
+## PDF Export & Preview Compatibility
 
-The plugin preserves the `>` prefix on all lines.
-
-## Fix Command
-
-If your callout equations have broken indentation, use the fix command:
-
-1. Open Command Palette (`Ctrl/Cmd + P`)
-2. Search for "Fix callout equations in active note"
-3. Run the command
-
-This scans all math blocks and fixes any incorrect indentation.
-
-### What It Fixes
-
-| Before | After |
-|--------|-------|
-| Missing `>` on ID line | Adds `>` prefix |
-| Missing `>` on closing `$$` | Adds `>` prefix |
-| Inconsistent spacing | Normalizes to `> ` |
-
-## Nested Callouts
-
-The plugin supports nested callouts:
-
-```markdown
-> [!note]
-> Outer callout
-> > [!tip]
-> > $$
-> > x^2 + y^2 = z^2
-> > % id: eq-nested
-> > $$
-```
-
-The prefix `> > ` is detected and preserved on all lines.
-
-## Supported Formats
-
-The plugin recognizes these callout prefix patterns:
-
-| Pattern | Example |
-|---------|---------|
-| Standard | `> ` |
-| Nested | `> > ` |
-| Triple nested | `> > > ` |
-| With leading space | `  > ` |
-
-## Live Preview Behavior
-
-In Live Preview mode:
-
-1. The opening `$$` line's prefix is detected
-2. All subsequent lines use the same prefix
-3. The closing `$$` line uses the same prefix
-
-This ensures consistent rendering across the entire math block.
-
-## Common Issues
-
-### Breaking Out of Callout
-
-If your math appears below the callout:
-
-```markdown
-> [!note]
-> Some text
-$$
-E = mc^2   <!-- This breaks out! -->
-$$
-```
-
-**Fix:** Add `>` prefix to the math block lines, or use the fix command.
-
-### Missing ID After Fix
-
-If the ID disappears after a fix:
-
-1. The ID line may have had invalid characters
-2. Manually re-add: `> % id: eq-xxx`
-
-### PDF Export
-
-Callout math blocks export correctly to PDF with:
-
-- Callout styling preserved
-- Math rendering intact
-- Equation numbers displayed
+Callouts containing math blocks fully support all other TeXcore features:
+- **Hover Previews**: Hovering over inline references correctly renders the callout box context inside the [Page Preview Popup](quick-preview.md).
+- **PDF Compilation**: The callout color styles, borders, and equation number tags are preserved in the compiled [PDF Export](pdf-export.md).

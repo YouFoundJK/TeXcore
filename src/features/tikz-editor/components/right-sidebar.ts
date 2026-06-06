@@ -17,9 +17,14 @@ export class RightSidebar {
       cls: `tab-btn${activeTab === 'edit' ? ' active' : ''}`,
       text: 'Edit component'
     });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    editTabBtn.createSpan({ cls: 'tab-icon' }).innerHTML =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="10" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/></svg> `;
+
+    const editSpan = editTabBtn.createSpan({ cls: 'tab-icon' });
+    const editParser = new DOMParser();
+    const editDoc = editParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="10" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/></svg> `,
+      'image/svg+xml'
+    );
+    editSpan.appendChild(activeDocument.importNode(editDoc.documentElement, true));
     editTabBtn.onclick = () => {
       this.context.switchTab('edit');
     };
@@ -28,9 +33,14 @@ export class RightSidebar {
       cls: `tab-btn${activeTab === 'code' ? ' active' : ''}`,
       text: 'Code'
     });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    codeTabBtn.createSpan({ cls: 'tab-icon' }).innerHTML =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> `;
+
+    const codeSpan = codeTabBtn.createSpan({ cls: 'tab-icon' });
+    const codeParser = new DOMParser();
+    const codeDoc = codeParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> `,
+      'image/svg+xml'
+    );
+    codeSpan.appendChild(activeDocument.importNode(codeDoc.documentElement, true));
     codeTabBtn.onclick = () => {
       this.context.switchTab('code');
     };
@@ -45,9 +55,10 @@ export class RightSidebar {
       if (selectedElements.length === 1) {
         const selectedElement = selectedElements[0];
         const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
-        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
-        editPanel.createDiv({ cls: 'section-title' }).innerHTML =
-          `Edit component: <span class="comp-name">${selectedElement.name}</span>`;
+
+        const titleDiv = editPanel.createDiv({ cls: 'section-title' });
+        titleDiv.createSpan({ text: 'Edit component: ' });
+        titleDiv.createSpan({ cls: 'comp-name', text: selectedElement.name });
 
         // 1. Label text input
         const labelGroup = editPanel.createDiv({ cls: 'control-group' });
@@ -269,16 +280,23 @@ export class RightSidebar {
         // 5. Delete element
         const deleteWrap = editPanel.createDiv({ cls: 'delete-btn-wrap' });
         const deleteBtn = deleteWrap.createEl('button', { cls: 'delete-btn' });
-        // eslint-disable-next-line @microsoft/sdl/no-inner-html
-        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete Element`;
+
+        const deleteParser = new DOMParser();
+        const deleteDoc = deleteParser.parseFromString(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+          'image/svg+xml'
+        );
+        deleteBtn.appendChild(activeDocument.importNode(deleteDoc.documentElement, true));
+        deleteBtn.createSpan({ text: ' Delete Element' });
         deleteBtn.onclick = () => {
           this.context.handleDeleteElement(selectedElement.id);
         };
       } else if (selectedElements.length > 1) {
         const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
-        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
-        editPanel.createDiv({ cls: 'section-title' }).innerHTML =
-          `Edit multiple components <span class="comp-name">(${selectedElements.length})</span>`;
+
+        const titleDiv = editPanel.createDiv({ cls: 'section-title' });
+        titleDiv.createSpan({ text: 'Edit multiple components ' });
+        titleDiv.createSpan({ cls: 'comp-name', text: `(${selectedElements.length})` });
 
         const firstElement = selectedElements[0];
 
@@ -388,15 +406,22 @@ export class RightSidebar {
         // Delete elements
         const deleteWrap = editPanel.createDiv({ cls: 'delete-btn-wrap' });
         const deleteBtn = deleteWrap.createEl('button', { cls: 'delete-btn' });
-        // eslint-disable-next-line @microsoft/sdl/no-inner-html
-        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete All Selected`;
+
+        const deleteParser = new DOMParser();
+        const deleteDoc = deleteParser.parseFromString(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+          'image/svg+xml'
+        );
+        deleteBtn.appendChild(activeDocument.importNode(deleteDoc.documentElement, true));
+        deleteBtn.createSpan({ text: ' Delete All Selected' });
         deleteBtn.onclick = () => {
           selectedElements.forEach(el => this.context.handleDeleteElement(el.id));
         };
       } else {
-        // eslint-disable-next-line @microsoft/sdl/no-inner-html
-        tabContent.createDiv({ cls: 'empty-state' }).innerHTML =
-          `<p>Select a component on the canvas to configure its styles and properties.</p>`;
+        const emptyState = tabContent.createDiv({ cls: 'empty-state' });
+        emptyState.createEl('p', {
+          text: 'Select a component on the canvas to configure its styles and properties.'
+        });
       }
     } else {
       // Code tab
@@ -413,8 +438,14 @@ export class RightSidebar {
 
       const codeActions = codePanel.createDiv({ cls: 'code-actions' });
       const copyBtn = codeActions.createEl('button', { cls: 'action-btn secondary' });
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy Code`;
+
+      const copyParser = new DOMParser();
+      const copyDoc = copyParser.parseFromString(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
+        'image/svg+xml'
+      );
+      copyBtn.appendChild(activeDocument.importNode(copyDoc.documentElement, true));
+      copyBtn.createSpan({ text: ' Copy Code' });
       copyBtn.onclick = () => {
         if (this.context.isCodeDirty()) {
           void navigator.clipboard.writeText(this.context.getEditableCode());

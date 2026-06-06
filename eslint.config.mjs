@@ -112,6 +112,7 @@ export default tseslint.config(
 
       // Type assertions
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/prefer-as-const': 'warn',
       '@typescript-eslint/no-unsafe-return': 'warn',
 

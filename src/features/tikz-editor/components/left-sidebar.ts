@@ -20,8 +20,11 @@ export class LeftSidebar {
       iconHtml: string
     ) => {
       const btn = toolbar.createEl('button', { cls: 'tool-btn', title: label });
-      // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
-      btn.innerHTML = iconHtml;
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(iconHtml, 'image/svg+xml');
+      btn.appendChild(activeDocument.importNode(doc.documentElement, true));
+
       if (this.context.getActiveTool() === tool) btn.addClass('active');
       btn.onclick = () => {
         this.context.handleSelectTool(tool);
@@ -36,8 +39,8 @@ export class LeftSidebar {
 
     // Wire button
     const wireBtn = toolbar.createEl('button', { cls: 'tool-btn', title: 'Wire [w]' });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    wireBtn.innerHTML = `<div class="wire-icon"></div>`;
+
+    wireBtn.createDiv({ cls: 'wire-icon' });
     if (this.context.getActiveTool() === 'wire') wireBtn.addClass('active');
     wireBtn.onclick = () => {
       this.context.handleSelectTool('wire');
@@ -61,8 +64,14 @@ export class LeftSidebar {
       cls: 'tool-btn',
       title: 'Snap to grid (full) [g]'
     });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    snapBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>`;
+
+    const snapParser = new DOMParser();
+    const snapDoc = snapParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>`,
+      'image/svg+xml'
+    );
+    snapBtn.appendChild(activeDocument.importNode(snapDoc.documentElement, true));
+
     if (this.context.isSnapToGrid() && !this.context.isHalfGrid()) snapBtn.addClass('active');
     snapBtn.onclick = () => {
       this.context.setSnappingMode('grid');
@@ -84,8 +93,14 @@ export class LeftSidebar {
       cls: 'tool-btn',
       title: 'Unsnapped (free movement) [u]'
     });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    unsnapBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="22" y2="22"/><path d="M7 21v-8M7 9V3M17 21v-2M17 13V3M3 7h4M13 7h8M3 17h18"/></svg>`;
+
+    const unsnapParser = new DOMParser();
+    const unsnapDoc = unsnapParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="2" x2="22" y2="22"/><path d="M7 21v-8M7 9V3M17 21v-2M17 13V3M3 7h4M13 7h8M3 17h18"/></svg>`,
+      'image/svg+xml'
+    );
+    unsnapBtn.appendChild(activeDocument.importNode(unsnapDoc.documentElement, true));
+
     if (!this.context.isSnapToGrid()) unsnapBtn.addClass('active');
     unsnapBtn.onclick = () => {
       this.context.setSnappingMode('none');
@@ -93,9 +108,14 @@ export class LeftSidebar {
 
     // 2. Search
     const searchBox = this.containerEl.createDiv({ cls: 'search-box' });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    searchBox.createEl('span', { cls: 'search-icon' }).innerHTML =
-      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+
+    const searchIconSpan = searchBox.createEl('span', { cls: 'search-icon' });
+    const searchParser = new DOMParser();
+    const searchDoc = searchParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      'image/svg+xml'
+    );
+    searchIconSpan.appendChild(activeDocument.importNode(searchDoc.documentElement, true));
     const searchInput = searchBox.createEl('input', {
       type: 'text',
       placeholder: 'Search for Component...'
@@ -115,16 +135,27 @@ export class LeftSidebar {
     const pkgHeader = pkgSection.createDiv({ cls: 'packages-header' });
 
     const pkgTitle = pkgHeader.createDiv({ cls: 'title' });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    pkgTitle.createSpan().innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
+
+    const pkgTitleSpan = pkgTitle.createSpan();
+    const pkgParser = new DOMParser();
+    const pkgDoc = pkgParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+      'image/svg+xml'
+    );
+    pkgTitleSpan.appendChild(activeDocument.importNode(pkgDoc.documentElement, true));
     pkgTitle.createSpan({ text: ' Packages' });
 
     const addPkgBtn = pkgHeader.createEl('button', {
       cls: 'add-pkg-btn',
       title: 'Manage packages'
     });
-    // eslint-disable-next-line @microsoft/sdl/no-inner-html
-    addPkgBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+
+    const addPkgParser = new DOMParser();
+    const addPkgDoc = addPkgParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+      'image/svg+xml'
+    );
+    addPkgBtn.appendChild(activeDocument.importNode(addPkgDoc.documentElement, true));
     addPkgBtn.onclick = () => {
       this.context.togglePackageManager();
     };
@@ -136,8 +167,8 @@ export class LeftSidebar {
       popHeader.createSpan({ text: 'Manage Packages' });
 
       const closePopover = popHeader.createEl('button', { cls: 'close-btn' });
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      closePopover.innerHTML = '&times;';
+
+      closePopover.textContent = '×';
       closePopover.onclick = () => {
         this.context.togglePackageManager();
       };
@@ -156,8 +187,13 @@ export class LeftSidebar {
         } else if (this.context.getInstallingPackage() === pkg.name) {
           const btn = actions.createEl('button', { cls: 'pkg-btn loading' });
           btn.disabled = true;
-          // eslint-disable-next-line @microsoft/sdl/no-inner-html
-          btn.innerHTML = `<span class="spin"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></span>`;
+          const spinSpan = btn.createSpan({ cls: 'spin' });
+          const loaderParser = new DOMParser();
+          const loaderDoc = loaderParser.parseFromString(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>`,
+            'image/svg+xml'
+          );
+          spinSpan.appendChild(activeDocument.importNode(loaderDoc.documentElement, true));
         } else {
           const btn = actions.createEl('button', { cls: 'pkg-btn install', text: 'Install' });
           btn.onclick = () => this.context.handleInstallPackage(pkg.name);
@@ -232,8 +268,12 @@ export class LeftSidebar {
             cls: `pin-btn${isPinned ? ' pinned' : ''}`,
             title: isPinned ? 'Pinned in Basic' : 'Pin to Basic'
           });
-          // eslint-disable-next-line @microsoft/sdl/no-inner-html
-          pinBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.47A2 2 0 0 1 15 9.3V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4.3a2 2 0 0 1-.78 1.23l-2.78 3.5a2 2 0 0 0-.44 1.24z"/></svg>`;
+          const pinParser = new DOMParser();
+          const pinDoc = pinParser.parseFromString(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.47A2 2 0 0 1 15 9.3V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4.3a2 2 0 0 1-.78 1.23l-2.78 3.5a2 2 0 0 0-.44 1.24z"/></svg>`,
+            'image/svg+xml'
+          );
+          pinBtn.appendChild(activeDocument.importNode(pinDoc.documentElement, true));
           pinBtn.onclick = e => {
             e.stopPropagation();
             if (isPinned) {
@@ -246,8 +286,10 @@ export class LeftSidebar {
         }
 
         const svgContainer = card.createDiv({ cls: 'svg-container' });
-        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
-        svgContainer.innerHTML = comp.svgMarkup;
+
+        const compSvgParser = new DOMParser();
+        const compSvgDoc = compSvgParser.parseFromString(comp.svgMarkup, 'image/svg+xml');
+        svgContainer.appendChild(activeDocument.importNode(compSvgDoc.documentElement, true));
         card.createEl('span', { cls: 'comp-label', text: comp.name });
 
         card.onclick = () => {

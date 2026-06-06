@@ -1,131 +1,94 @@
-# Equation Numbering & Referencing
+# Equation & Sub-Equation Numbering
 
-The core feature of TeXcore is automatic equation numbering using LaTeX `\tag{}` commands and smart referencing via internal links.
+The core engine of TeXcore provides automatic equation numbering using LaTeX `\tag{}` commands, allowing you to generate academic-grade numbering schemes inside Obsidian. This feature is heavily integrated with the plugin's [Autocomplete System](search.md) and [Quick Hover Previews](quick-preview.md) to keep references synchronized in both Live Preview and Reading View.
 
-## How Equation IDs Work
+---
 
-Unlike Obsidian's built-in block references (`^block-id` after content), this plugin uses LaTeX comments inside math blocks:
+## Defining Equation Identifiers
+
+Unlike Obsidian's standard markdown block references which append identifiers at the end of elements, TeXcore indexes equations using LaTeX comments inside the display math block. Add a `% id: eq-name` comment line immediately before the closing `$$` delimiter. The prefix `eq-` is required, followed by alphanumeric characters or hyphens. 
 
 ```latex
 $$
 E = mc^2
-% id: eq-einstein
+% id: eq-einstein   (1)
 $$
 ```
 
-The `% id: eq-einstein` comment:
+1. This comment is invisible in the final rendered note but is parsed by TeXcore's background indexing system to build the active note cache.
 
-- Is invisible in rendered output (it's a LaTeX comment)
-- Creates a unique identifier for the equation
-- Must use the format `eq-` followed by alphanumeric characters and hyphens
-- Must be on its own line before the closing `$$`
+---
 
-## Automatic Numbering
+## Lazy Numbering Mechanism
 
-When an equation has an ID and is referenced somewhere in the note, the plugin automatically inserts a `\tag{}` command:
+To keep your document layout clean, TeXcore uses **lazy numbering** by default. An equation is only assigned a right-aligned number tag if it is actively referenced somewhere in the vault. If the equation is not referenced, no tag is injected, keeping margins clear. You can disable this behavior to force-number all equations in the [Settings Reference](configuration/settings.md#number-only-referenced-equations).
 
-**Before (what you write):**
-```latex
-$$
-E = mc^2
-% id: eq-einstein
-$$
+=== "1. Editor Code"
+    Write the math block and reference it inline using Obsidian double brackets:
+    
+    ```latex
+    $$
+    E = mc^2
+    % id: eq-einstein
+    $$
+    
+    As shown in [[#^eq-einstein]], mass is equivalent to energy.
+    ```
 
-See equation [[#^eq-einstein]].
-```
+=== "2. Generated Output"
+    The compiler automatically appends the `\tag{}` macro and renders the link with the assigned index:
+    
+    $$
+    E = mc^2 \tag{1}
+    $$
+    
+    As shown in [(1)](#), mass is equivalent to energy.
 
-**After (what the plugin generates):**
-```latex
-$$
-E = mc^2 \tag{1}
-% id: eq-einstein
-$$
+---
 
-See equation [[#^eq-einstein]].
-```
+## Numbering Customization
 
-!!! note "Number Only Referenced Equations"
-    By default, equations are only numbered if they're referenced somewhere. This can be changed in settings.
+Configure the layout of your math indices globally via the [Settings Panel](configuration/settings.md#equation-numbering-referencing). Numbering formats support a variety of typographic styles, prefixes, and suffixes.
 
-## Number Styles
+### Number Styles Matrix
 
-Configure the numbering style in plugin settings:
+| Style Name | Description | Output Example |
+| :--- | :--- | :--- |
+| `arabic` | Standard Hindu-Arabic numerals. | `(1)`, `(2)`, `(3)` |
+| `alph` | Lowercase Latin alphabetical indexing. | `(a)`, `(b)`, `(c)` |
+| `Alph` | Uppercase Latin alphabetical indexing. | `(A)`, `(B)`, `(C)` |
+| `roman` | Lowercase Roman numerals. | `(i)`, `(ii)`, `(iii)` |
+| `Roman` | Uppercase Roman numerals. | `(I)`, `(II)`, `(III)` |
 
-| Style | Example Output |
-|-------|----------------|
-| `arabic` | 1, 2, 3, ... |
-| `alph` | a, b, c, ... |
-| `Alph` | A, B, C, ... |
-| `roman` | i, ii, iii, ... |
-| `Roman` | I, II, III, ... |
+!!! info "Prefixes & Suffixes"
+    Prepending prefixes (e.g., `Eq.`) or appending suffixes (e.g., `.`) will modify the output. For example, a prefix of `Eq.` with style `arabic` renders as `(Eq.1)`. A suffix of `.` renders as `(1.)`. See [Reference Link Customization](configuration/settings.md#reference-link-prefix) for additional details.
 
-## Prefix and Suffix
+---
 
-Add custom text before/after equation numbers:
+## Sub-Equation System
 
-| Setting | Value | Result |
-|---------|-------|--------|
-| Prefix: `§` | - | (§1) |
-| Suffix: `.` | - | (1.) |
-| Prefix: `Eq.` | - | (Eq.1) |
-
-## Sub-Equations
-
-For multi-line equations, reference individual lines using sub-indices:
+Multi-line equations (such as systems of equations using LaTeX `align` or split blocks) can be individually referenced using sub-indices. Reference rows sequentially by appending the row number to the parent ID:
 
 ```latex
 $$
+\begin{aligned}
 a &= b + c \\
 d &= e + f
+\end{aligned}
 % id: eq-system
 $$
 
-First equation: [[#^eq-system-1]]
-Second equation: [[#^eq-system-2]]
+Referencing row 1: [[#^eq-system-1]]
+Referencing row 2: [[#^eq-system-2]]
 ```
 
-The plugin generates:
+The plugin automatically parses the structure and appends sub-tags such as `\tag{1.1}` to the first equation line and `\tag{1.2}` to the second.
 
-- `\tag{1.1}` for the first row
-- `\tag{1.2}` for the second row
+---
 
-## Referencing Equations
+## Inserting References
 
-### Using Autocomplete
+To reference an equation quickly, type your trigger (default is `\eqref`) to activate the autocomplete dialog. Use your keyboard arrow keys to scroll, and press ++enter++ to insert the formatted wiki-link. 
 
-1. Type your trigger string (default: `\eqref`)
-2. A suggestion popup appears with all equations in the current note
-3. Select an equation using arrow keys or mouse
-4. Press Enter to insert `[[#^eq-id]]`
-
-### Jump to Equation
-
-Hold the modifier key (default: `Ctrl`/`Cmd`) while pressing Enter on a suggestion to jump to the equation instead of inserting a link.
-
-### Reference Display Format
-
-Configure how equation links are displayed:
-
-| Setting | Display Format |
-|---------|----------------|
-| Show note title: ON | `Note Title > (1)` |
-| Show note title: OFF | `(1)` |
-| Reference prefix: `Eq.` | `Eq.(1)` |
-| Reference suffix: none | `(1)` |
-
-## Live Preview vs Reading View
-
-The plugin works in both Obsidian views:
-
-- **Live Preview**: Uses CodeMirror extensions for real-time numbering
-- **Reading View**: Uses Markdown post-processors for rendered output
-
-Both views stay synchronized - editing in one updates the other.
-
-## Equation Cache
-
-The plugin maintains a cache of all equations in the current note for fast lookup. This cache is:
-
-- Built when a note is opened
-- Updated on every document change
-- Used for autocomplete suggestions and hover previews
+!!! tip "Jump-to-Equation Shortcut"
+    Holding the ++ctrl++ key (or ++cmd++ on macOS) while pressing ++enter++ on a suggestion in the autocomplete list will instantly jump your cursor to the equation definition instead of inserting the link.

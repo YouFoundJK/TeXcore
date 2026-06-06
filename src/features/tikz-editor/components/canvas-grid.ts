@@ -184,8 +184,10 @@ export class CanvasGrid {
         svgWrap.style.color = selectedVertices.some(v => v.elementId === elem.id)
           ? 'var(--text-accent)'
           : elem.style.color || 'var(--text-normal)';
-        // eslint-disable-next-line no-unsanitized/property
-        svgWrap.innerHTML = elem.svgMarkup;
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(elem.svgMarkup, 'image/svg+xml');
+        svgWrap.appendChild(activeDocument.importNode(doc.documentElement, true));
         innerG.appendChild(svgWrap);
         group.appendChild(innerG);
 
@@ -310,8 +312,10 @@ export class CanvasGrid {
 
         const svgWrap = activeDocument.createElementNS(svgNS, 'g');
         svgWrap.setCssStyles({ color: 'var(--text-accent)' });
-        // eslint-disable-next-line no-unsanitized/property
-        svgWrap.innerHTML = activeTemplate.svgMarkup;
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(activeTemplate.svgMarkup, 'image/svg+xml');
+        svgWrap.appendChild(activeDocument.importNode(doc.documentElement, true));
         innerG.appendChild(svgWrap);
         this.wiresOverlayEl.appendChild(innerG);
       } else {
@@ -397,8 +401,10 @@ export class CanvasGrid {
           const svgRadius = elem.radius * 2.5;
           svg = svg.replace(/r="\d+(\.\d+)?"/g, `r="${svgRadius}"`);
         }
-        // eslint-disable-next-line no-unsanitized/property, @microsoft/sdl/no-inner-html
-        visual.innerHTML = svg;
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svg, 'image/svg+xml');
+        visual.appendChild(activeDocument.importNode(doc.documentElement, true));
         el.appendChild(visual);
 
         if (elem.label) {

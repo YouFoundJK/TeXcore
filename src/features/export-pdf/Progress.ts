@@ -27,9 +27,9 @@ export class Progress {
 
       const iconSpan = itemDiv.createSpan({ cls: 'progress-icon' });
       // Lucide-like loader SVG (with some basic style to rotate if desired)
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      iconSpan.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader spin-icon" style="animation: spin 1s linear infinite;">
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader spin-icon" style="animation: spin 1s linear infinite;">
           <path d="M12 2v4"/>
           <path d="m16.2 6.2 2.9-2.9"/>
           <path d="M18 12h4"/>
@@ -38,8 +38,11 @@ export class Progress {
           <path d="m4.9 19.1 2.9-2.9"/>
           <path d="M2 12h4"/>
           <path d="m4.9 4.9 2.9 2.9"/>
-        </svg>
-      `;
+        </svg>`,
+        'image/svg+xml'
+      );
+      const svg = doc.documentElement;
+      iconSpan.appendChild(activeDocument.importNode(svg, true));
 
       itemDiv.createSpan({ text: param.file.name });
 
@@ -54,8 +57,7 @@ export class Progress {
     if (!activeDocument.getElementById('progress-spin-style')) {
       const style = activeDocument.createElement('style');
       style.id = 'progress-spin-style';
-      // eslint-disable-next-line @microsoft/sdl/no-inner-html
-      style.innerHTML = `
+      style.textContent = `
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -72,13 +74,17 @@ export class Progress {
       if (itemDiv) {
         const iconSpan = itemDiv.querySelector('.progress-icon');
         if (iconSpan) {
-          // Lucide-like square-check-big SVG
-          iconSpan.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-check-big" style="color: var(--text-success, #4caf50);">
+          iconSpan.textContent = '';
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-check-big" style="color: var(--text-success, #4caf50);">
               <path d="m9 11 3 3L22 4"/>
               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-            </svg>
-          `;
+            </svg>`,
+            'image/svg+xml'
+          );
+          const svg = doc.documentElement;
+          iconSpan.appendChild(activeDocument.importNode(svg, true));
         }
       }
     }
