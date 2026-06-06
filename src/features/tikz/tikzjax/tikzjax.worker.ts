@@ -111,11 +111,11 @@ function openSync(filename: string, mode: string): number {
   let content = new Uint8Array();
 
   if (preloadedFiles[filename]) {
-    content = preloadedFiles[filename] as Uint8Array<ArrayBuffer>;
+    content = preloadedFiles[filename] as unknown as Uint8Array<ArrayBuffer>;
   } else if (filename.endsWith('.tfm')) {
     const fontName = filename.replace(/\.tfm$/, '');
     const data = lookupTfmData(fontName);
-    if (data) content = data as Uint8Array<ArrayBuffer>;
+    if (data) content = data as unknown as Uint8Array<ArrayBuffer>;
   } else {
     // Check if this file was generated during the current run (like input.aux)
     // Search backwards to get the most recent version of the file

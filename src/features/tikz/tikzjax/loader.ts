@@ -255,7 +255,9 @@ export class TikzJaxLoader {
       }
 
       // Decompress gzip synchronously using Node zlib
-      const decompressed = zlib.gunzipSync(Buffer.from(compressedData));
+      const decompressed = (zlib as unknown as { gunzipSync(buf: Buffer): Buffer }).gunzipSync(
+        Buffer.from(compressedData)
+      );
       return new Uint8Array(decompressed);
     } catch (err) {
       console.error(`Latex Referencer: Failed to load/decompress asset ${filename}`, err);
