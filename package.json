@@ -1,6 +1,6 @@
 {
   "name": "TeXcore",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Automatic equation numbering, Tex Diagrams rendering, and more to transforms your vault into a rich ecosystem for scientific drafting and study.",
   "main": "main.js",
   "packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499",

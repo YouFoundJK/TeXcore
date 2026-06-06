@@ -1,6 +1,6 @@
 <div align="right">
   <img src="https://img.shields.io/github/downloads/YouFoundJK/TeXcore/total?label=Downloads" alt="Downloads" />
-  <a href="https://youfoundjk.github.io/TeXcore/"><img src="https://img.shields.io/badge/Version-v_0.0.1-blue" alt="Version" /></a>
+  <a href="https://youfoundjk.github.io/TeXcore/"><img src="https://img.shields.io/badge/Version-v_0.0.3-blue" alt="Version" /></a>
 </div>
 
 # TeXcore for Obsidian

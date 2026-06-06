@@ -108,14 +108,14 @@ export function setInput(input: string) {
 // .tfm font metrics are served from the dvi2html bundle.
 //
 function openSync(filename: string, mode: string): number {
-  let content = new Uint8Array();
+  let content: Uint8Array<ArrayBufferLike> = new Uint8Array();
 
   if (preloadedFiles[filename]) {
-    content = preloadedFiles[filename] as unknown as Uint8Array<ArrayBuffer>;
+    content = preloadedFiles[filename];
   } else if (filename.endsWith('.tfm')) {
     const fontName = filename.replace(/\.tfm$/, '');
     const data = lookupTfmData(fontName);
-    if (data) content = data as unknown as Uint8Array<ArrayBuffer>;
+    if (data) content = data;
   } else {
     // Check if this file was generated during the current run (like input.aux)
     // Search backwards to get the most recent version of the file
