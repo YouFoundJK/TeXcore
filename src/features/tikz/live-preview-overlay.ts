@@ -2,6 +2,7 @@ import { Extension, Prec, EditorState } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../main';
+import { TikzEditorModal } from '../tikz-editor/tikz-editor-modal';
 
 interface CleanableDiv extends HTMLDivElement {
   _cleanup?: () => void;
@@ -95,6 +96,13 @@ class TikzLivePreviewOverlay {
     titleEl.textContent = 'TikZ live preview';
     handleEl.appendChild(titleEl);
 
+    const buttonGroup = doc.createElement('div');
+    setCssProps(buttonGroup, {
+      display: 'flex',
+      gap: '6px',
+      'align-items': 'center'
+    });
+
     const exportBtn = doc.createElement('button');
     exportBtn.textContent = 'Export svg';
     setCssProps(exportBtn, {
@@ -118,7 +126,63 @@ class TikzLivePreviewOverlay {
       this.exportSvg();
     };
 
-    handleEl.appendChild(exportBtn);
+    const pencilBtn = doc.createElement('button');
+    const pencilParser = new DOMParser();
+    const pencilDoc = pencilParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
+      'image/svg+xml'
+    );
+    pencilBtn.appendChild(activeDocument.importNode(pencilDoc.documentElement, true));
+    setCssProps(pencilBtn, {
+      padding: '4px',
+      display: 'flex',
+      'align-items': 'center',
+      'justify-content': 'center',
+      'border-radius': '4px',
+      border: '1px solid var(--border-color)',
+      'background-color': 'var(--background-secondary)',
+      color: 'var(--text-normal)',
+      cursor: 'pointer'
+    });
+    pencilBtn.title = 'Open TikZ editor';
+
+    pencilBtn.onmousedown = (e: MouseEvent) => {
+      e.stopPropagation();
+    };
+
+    pencilBtn.onclick = (e: MouseEvent) => {
+      e.stopPropagation();
+      const state = this.view.state;
+      const pos = state.selection.main.head;
+      const blockRange = this.getTikzBlockRangeAtPos(state, pos);
+      if (blockRange) {
+        this.plugin.isTikzEditorOpen = true;
+        this.destroy();
+
+        new TikzEditorModal(
+          this.plugin.app,
+          this.plugin,
+          blockRange.source,
+          (newSource: string) => {
+            this.view.dispatch({
+              changes: {
+                from: blockRange.from,
+                to: blockRange.to,
+                insert: newSource
+              }
+            });
+            showNotice('TikZ block updated.');
+          }
+        ).open();
+      } else {
+        showNotice('Please place your cursor inside a tikz block to edit.');
+      }
+    };
+
+    buttonGroup.appendChild(pencilBtn);
+    buttonGroup.appendChild(exportBtn);
+
+    handleEl.appendChild(buttonGroup);
     this.overlayEl.appendChild(handleEl);
 
     // Container for TikZ render
@@ -265,6 +329,64 @@ class TikzLivePreviewOverlay {
     showNotice('TikZ diagram exported as svg successfully.');
   }
 
+  private getTikzBlockRangeAtPos(
+    state: EditorState,
+    pos: number
+  ): { source: string; from: number; to: number } | null {
+    try {
+      const doc = state.doc;
+      const curLine = doc.lineAt(pos).number;
+
+      let isInside = false;
+      let blockStartLine = -1;
+      let blockEndLine = -1;
+
+      // Scan backwards to find block start
+      for (let l = curLine; l >= 1; l--) {
+        const text = doc.line(l).text.trim();
+        if (text.startsWith('```tikz')) {
+          isInside = true;
+          blockStartLine = l;
+          break;
+        } else if (text === '```' && l < curLine) {
+          break;
+        }
+      }
+
+      if (!isInside) return null;
+
+      // Scan forwards to find block end
+      for (let l = curLine; l <= doc.lines; l++) {
+        const text = doc.line(l).text.trim();
+        if (text === '```') {
+          blockEndLine = l;
+          break;
+        } else if (text.startsWith('```tikz') && l > curLine) {
+          break;
+        }
+      }
+
+      if (blockStartLine !== -1 && blockEndLine !== -1) {
+        const lines: string[] = [];
+        for (let l = blockStartLine + 1; l < blockEndLine; l++) {
+          lines.push(doc.line(l).text);
+        }
+
+        const from = doc.line(blockStartLine + 1).from;
+        const to = doc.line(blockEndLine - 1).to;
+
+        return {
+          source: lines.join('\n'),
+          from,
+          to
+        };
+      }
+    } catch {
+      // Fail silently
+    }
+    return null;
+  }
+
   public destroy() {
     if (this.debounceTimeout) {
       window.clearTimeout(this.debounceTimeout);
@@ -290,7 +412,7 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
         constructor(private view: EditorView) {}
 
         update(update: ViewUpdate) {
-          if (!plugin.settings.enableTikzjax) {
+          if (!plugin.settings.enableTikzjax || plugin.isTikzEditorOpen) {
             this.cleanup();
             return;
           }

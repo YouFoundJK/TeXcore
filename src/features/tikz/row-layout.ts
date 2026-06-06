@@ -169,7 +169,21 @@ function preprocessContainerRows(container: HTMLElement) {
   }
 }
 
-function tightenColumn(colEl: HTMLElement) {
+function tightenColumn(colEl: HTMLElement, colIdx: number, numColumns: number) {
+  let align = 'center';
+  if (numColumns > 1) {
+    if (colIdx === 0) {
+      align = 'right';
+    } else if (colIdx === numColumns - 1) {
+      align = 'left';
+    }
+  }
+
+  const colAlignItems = align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
+  const childJustifyContent =
+    align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
+  const childTextAlign = align;
+
   setCssProps(
     colEl,
     {
@@ -180,7 +194,7 @@ function tightenColumn(colEl: HTMLElement) {
       display: 'flex',
       'flex-direction': 'column',
       'justify-content': 'center',
-      'align-items': 'center'
+      'align-items': colAlignItems
     },
     'important'
   );
@@ -193,7 +207,9 @@ function tightenColumn(colEl: HTMLElement) {
       el,
       {
         'margin-top': '0',
+        'margin-right': '0',
         'margin-bottom': '0',
+        'margin-left': '0',
         'padding-top': '0',
         'padding-bottom': '0',
         'line-height': 'normal'
@@ -221,7 +237,8 @@ function tightenColumn(colEl: HTMLElement) {
         {
           display: displayType,
           'align-items': 'center',
-          'justify-content': 'center',
+          'justify-content': childJustifyContent,
+          'text-align': childTextAlign,
           'vertical-align': 'middle'
         },
         'important'
@@ -236,6 +253,47 @@ function tightenColumn(colEl: HTMLElement) {
       );
     }
   });
+}
+
+function updateRowLayout(rowEl: HTMLElement, columns: HTMLElement[], customWidths: string[]) {
+  const numColumns = columns.length;
+  const gridTracks: string[] = [];
+
+  if (customWidths.length > 0) {
+    // Use user-defined widths; row stretches to fill the container.
+    for (let colIdx = 0; colIdx < numColumns; colIdx++) {
+      gridTracks.push(colIdx < customWidths.length ? customWidths[colIdx] : '1fr');
+    }
+    setCssProps(
+      rowEl,
+      {
+        width: '100%',
+        'max-width': 'none',
+        'margin-left': '0',
+        'margin-right': '0',
+        'grid-template-columns': gridTracks.join(' ')
+      },
+      'important'
+    );
+  } else {
+    // Size each column to its natural (max-content) width so block-level wrappers
+    // like mjx-container don't inflate the column to the full container width.
+    // The row itself shrinks to fit its content and is centered horizontally.
+    for (let colIdx = 0; colIdx < numColumns; colIdx++) {
+      gridTracks.push('max-content');
+    }
+    setCssProps(
+      rowEl,
+      {
+        width: 'fit-content',
+        'max-width': '100%',
+        'margin-left': 'auto',
+        'margin-right': 'auto',
+        'grid-template-columns': gridTracks.join(' ')
+      },
+      'important'
+    );
+  }
 }
 
 // ==========================================
@@ -359,27 +417,19 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
         }
 
         const numColumns = columnsElements.length;
-        const gridTracks: string[] = [];
-        for (let colIdx = 0; colIdx < numColumns; colIdx++) {
-          if (colIdx < widths.length) {
-            gridTracks.push(widths[colIdx]);
-          } else {
-            gridTracks.push('1fr');
-          }
-        }
-
         const rowEl = activeDocument.createElement('div');
         rowEl.classList.add('latex-referencer-row');
         setCssProps(rowEl, {
           display: 'grid',
-          'grid-template-columns': gridTracks.join(' '),
           gap: '1.5rem',
           width: '100%',
           'align-items': 'center',
           margin: '-0.5em 0'
         });
 
-        columnsElements.forEach(colEls => {
+        const columns: HTMLElement[] = [];
+
+        columnsElements.forEach((colEls, colIdx) => {
           const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
           setCssProps(colEl, {
             display: 'flex',
@@ -390,12 +440,18 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
 
           // Move existing elements into the column
           colEls.forEach(item => colEl.appendChild(item));
-
-          tightenColumn(colEl);
-          window.setTimeout(() => tightenColumn(colEl), 50);
-          window.setTimeout(() => tightenColumn(colEl), 150);
-          window.setTimeout(() => tightenColumn(colEl), 500);
+          columns.push(colEl);
         });
+
+        const refresh = () => {
+          columns.forEach((colEl, colIdx) => tightenColumn(colEl, colIdx, numColumns));
+          updateRowLayout(rowEl, columns, widths);
+        };
+
+        refresh();
+        window.setTimeout(refresh, 50);
+        window.setTimeout(refresh, 150);
+        window.setTimeout(refresh, 500);
 
         // Replace start element and remove all old intermediate DOM nodes
         if (topBlock.parentElement) {
@@ -437,27 +493,17 @@ class RowLayoutWidget extends WidgetType {
     const rowEl = activeDocument.createElement('div');
     rowEl.classList.add('latex-referencer-row');
     setCssProps(rowEl, {
-      display: 'grid'
-    });
-
-    const numColumns = this.columnsMarkdown.length;
-    const gridTracks: string[] = [];
-    for (let colIdx = 0; colIdx < numColumns; colIdx++) {
-      if (colIdx < this.widths.length) {
-        gridTracks.push(this.widths[colIdx]);
-      } else {
-        gridTracks.push('1fr');
-      }
-    }
-    setCssProps(rowEl, {
-      'grid-template-columns': gridTracks.join(' '),
+      display: 'grid',
       gap: '1.5rem',
       width: '100%',
       'align-items': 'center',
       margin: '-0.5em 0'
     });
 
-    this.columnsMarkdown.forEach(colMarkdown => {
+    const numColumns = this.columnsMarkdown.length;
+    const columns: HTMLElement[] = [];
+
+    this.columnsMarkdown.forEach((colMarkdown, colIdx) => {
       const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
       setCssProps(colEl, {
         display: 'flex',
@@ -465,6 +511,7 @@ class RowLayoutWidget extends WidgetType {
         'justify-content': 'center',
         'min-width': '0'
       });
+      columns.push(colEl);
 
       // Render Markdown asynchronously inside the editor column
       const comp = new MarkdownRenderChild(colEl);
@@ -472,15 +519,22 @@ class RowLayoutWidget extends WidgetType {
       this.components.push(comp);
       MarkdownRenderer.render(this.plugin.app, colMarkdown, colEl, this.sourcePath, comp)
         .then(() => {
-          tightenColumn(colEl);
-          window.setTimeout(() => tightenColumn(colEl), 50);
-          window.setTimeout(() => tightenColumn(colEl), 150);
-          window.setTimeout(() => tightenColumn(colEl), 500);
+          refresh();
         })
         .catch(err =>
           console.error('Latex Referencer: Failed to render Live Preview column markdown', err)
         );
     });
+
+    const refresh = () => {
+      columns.forEach((colEl, colIdx) => tightenColumn(colEl, colIdx, numColumns));
+      updateRowLayout(rowEl, columns, this.widths);
+    };
+
+    refresh();
+    window.setTimeout(refresh, 50);
+    window.setTimeout(refresh, 150);
+    window.setTimeout(refresh, 500);
 
     // Resolve editing flow: move selection inside the block when clicked
     rowEl.onclick = (evt: MouseEvent) => {
@@ -510,106 +564,115 @@ class RowLayoutWidget extends WidgetType {
   }
 }
 
-export const createLivePreviewRowLayoutPlugin = (plugin: LatexReferencer): Extension => {
-  const layoutField = StateField.define<DecorationSet>({
-    create() {
-      return Decoration.none;
-    },
-    update(decorations, tr) {
-      // Re-evaluate whenever the document contents or selections change
-      if (!tr.docChanged && !tr.selection) {
-        return decorations;
-      }
+let layoutField: StateField<DecorationSet> | null = null;
+let activePlugin: LatexReferencer | null = null;
 
-      const { state } = tr;
-
-      const livePreview = state.field(editorLivePreviewField, false);
-      if (!livePreview) {
+function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
+  activePlugin = plugin;
+  if (!layoutField) {
+    layoutField = StateField.define<DecorationSet>({
+      create() {
         return Decoration.none;
-      }
+      },
+      update(decorations, tr) {
+        // Re-evaluate whenever the document contents or selections change
+        if (!tr.docChanged && !tr.selection) {
+          return decorations;
+        }
 
-      const info = state.field(editorInfoField, false);
-      const file = info?.file;
-      const sourcePath = file?.path ?? '';
-      if (!sourcePath) {
-        return Decoration.none;
-      }
+        const { state } = tr;
 
-      const builder = new RangeSetBuilder<Decoration>();
-      const docText = state.doc.toString();
-      const lines = docText.split(/\r?\n/);
+        const livePreview = state.field(editorLivePreviewField, false);
+        if (!livePreview) {
+          return Decoration.none;
+        }
 
-      let inRow = false;
-      let startPos = -1;
-      let startLineIdx = -1;
-      let widths: string[] = [];
+        const info = state.field(editorInfoField, false);
+        const file = info?.file;
+        const sourcePath = file?.path ?? '';
+        if (!sourcePath) {
+          return Decoration.none;
+        }
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!inRow) {
-          if (line.startsWith(';;;row')) {
-            inRow = true;
-            startLineIdx = i;
-            startPos = state.doc.line(i + 1).from;
+        const builder = new RangeSetBuilder<Decoration>();
+        const docText = state.doc.toString();
+        const lines = docText.split(/\r?\n/);
 
-            const widthsPart = line.substring(';;;row'.length).trim().replace(/^:/, '').trim();
-            if (widthsPart) {
-              widths = widthsPart
-                .split(/\s*\|\s*|\s*,\s*|\s+/)
-                .map(w => w.trim())
-                .filter(w => w)
-                .map(formatWidth);
-            } else {
-              widths = [];
-            }
-          }
-        } else {
-          if (line === ';;;') {
-            inRow = false;
-            const endPos = state.doc.line(i + 1).to;
+        let inRow = false;
+        let startPos = -1;
+        let startLineIdx = -1;
+        let widths: string[] = [];
 
-            // Decorate if cursor selection is completely outside this block
-            if (!selectionAndRangeOverlap(state.selection, startPos, endPos)) {
-              const columnsMarkdown: string[] = [];
-              const rowLines = lines.slice(startLineIdx + 1, i);
-              let currentColLines: string[] = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!inRow) {
+            if (line.startsWith(';;;row')) {
+              inRow = true;
+              startLineIdx = i;
+              startPos = state.doc.line(i + 1).from;
 
-              for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
-                const rLine = rowLines[rIdx];
-                if (rLine.trim() === ';;') {
-                  columnsMarkdown.push(currentColLines.join('\n'));
-                  currentColLines = [];
-                } else {
-                  currentColLines.push(rLine);
-                }
+              const widthsPart = line.substring(';;;row'.length).trim().replace(/^:/, '').trim();
+              if (widthsPart) {
+                widths = widthsPart
+                  .split(/\s*\|\s*|\s*,\s*|\s+/)
+                  .map(w => w.trim())
+                  .filter(w => w)
+                  .map(formatWidth);
+              } else {
+                widths = [];
               }
-              columnsMarkdown.push(currentColLines.join('\n'));
+            }
+          } else {
+            if (line === ';;;') {
+              inRow = false;
+              const endPos = state.doc.line(i + 1).to;
 
-              builder.add(
-                startPos,
-                endPos,
-                Decoration.replace({
-                  widget: new RowLayoutWidget(
-                    plugin,
-                    sourcePath,
-                    widths,
-                    columnsMarkdown,
-                    startPos
-                  ),
-                  block: true
-                })
-              );
+              // Decorate if cursor selection is completely outside this block
+              if (!selectionAndRangeOverlap(state.selection, startPos, endPos)) {
+                const columnsMarkdown: string[] = [];
+                const rowLines = lines.slice(startLineIdx + 1, i);
+                let currentColLines: string[] = [];
+
+                for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
+                  const rLine = rowLines[rIdx];
+                  if (rLine.trim() === ';;') {
+                    columnsMarkdown.push(currentColLines.join('\n'));
+                    currentColLines = [];
+                  } else {
+                    currentColLines.push(rLine);
+                  }
+                }
+                columnsMarkdown.push(currentColLines.join('\n'));
+
+                builder.add(
+                  startPos,
+                  endPos,
+                  Decoration.replace({
+                    widget: new RowLayoutWidget(
+                      activePlugin || plugin,
+                      sourcePath,
+                      widths,
+                      columnsMarkdown,
+                      startPos
+                    ),
+                    block: true
+                  })
+                );
+              }
             }
           }
         }
+
+        return builder.finish();
+      },
+      provide(field) {
+        return EditorView.decorations.from(field);
       }
+    });
+  }
+  return layoutField;
+}
 
-      return builder.finish();
-    },
-    provide(field) {
-      return EditorView.decorations.from(field);
-    }
-  });
-
-  return Prec.highest(layoutField);
+export const createLivePreviewRowLayoutPlugin = (plugin: LatexReferencer): Extension => {
+  return Prec.highest(getLayoutField(plugin));
 };

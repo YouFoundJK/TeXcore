@@ -54,8 +54,7 @@ import {
   safeParseInt,
   traverseFolder
 } from 'features/export-pdf/utils';
-import Progress from 'features/export-pdf/Progress.svelte';
-import { mount, unmount } from 'svelte';
+import { Progress } from 'features/export-pdf/Progress';
 import pLimit from 'p-limit';
 export type PageSizeType = string | { width: number; height: number };
 
@@ -125,11 +124,7 @@ export class ExportConfigModal extends Modal {
   title!: string;
   frontMatter!: FrontMatterCache;
   scale!: number;
-  // @ts-ignore
-  svelte: {
-    initRenderStates(data: ParamType[]): void;
-    updateRenderStates(i: number): void;
-  } | null = null;
+  svelte: Progress | null = null;
 
   constructor(
     public plugin: LatexReferencer,
@@ -396,8 +391,7 @@ export class ExportConfigModal extends Modal {
     el.empty();
     if (render) {
       // await this.renderFiles(el);
-      // @ts-ignore
-      this.svelte = mount(Progress, {
+      this.svelte = new Progress({
         target: el,
         props: {
           startCount: 5
@@ -748,8 +742,7 @@ export class ExportConfigModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     if (this.svelte) {
-      // Remove the Counter from the ItemView.
-      void unmount(this.svelte);
+      this.svelte.destroy();
     }
   }
 

@@ -1,176 +1,75 @@
-# PDF Export
+# PDF Compilation & Export
 
-Export your notes to PDF with full equation rendering, customizable layouts, and live preview.
+TeXcore provides an advanced PDF rendering module to export your mathematical notes with full math layout support. Accessible via ++ctrl+p++ (search `Export current file to PDF`) or by right-clicking any file/folder in the file explorer to choose **Better Export PDF**, this modal splits into a real-time responsive 2/3 preview pane and a 1/3 export configuration sidebar.
 
-## Opening the Export Dialog
-
-### Via Command Palette
-1. Press `Ctrl/Cmd + P`
-2. Search for "Export current file to PDF"
-3. The export modal opens with a live preview
-
-### Via File Menu
-Right-click a file or folder in the file explorer → **Better Export PDF**
-
-### Folder Export Options
-For folders, you get additional options:
-
-- **Export each file to PDF**: Creates separate PDFs for each file
-- **Generate TOC.md file**: Creates a table of contents file
-
-## Export Modal
-
-The export dialog has two panels:
-
-| Left Panel (2/3) | Right Panel (1/3) |
-|------------------|-------------------|
-| Live PDF preview | Export settings |
-
-### Preview Features
-- Real-time preview updates as you change settings
-- Scales to fit the container
-- Shows print dimensions for custom page sizes
-
-## Page Settings
-
-### Page Size
-Choose from standard sizes or custom dimensions:
-
-| Size | Dimensions (mm) |
-|------|-----------------|
-| A0 - A6 | Standard ISO sizes |
-| Letter | 215.9 × 279.4 |
-| Legal | 215.9 × 355.6 |
-| Tabloid | 279.4 × 431.8 |
-| Ledger | 431.8 × 279.4 |
-| Custom | User-defined |
-
-For custom sizes, enter width and height in millimeters.
-
-### Margins
-
-| Type | Description |
-|------|-------------|
-| None | No margins |
-| Default | 10mm all sides |
-| Small | Minimal margins |
-| Custom | User-defined per side |
-
-Custom margins are specified in millimeters for top, bottom, left, and right.
-
-### Orientation
-- **Portrait**: Standard vertical layout
-- **Landscape**: Horizontal layout
-
-### Downscale Percent
-Reduce content size (0-100%). Useful for fitting more content per page.
-
-## Header & Footer
-
-### Toggle Display
-Enable/disable headers and footers separately.
-
-### Template Variables
-Use these classes in your HTML templates:
-
-| Class | Content |
-|-------|---------|
-| `date` | Formatted print date |
-| `title` | Document title |
-| `url` | Document location |
-| `pageNumber` | Current page number |
-| `totalPages` | Total page count |
-
-### Example Templates
-
-**Header (centered title):**
-```html
-<div style="width: 100vw; font-size: 10px; text-align: center;">
-  <span class="title"></span>
-</div>
-```
-
-**Footer (page numbers):**
-```html
-<div style="width: 100vw; font-size: 10px; text-align: center;">
-  <span class="pageNumber"></span> / <span class="totalPages"></span>
-</div>
-```
-
-## Additional Options
-
-### Include File Name as Title
-Adds an `<h1>` with the file name at the top of the PDF.
-
-### Print Background
-Include background colors and images in the PDF.
-
-### Generate Tagged PDF
-Creates an accessible PDF with document structure tags. Note: This is experimental.
-
-### Open After Export
-Automatically open the PDF after export completes.
-
-### CSS Snippets
-Apply custom CSS to the exported PDF:
-
-1. Create a CSS file in `.obsidian/snippets/`
-2. Keep the snippet **disabled** in Obsidian settings
-3. Select it in the export dialog dropdown
-
-The snippet CSS will only apply to the PDF, not your regular Obsidian view.
-
-## Advanced Settings
-
-### Max Heading Level
-Control which headings appear in the PDF outline/bookmarks (h1-h6).
-
-### PDF Metadata
-Add frontmatter fields to PDF metadata:
-
-```yaml
 ---
-title: My Document
-author: John Doe
-keywords: math, equations
-subject: Academic Paper
+
+## Core Layout Settings
+
+Customize document geometry, printing limits, and margins before compilation.
+
+| Control Option | Description | Typical Options |
+| :--- | :--- | :--- |
+| **Page Size** | Select standard sheet geometry or define millimeters. | `A4`, `Letter`, `Legal`, `Tabloid`, or `Custom` |
+| **Orientation** | Vertical portrait layout or horizontal landscape. | `Portrait`, `Landscape` |
+| **Margins** | Inner safety margins specified in millimeters per edge. | `None`, `Default (10mm)`, `Small`, or `Custom` |
+| **Downscale** | Scales content down (0–100%) to fit complex tables/formulas. | Integer slider percentage |
+
 ---
-```
 
-### Timestamp in Filename
-Append export timestamp to the output filename.
+## Headers & Footers Configuration
 
-### Concurrent Renders
-For batch exports, limit concurrent file processing (default: 5).
+Headers and footers render HTML dynamically using dedicated style selectors.
 
-## Batch Export
+### HTML Template Classes
+Include these target element class names in your header/footer HTML code. TeXcore will parse and replace them with print values:
 
-When exporting a folder:
+- `<span class="title"></span>`: Resolves to note file title.
+- `<span class="pageNumber"></span>`: Resolves to current page index.
+- `<span class="totalPages"></span>`: Resolves to total compiled pages.
+- `<span class="date"></span>`: Inserts local print timestamp.
+- `<span class="url"></span>`: Inserts workspace source path.
 
-1. Right-click the folder
-2. Select **Export to PDF...** → **Export each file to PDF**
-3. Choose output directory
-4. All files export in parallel with progress indicator
+=== "Header Template"
+    ```html
+    <div style="width: 100vw; font-size: 10px; text-align: center;">
+      <span class="title"></span>
+    </div>
+    ```
 
-## Table of Contents
+=== "Footer Template"
+    ```html
+    <div style="width: 100vw; font-size: 10px; text-align: center;">
+      <span class="pageNumber"></span> / <span class="totalPages"></span>
+    </div>
+    ```
 
-Generate a TOC file for folder exports:
+---
 
-1. Right-click a folder
-2. Select **Export to PDF...** → **Generate TOC.md file**
-3. A `_TOC_.md` file is created with links to all files
+## Accessing Custom CSS Styling
 
-The TOC uses frontmatter `toc: true` to enable special processing during export.
+Style your PDF print outputs independently of Obsidian's active theme. 
 
-## Troubleshooting
+1. Write a custom `.css` template sheet and save it inside your vault folder: `.obsidian/snippets/`.
+2. Keep this snippet **disabled** in Obsidian settings. This prevents it from altering your editor UI.
+3. Open the TeXcore Export Dialog, and choose your stylesheet in the dropdown menu. The snippet's styling will be injected exclusively during PDF compilation.
 
-### Debug Mode
-Enable debug mode in settings to access the **Debug** button in the export modal, which opens browser DevTools for the preview webview.
+---
 
-### Common Issues
+## Advanced Compiler Operations
 
-| Issue | Solution |
-|-------|----------|
-| Equations not rendering | Wait for preview to fully load |
-| CSS not applying | Ensure snippet is disabled in Obsidian |
-| Export fails | Check file permissions on output path |
+???+ info "Batch Compilation & Tables of Contents"
+    When right-clicking a folder, you can choose **Export each file to PDF** to compile all children in parallel. The **Generate TOC.md file** action generates a table of contents file (`_TOC_.md`) automatically. Configure parallel limits under the [Settings Reference](configuration/settings.md#limit-concurrent-renders).
+
+???+ warning "Metadata & Bookmark Outlines"
+    If enabled in [Settings Panel](configuration/settings.md#pdf-metadata), TeXcore compiles Frontmatter fields (`title`, `author`, `keywords`, `subject`) into metadata tags inside the output PDF. Outlines index heading levels 1 through 6 dynamically depending on user preferences.
+
+---
+
+## Troubleshooting Print Errors
+
+!!! failure "Common Rendering Obstacles"
+    - **Broken Equations / Untagged Math**: If preview is incomplete, wait a few seconds before hitting export. MathJax runs asynchronously and needs time to process large nodes.
+    - **Missing Snippet Styles**: Double check that your snippet stylesheet is in `.obsidian/snippets/` and is *disabled* in standard Obsidian settings.
+    - **Write Failures**: Ensure the output path is writable and not locked by another PDF reader app.
+    - **Webview Crashes**: If errors persist, enable **Debug Mode** in the [Settings Reference](configuration/settings.md#debug-mode) and click the **Debug** button in the modal to inspect the Electron DevTools container.

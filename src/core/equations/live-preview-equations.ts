@@ -344,20 +344,29 @@ function createTagManagerPlugin(
   );
 }
 
-function createEquationField(plugin: LatexReferencer): StateField<EquationState> {
-  return StateField.define<EquationState>({
-    create(state) {
-      return parseEquationInfo(state, plugin);
-    },
-    update(value, tr) {
-      if (!tr.docChanged) return value;
-      return parseEquationInfo(tr.state, plugin);
-    }
-  });
+let equationField: StateField<EquationState> | null = null;
+let activePlugin: LatexReferencer | null = null;
+
+function getEquationField(): StateField<EquationState> {
+  if (!equationField) {
+    equationField = StateField.define<EquationState>({
+      create(state) {
+        if (!activePlugin) return [];
+        return parseEquationInfo(state, activePlugin);
+      },
+      update(value, tr) {
+        if (!tr.docChanged) return value;
+        if (!activePlugin) return [];
+        return parseEquationInfo(tr.state, activePlugin);
+      }
+    });
+  }
+  return equationField;
 }
 
 /** The main export that bundles all required editor extensions. */
 export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
-  const equationField = createEquationField(plugin);
-  return [mathBlockPositionsField, equationField, createTagManagerPlugin(plugin, equationField)];
+  activePlugin = plugin;
+  const eqField = getEquationField();
+  return [mathBlockPositionsField, eqField, createTagManagerPlugin(plugin, eqField)];
 }

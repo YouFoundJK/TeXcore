@@ -4,7 +4,7 @@ import { builtinModules } from 'node:module';
 import fs from 'fs';
 import path from 'path';
 import inlineWorkerPlugin from 'esbuild-plugin-inline-worker';
-import esbuildSvelte from 'esbuild-svelte';
+
 
 const builtins = [
   ...new Set([...builtinModules, ...builtinModules.map(moduleName => `node:${moduleName}`)])
@@ -26,8 +26,7 @@ async function build() {
     entryPoints: ['src/main.ts'],
     bundle: true,
     plugins: [
-      inlineWorkerPlugin(),
-      esbuildSvelte({ compilerOptions: { css: 'injected' } }),
+      inlineWorkerPlugin({ format: 'iife' }),
       {
         name: 'copy-to-dev-vault-plugin',
         setup(build) {

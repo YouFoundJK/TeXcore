@@ -55,6 +55,7 @@ export default class LatexReferencer extends Plugin {
   snippetManager!: SnippetManager;
   customNoteManager!: CustomNoteManager;
   tikzRenderer!: TikzRenderer;
+  isTikzEditorOpen = false;
 
   async onload() {
     await this.loadSettings();
@@ -315,7 +316,14 @@ export default class LatexReferencer extends Plugin {
                 typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
 
               if (!activeFile || targetFile.path !== activeFile.path || activeContent === null) {
-                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
+                return oldFunc.call(
+                  this,
+                  hoverParent,
+                  targetEl,
+                  linktext,
+                  sourcePath,
+                  state
+                ) as unknown;
               }
 
               const equations = getEquations(activeFile, activeContent);
@@ -325,14 +333,21 @@ export default class LatexReferencer extends Plugin {
                 const line = targetEquation.$position.start;
                 const newState = { ...state, scroll: line };
                 // Immediately call the original function with the correct line number
-                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, newState);
+                return oldFunc.call(
+                  this,
+                  hoverParent,
+                  targetEl,
+                  linktext,
+                  sourcePath,
+                  newState
+                ) as unknown;
               }
             }
           }
 
           // If it's not our link, or if we couldn't find it in the cache,
           // call the original function without modification.
-          return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
+          return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state) as unknown;
         };
       }
     });

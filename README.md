@@ -5,7 +5,9 @@
 
 # TeXcore for Obsidian
 
-A minimalistic, high-performance LaTeX assistant for automatic equation numbering, referencing, and on-demand TikZ rendering in [Obsidian.md](https://obsidian.md/).
+A minimalistic, high-performance LaTeX assistant for automatic equation numbering, referencing, and TikZ rendering with basic GUI editing in [Obsidian.md](https://obsidian.md/) to transforms your vault into a rich ecosystem for scientific drafting and study.
+
+<img src="docs/assets/branding/v0.0.2.gif" alt="Prisma Calendar Preview" width="100%">
 
 📚 **[Full Documentation & Guides](https://youfoundjk.github.io/TeXcore/)**
 

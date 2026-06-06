@@ -1,51 +1,36 @@
-# Command Snippets
+# Editor Command Snippets
 
-Use command palette snippets for fast note metadata and text transformations.
+TeXcore features quick helper shortcuts to automate note metadata setup and perform text capitalization transforms inside the editor. These commands are registered globally and can be triggered via the command palette using ++ctrl+p++ (or ++cmd+p++ on macOS).
 
-## Available Commands
+---
 
-### Add Tags
+## Frontmatter Metadata Injection
 
-Adds this frontmatter block at the top of the active note:
+The **Add Tags** command injects a standardized frontmatter YAML block at the very top of your active note, facilitating quick categorization and alias indexing:
 
 ```yaml
 ---
 tags:
-  -
+  - 
 aliases:
-  -
+  - 
 ---
 ```
 
-How to use:
+!!! note "Duplication Prevention"
+    If the plugin detects that your note already starts with a valid YAML frontmatter block (delimiters `---`), the command terminates safely and does not write duplicates.
 
-1. Open Command Palette (`Ctrl/Cmd + P`)
-2. Search for "Add Tags"
-3. Run the command
+---
 
-Behavior:
+## Editor Text Transformations
 
-- Inserts the frontmatter block at the top of the file
-- If frontmatter already exists at the top of the note, no change is made
+The **Run Text Transform Snippet** command processes your highlighted editor text (or the active cursor line if no text is selected) through predefined formatting filters. You can use this with multi-cursor selections.
 
-### Run Text Transform Snippet
+| Transformation | Output Example | Typical Use Case |
+| :--- | :--- | :--- |
+| **Kebab Case** | `example-text-string` | Fast URL or note alias linking. |
+| **Title Kebab Case** | `Example-Text-String` | Title heading slugifications. |
+| **Title Case** | `Example Text String` | Formatting article or note headings. |
+| **Clean Zotero Highlight** | Reformats HTML tags to raw markdown | Converting Zotero desktop highlights into blockquotes. |
 
-Applies a built-in transformation to the selected text, or to the current line if no text is selected.
-
-How to use:
-
-1. Open Command Palette (`Ctrl/Cmd + P`)
-2. Search for "Run Text Transform Snippet"
-3. Choose a transform from the list
-
-Built-in transforms:
-
-- Kebab Case (`my-selected-text`)
-- Title Kebab Case (`My-Selected-Text`)
-- Title Case (`My Selected Text`)
-- Clean Zotero Highlight Line (`<mark>...</mark>` to quote + source format)
-
-## Notes
-
-- Multi-cursor selections are supported for text transforms
-- Transform commands show a notice indicating whether changes were applied
+When any transformation runs, TeXcore displays a notice toast in the top-right corner indicating whether the change was successfully applied.

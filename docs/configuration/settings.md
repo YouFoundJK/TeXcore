@@ -1,171 +1,77 @@
 # Settings Reference
 
-Complete reference for all TeXcore settings.
+Configure TeXcore to adapt to your academic writing workflow. This page outlines all settings grouped by feature categories.
+
+---
 
 ## Equation Numbering & Referencing
 
-### Number only referenced equations
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Only add equation numbers to equations that have at least one reference in the note. Unreferenced equations remain unnumbered.
+Adjust how equations are counted, tagged, and linked inside Obsidian. For details on how math indexing operates, see the [Equation Numbering Guide](../features/equations.md).
 
-### Equation number prefix
-- **Type:** Text
-- **Default:** (empty)
-- **Description:** Text to prepend to equation numbers. Example: `§` → `(§1)`
-
-### Equation number suffix
-- **Type:** Text
-- **Default:** (empty)
-- **Description:** Text to append to equation numbers. Example: `.` → `(1.)`
-
-### Equation number initial count
-- **Type:** Number
-- **Default:** `1`
-- **Description:** Starting number for equation counting. Set to `0` to start from zero.
-
-### Equation number style
-- **Type:** Dropdown
-- **Default:** `arabic`
-- **Options:**
-
-| Style | Output |
-|-------|--------|
-| `arabic` | 1, 2, 3, ... |
-| `alph` | a, b, c, ... |
-| `Alph` | A, B, C, ... |
-| `roman` | i, ii, iii, ... |
-| `Roman` | I, II, III, ... |
-
-### Reference link prefix
-- **Type:** Text
-- **Default:** (empty)
-- **Description:** Text before equation references. Example: `Eq.` → `Eq.(1)`
-
-### Reference link suffix
-- **Type:** Text
-- **Default:** (empty)
-- **Description:** Text after equation references.
-
-### Show note title in equation link
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Display format for links. On: `Note Title > (1)`, Off: `(1)`
+| Setting Name | Type & Default | Description |
+| :--- | :--- | :--- |
+| **Number only referenced equations** | Toggle (`On`) | Only add number tags to equations that have at least one active reference in the note. Unreferenced equations remain unnumbered. |
+| **Equation number prefix** | Text (empty) | Appends custom characters before the equation number. Example: `§` renders as `(§1)`. |
+| **Equation number suffix** | Text (empty) | Appends custom characters after the equation number. Example: `.` renders as `(1.)`. |
+| **Equation number initial count** | Number (`1`) | The starting integer for equation counting. Set to `0` to begin from zero. |
+| **Equation number style** | Dropdown (`arabic`) | The numeric formatting system used. Options: `arabic` (1, 2, 3), `alph` (a, b, c), `Alph` (A, B, C), `roman` (i, ii, iii), `Roman` (I, II, III). |
+| **Reference link prefix** | Text (empty) | Character string injected before references. Example: `Eq.` renders as `Eq.(1)`. |
+| **Reference link suffix** | Text (empty) | Character string injected after references. |
+| **Show note title in equation link** | Toggle (`On`) | Format for display links. `On` resolves to `Note Title > (1)`; `Off` resolves to `(1)`. |
 
 ---
 
 ## Autocomplete & Search
 
-### Enable autocompletion
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Enable the `\eqref` trigger autocomplete system.
+Customize the autocompletion popup and fuzzy search indexing behaviors. For search behavior explanations, consult the [Search and Autocomplete Guide](../features/search.md).
 
-### Trigger for autocompletion
-- **Type:** Text
-- **Default:** `\eqref`
-- **Description:** Character sequence that opens the equation suggestion popup.
+| Setting Name | Type & Default | Description |
+| :--- | :--- | :--- |
+| **Enable autocompletion** | Toggle (`On`) | Enables the popup suggestion list while editing. |
+| **Trigger for autocompletion** | Text (`\eqref`) | The character trigger sequence that opens the autocomplete suggestions dropdown. |
+| **Render math in suggestions** | Toggle (`On`) | Render LaTeX formulas dynamically inside suggestion listings. Disabling shows raw code. |
+| **Search method** | Dropdown (`Fuzzy`) | Matches query to equations. Options: `Fuzzy` (allows typos/partial matching) or `Simple` (exact substring matching). |
+| **Modifier to jump** | Key Selection (`Mod`) (1) | Keyboard modifier key held down when selecting a suggestion to jump to the equation instead of inserting it. |
+| **Show modifier instruction** | Toggle (`On`) | Shows hint key instructions inside the autocomplete popup window. |
+| **Open location** | Dropdown (`Current tab`) | Select editor layout focus when jumping. Options: `Current tab`, `Split right`, `Split down`, `New tab`, `New window`. |
 
-### Render math in suggestions
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Show rendered LaTeX in the suggestion list. Off shows raw LaTeX text.
+1. `Mod` defaults to ++ctrl++ on Windows/Linux and ++cmd++ on macOS.
 
 ---
 
 ## PDF Export
 
-### Add file name as title
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Include the file name as an `<h1>` heading at the top of the PDF.
+Configure default options for the compiled PDF output. Learn about layout customization on the [PDF Export Page](../features/pdf-export.md).
 
-### Display headers
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Show header on each PDF page.
-
-### Display footer
-- **Type:** Toggle
-- **Default:** On
-- **Description:** Show footer on each PDF page.
-
-### Print background
-- **Type:** Toggle
-- **Default:** Off
-- **Description:** Include background colors and images in PDF output.
-
-### Generate tagged PDF
-- **Type:** Toggle
-- **Default:** Off
-- **Description:** Create accessible PDF with document structure tags (experimental).
-
-### Max headings level of the outline
-- **Type:** Dropdown (1-6)
-- **Default:** `6`
-- **Description:** Maximum heading level to include in PDF bookmarks/outline.
-
-### PDF metadata
-- **Type:** Toggle
-- **Default:** Off
-- **Description:** Include frontmatter fields (title, author, keywords) in PDF metadata.
+| Setting Name | Type & Default | Description |
+| :--- | :--- | :--- |
+| **Add file name as title** | Toggle (`On`) | Prepends the markdown file name as an `<h1>` element at the start of the compiled PDF. |
+| **Display headers** | Toggle (`On`) | Renders headers on each page. Custom templates can be set under Advanced settings. |
+| **Display footer** | Toggle (`On`) | Renders footers on each page. |
+| **Print background** | Toggle (`Off`) | Includes editor background colors and styling assets in PDF print output. |
+| **Generate tagged PDF** | Toggle (`Off`) | Generates accessible PDF document structures containing layout tags (experimental). |
+| **Max headings level of outline** | Dropdown (`6`) | Maximum outline depth (h1–h6) parsed to build PDF bookmark trees. |
+| **PDF metadata** | Toggle (`Off`) | Extracts yaml frontmatter parameters to populate PDF document metadata fields. |
 
 ---
 
 ## Advanced PDF Settings
 
-### Header Template
-- **Type:** Textarea
-- **Default:**
-```html
-<div style="width: 100vw;font-size:10px;text-align:center;">
-  <span class="title"></span>
-</div>
-```
-- **Description:** HTML template for page headers. Use classes: `date`, `title`, `url`, `pageNumber`, `totalPages`.
+Customize HTML layout templates and manage style overrides during compilation.
 
-### Footer Template
-- **Type:** Textarea
-- **Default:**
-```html
-<div style="width: 100vw;font-size:10px;text-align:center;">
-  <span class="pageNumber"></span> / <span class="totalPages"></span>
-</div>
-```
-- **Description:** HTML template for page footers.
-
-### Add timestamp to output file name
-- **Type:** Toggle
-- **Default:** Off
-- **Description:** Append export timestamp to PDF filename.
-
-### Select CSS snippets
-- **Type:** Toggle
-- **Default:** Off
-- **Description:** Enable selection of disabled CSS snippets to apply to PDF export only.
-
-### Limit concurrent renders
-- **Type:** Text
-- **Default:** `5`
-- **Description:** Maximum parallel file renders during batch export.
+| Setting Name | Type & Default | Description |
+| :--- | :--- | :--- |
+| **Header Template** | Textarea (standard layout) | Custom HTML template for page headers. Supports class variable tags (e.g. `date`, `title`). |
+| **Footer Template** | Textarea (standard layout) | Custom HTML template for page footers. Supports class variable tags (e.g. `pageNumber`, `totalPages`). |
+| **Add timestamp to filename** | Toggle (`Off`) | Appends the export compile timestamp to the output `.pdf` filename. |
+| **Select CSS snippets** | Toggle (`Off`) | Allows choosing disabled CSS snippets to compile and apply to PDF layout only. |
+| **Limit concurrent renders** | Text (`5`) | Limit concurrent parallel rendering tasks during folder/batch exports. |
 
 ---
 
-## Debug
+## Snippets & Debugging
 
-### Debug mode
-- **Type:** Toggle
-- **Default:** Off
-- **Description:** Enable debug button in export modal to open DevTools for the preview webview.
-
----
-
-## Snippets
-
-### Manage Snippets
-Access via the **Add Snippet** button. Each snippet has:
-
-- **Name:** Display name in command palette
-- **Content:** LaTeX code to insert
-
-Snippets are stored in `data.json` with the plugin settings.
+| Setting Name | Type & Default | Description |
+| :--- | :--- | :--- |
+| **Manage Snippets** | Modal Dialog | Add, edit, or remove custom LaTeX command snippets triggered via the Command Palette. |
+| **Debug mode** | Toggle (`Off`) | Enables the **Debug** button in the PDF export dialog to open Electron DevTools for inspecting the render webview. |
