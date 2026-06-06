@@ -25,7 +25,10 @@ export class TikzCodec {
   }
 
   private makeWire(x1: number, y1: number, x2: number, y2: number): EditorElement {
-    const wire = AssetsManager.getCoreComponents().find(t => t.name === 'Wire')!;
+    const wire = AssetsManager.getCoreComponents().find(t => t.name === 'Wire');
+    if (!wire) {
+      throw new Error("Core component 'Wire' not found");
+    }
     return {
       id: this.createId(),
       type: 'wire',
@@ -49,7 +52,10 @@ export class TikzCodec {
     label = '',
     radius?: number
   ): EditorElement {
-    const template = AssetsManager.getCoreComponents().find(t => t.name === name)!;
+    const template = AssetsManager.getCoreComponents().find(t => t.name === name);
+    if (!template) {
+      throw new Error(`Core component '${name}' not found`);
+    }
     return {
       id: this.createId(),
       type: 'component',
@@ -66,7 +72,10 @@ export class TikzCodec {
   }
 
   private makeText(x: number, y: number, rawLabel: string): EditorElement {
-    const template = AssetsManager.getCoreComponents().find(t => t.name === 'Text')!;
+    const template = AssetsManager.getCoreComponents().find(t => t.name === 'Text');
+    if (!template) {
+      throw new Error("Core component 'Text' not found");
+    }
     let label = rawLabel.trim();
     let math = false;
     if (label.startsWith('$') && label.endsWith('$')) {
@@ -172,9 +181,12 @@ export class TikzCodec {
             ...AssetsManager.getCoreComponents(),
             ...AssetsManager.getRegistry().flatMap(p => p.components)
           ];
+          const wireTemplate = templates.find(t => t.name === 'Wire');
+          if (!wireTemplate) {
+            throw new Error("Core component 'Wire' not found");
+          }
           const template =
-            templates.find(t => t.tikzCommand.includes(`to[${circuitMatch[2]}`)) ??
-            templates.find(t => t.name === 'Wire')!;
+            templates.find(t => t.tikzCommand.includes(`to[${circuitMatch[2]}`)) ?? wireTemplate;
           parsedElements.push({
             id: this.createId(),
             type: 'wire',
@@ -199,7 +211,10 @@ export class TikzCodec {
       if (rectMatch) {
         const point = this.parsePoint(rectMatch[2], currentShift);
         if (point) {
-          const template = AssetsManager.getCoreComponents().find(t => t.name === 'Rectangle')!;
+          const template = AssetsManager.getCoreComponents().find(t => t.name === 'Rectangle');
+          if (!template) {
+            throw new Error("Core component 'Rectangle' not found");
+          }
           parsedElements.push({
             id: this.createId(),
             type: 'component',
@@ -222,7 +237,10 @@ export class TikzCodec {
       if (triMatch) {
         const point = this.parsePoint(triMatch[1], currentShift);
         if (point) {
-          const template = AssetsManager.getCoreComponents().find(t => t.name === 'Triangle')!;
+          const template = AssetsManager.getCoreComponents().find(t => t.name === 'Triangle');
+          if (!template) {
+            throw new Error("Core component 'Triangle' not found");
+          }
           parsedElements.push({
             id: this.createId(),
             type: 'component',
@@ -259,7 +277,10 @@ export class TikzCodec {
           const startY = this.parseNumber(first[2]) + currentShift.y;
           const endX = this.parseNumber(second[1]) + currentShift.x;
           const endY = this.parseNumber(second[2]) + currentShift.y;
-          const template = AssetsManager.getCoreComponents().find(t => t.name === wireName)!;
+          const template = AssetsManager.getCoreComponents().find(t => t.name === wireName);
+          if (!template) {
+            throw new Error(`Core component '${wireName}' not found`);
+          }
 
           parsedElements.push({
             id: this.createId(),

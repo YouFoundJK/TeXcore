@@ -366,12 +366,13 @@
     flex-direction: column;
 }
 
-.tikz-editor-modal .modal-close-button {
-    z-index: 10000 !important;
-    pointer-events: auto !important;
+.tikz-editor-modal.modal .modal-close-button,
+div.tikz-editor-modal .modal-close-button {
+    z-index: 10000;
+    pointer-events: auto;
 }
 
-.tikz-editor-modal .tikz-header-save-btn {
+.tikz-editor-modal button.tikz-header-save-btn {
     position: absolute;
     top: 14px;
     right: 50px;
@@ -384,7 +385,7 @@
     padding: 6px 14px;
     cursor: pointer;
     font-size: 0.85em;
-    height: auto !important;
+    height: auto;
     line-height: normal;
     transition: background-color 0.15s ease;
 }
@@ -669,9 +670,13 @@
     border-right: 1px solid var(--background-modifier-border);
     background-color: var(--background-primary);
     position: relative;
-    user-select: none;
     z-index: 5;
     flex-shrink: 0;
+}
+@supports (user-select: none) {
+    .tikz-editor-ui .left-sidebar {
+        user-select: none;
+    }
 }
 
 .tikz-editor-ui .toolbar {
@@ -683,9 +688,9 @@
     background-color: var(--background-secondary);
 }
 
-.tikz-editor-ui .tool-btn {
+.tikz-editor-ui button.tool-btn {
     width: 32px;
-    height: 32px !important;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -804,7 +809,7 @@
     gap: 8px;
 }
 
-.tikz-editor-ui .comp-card {
+.tikz-editor-ui div.comp-card {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -817,8 +822,8 @@
     cursor: pointer;
     transition: all 0.2s ease;
     gap: 8px;
-    height: auto !important;
-    min-height: 72px !important;
+    height: auto;
+    min-height: 72px;
 }
 
 .tikz-editor-ui .comp-card:hover {
@@ -833,12 +838,12 @@
     box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
-.tikz-editor-ui .pin-btn {
+.tikz-editor-ui button.pin-btn {
     position: absolute;
     top: 6px;
     right: 6px;
     width: 20px;
-    height: 20px !important;
+    height: 20px;
     padding: 0;
     border-radius: var(--radius-s);
     display: flex;
@@ -869,7 +874,7 @@
     text-align: center;
     color: var(--text-normal);
     line-height: 1.2;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .tikz-editor-ui .empty-library {
@@ -902,9 +907,9 @@
     color: var(--text-normal);
 }
 
-.tikz-editor-ui .add-pkg-btn {
+.tikz-editor-ui button.add-pkg-btn {
     width: 24px;
-    height: 24px !important;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -948,13 +953,13 @@
     color: var(--text-normal);
 }
 
-.tikz-editor-ui .pkg-manager-header .close-btn {
+.tikz-editor-ui .pkg-manager-header button.close-btn {
     font-size: 1.2em;
     background: transparent;
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .pkg-list {
@@ -993,7 +998,7 @@
     color: var(--text-muted);
 }
 
-.tikz-editor-ui .pkg-btn {
+.tikz-editor-ui button.pkg-btn {
     padding: 4px 8px;
     font-size: 0.75em;
     border-radius: var(--radius-s);
@@ -1003,7 +1008,7 @@
     align-items: center;
     gap: 4px;
     font-weight: 500;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .pkg-btn.install {
@@ -1075,7 +1080,7 @@
     padding: 2px 4px;
 }
 
-.tikz-editor-ui .tikz-canvas-controls button {
+.tikz-editor-ui div.tikz-canvas-controls button {
     padding: 6px 8px;
     border: none;
     background: transparent;
@@ -1084,7 +1089,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .tikz-canvas-controls button:hover {
@@ -1104,7 +1109,11 @@
     text-align: center;
     color: var(--text-normal);
     padding: 0 8px;
-    user-select: none;
+}
+@supports (user-select: none) {
+    .tikz-editor-ui .tikz-canvas-controls .zoom-label {
+        user-select: none;
+    }
 }
 
 .tikz-editor-ui .tikz-canvas-controls .divider {
@@ -1142,14 +1151,14 @@
     opacity: 0.35;
 }
 
-.tikz-editor-ui .canvas-grid-container.is-grab,
-.tikz-editor-ui .canvas-grid-container.is-grab * {
-    cursor: grab !important;
+.tikz-editor-ui div.canvas-grid-container.is-grab,
+.tikz-editor-ui div.canvas-grid-container.is-grab * {
+    cursor: grab;
 }
 
-.tikz-editor-ui .canvas-grid-container.is-grabbing,
-.tikz-editor-ui .canvas-grid-container.is-grabbing * {
-    cursor: grabbing !important;
+.tikz-editor-ui div.canvas-grid-container.is-grabbing,
+.tikz-editor-ui div.canvas-grid-container.is-grabbing * {
+    cursor: grabbing;
 }
 
 .tikz-editor-ui .axis-overlay {
@@ -1172,8 +1181,12 @@
     font-size: 11px;
     font-weight: 600;
     text-anchor: middle;
-    user-select: none;
     opacity: 0.12;
+}
+@supports (user-select: none) {
+    .tikz-editor-ui .axis-overlay text {
+        user-select: none;
+    }
 }
 
 .tikz-editor-ui .wires-overlay {
@@ -1240,11 +1253,15 @@
     position: absolute;
     transform: translate(-50%, -50%);
     white-space: nowrap;
-    user-select: none;
     padding: 4px 8px;
     background-color: var(--background-primary);
     border: 1px dashed var(--background-modifier-border);
     border-radius: var(--radius-s);
+}
+@supports (user-select: none) {
+    .tikz-editor-ui .placed-element.is-text .text-element-content {
+        user-select: none;
+    }
 }
 
 .tikz-editor-ui .placed-element.is-text:hover .text-element-content {
@@ -1279,7 +1296,7 @@
     background-color: var(--background-secondary);
 }
 
-.tikz-editor-ui .tab-btn {
+.tikz-editor-ui button.tab-btn {
     flex: 1;
     padding: 12px;
     border: none;
@@ -1294,7 +1311,7 @@
     justify-content: center;
     gap: 6px;
     transition: all 0.2s ease;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .tab-btn * {
@@ -1399,7 +1416,7 @@
     gap: 8px;
 }
 
-.tikz-editor-ui .style-btns button {
+.tikz-editor-ui div.style-btns button {
     flex: 1;
     padding: 6px;
     border: 1px solid var(--background-modifier-border);
@@ -1409,7 +1426,7 @@
     font-weight: bold;
     cursor: pointer;
     transition: all 0.15s ease;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .style-btns button:hover {
@@ -1425,7 +1442,11 @@
 
 .tikz-editor-ui input[type="range"] {
     width: 100%;
-    accent-color: var(--interactive-accent);
+}
+@supports (accent-color: red) {
+    .tikz-editor-ui input[type="range"] {
+        accent-color: var(--interactive-accent);
+    }
 }
 
 .tikz-editor-ui .presets-row {
@@ -1434,7 +1455,7 @@
     margin-top: 6px;
 }
 
-.tikz-editor-ui .preset-btn {
+.tikz-editor-ui button.preset-btn {
     flex: 1;
     padding: 4px 0;
     font-size: 0.8em;
@@ -1443,7 +1464,7 @@
     background-color: var(--background-secondary);
     color: var(--text-normal);
     cursor: pointer;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .preset-btn:hover {
@@ -1454,7 +1475,7 @@
     margin-top: 32px;
 }
 
-.tikz-editor-ui .delete-btn {
+.tikz-editor-ui button.delete-btn {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-red);
@@ -1468,7 +1489,7 @@
     justify-content: center;
     gap: 8px;
     transition: all 0.2s ease;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .delete-btn:hover {
@@ -1504,7 +1525,11 @@
     border-radius: var(--radius-s);
     background-color: var(--background-secondary);
     color: var(--text-normal);
-    resize: none;
+}
+@supports (resize: none) {
+    .tikz-editor-ui .code-panel textarea {
+        resize: none;
+    }
 }
 
 .tikz-editor-ui .code-panel textarea:focus {
@@ -1518,7 +1543,7 @@
     gap: 8px;
 }
 
-.tikz-editor-ui .action-btn {
+.tikz-editor-ui button.action-btn {
     width: 100%;
     padding: 10px;
     border-radius: var(--radius-m);
@@ -1529,7 +1554,7 @@
     justify-content: center;
     gap: 8px;
     border: none;
-    height: auto !important;
+    height: auto;
 }
 
 .tikz-editor-ui .action-btn.primary {

@@ -689,7 +689,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     axisOverlay.setAttribute('height', this.CANVAS_HEIGHT.toString());
     this.canvasWorkspaceEl.appendChild(axisOverlay);
 
-    this.wiresOverlayEl = activeDocument.createElementNS(svgNS, 'svg') as SVGElement;
+    this.wiresOverlayEl = activeDocument.createElementNS(svgNS, 'svg');
     this.wiresOverlayEl.setAttribute('class', 'wires-overlay');
     this.wiresOverlayEl.setAttribute('width', this.CANVAS_WIDTH.toString());
     this.wiresOverlayEl.setAttribute('height', this.CANVAS_HEIGHT.toString());

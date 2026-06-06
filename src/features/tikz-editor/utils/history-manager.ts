@@ -22,8 +22,10 @@ export class HistoryManager {
 
   undo(): EditorElement[] | null {
     if (this.historyStack.length > 1) {
-      const popped = this.historyStack.pop()!;
-      this.redoStack.push(popped);
+      const popped = this.historyStack.pop();
+      if (popped !== undefined) {
+        this.redoStack.push(popped);
+      }
       return JSON.parse(
         JSON.stringify(this.historyStack[this.historyStack.length - 1])
       ) as EditorElement[];
@@ -33,9 +35,11 @@ export class HistoryManager {
 
   redo(): EditorElement[] | null {
     if (this.redoStack.length > 0) {
-      const next = this.redoStack.pop()!;
-      this.historyStack.push(next);
-      return JSON.parse(JSON.stringify(next)) as EditorElement[];
+      const next = this.redoStack.pop();
+      if (next !== undefined) {
+        this.historyStack.push(next);
+        return JSON.parse(JSON.stringify(next)) as EditorElement[];
+      }
     }
     return null;
   }

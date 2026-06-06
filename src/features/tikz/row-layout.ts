@@ -649,7 +649,7 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
                   endPos,
                   Decoration.replace({
                     widget: new RowLayoutWidget(
-                      activePlugin!,
+                      activePlugin || plugin,
                       sourcePath,
                       widths,
                       columnsMarkdown,

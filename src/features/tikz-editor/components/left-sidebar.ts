@@ -201,7 +201,7 @@ export class LeftSidebar {
         if (!categoriesMap.has(c.category)) {
           categoriesMap.set(c.category, []);
         }
-        categoriesMap.get(c.category)!.push(c);
+        categoriesMap.get(c.category)?.push(c);
       });
     }
 

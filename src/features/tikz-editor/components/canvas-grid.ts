@@ -721,8 +721,8 @@ export class CanvasGrid {
               el.y = initialEl.y + snappedDy;
             }
             if (hasEnd) {
-              el.x2 = initialEl.x2! + snappedDx;
-              el.y2 = initialEl.y2! + snappedDy;
+              el.x2 = (initialEl.x2 ?? 0) + snappedDx;
+              el.y2 = (initialEl.y2 ?? 0) + snappedDy;
             }
           } else {
             const hasCenter = currentSelVertices.some(
@@ -765,8 +765,8 @@ export class CanvasGrid {
       const coords = this.getCanvasCoords(moveEvent);
       let newX = elem.x;
       let newY = elem.y;
-      let newX2 = elem.x2!;
-      let newY2 = elem.y2!;
+      let newX2 = elem.x2 ?? 0;
+      let newY2 = elem.y2 ?? 0;
 
       if (handleType === 'start') {
         newX = coords.x;
