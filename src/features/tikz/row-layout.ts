@@ -207,7 +207,9 @@ function tightenColumn(colEl: HTMLElement, colIdx: number, numColumns: number) {
       el,
       {
         'margin-top': '0',
+        'margin-right': '0',
         'margin-bottom': '0',
+        'margin-left': '0',
         'padding-top': '0',
         'padding-bottom': '0',
         'line-height': 'normal'
@@ -253,55 +255,45 @@ function tightenColumn(colEl: HTMLElement, colIdx: number, numColumns: number) {
   });
 }
 
-function getColumnNaturalWidth(colEl: HTMLElement): number {
-  let maxWidth = 0;
-
-  // Find all content containers
-  const elements = colEl.querySelectorAll(
-    'p, mjx-container, svg, img, pre, code, .math, .math-block'
-  );
-  elements.forEach((el: Element) => {
-    const htmlEl = el as HTMLElement;
-    let w = htmlEl.getBoundingClientRect().width;
-    const scrollW = htmlEl.scrollWidth;
-    if (scrollW > w) {
-      w = scrollW;
-    }
-    maxWidth = Math.max(maxWidth, w);
-  });
-
-  // Fallback if elements are not yet fully measured or are empty
-  if (maxWidth === 0) {
-    const textLength = colEl.textContent?.trim().length || 0;
-    maxWidth = Math.max(textLength * 8, 50); // Estimate ~8px per character
-  }
-
-  return maxWidth;
-}
-
 function updateRowLayout(rowEl: HTMLElement, columns: HTMLElement[], customWidths: string[]) {
   const numColumns = columns.length;
   const gridTracks: string[] = [];
 
   if (customWidths.length > 0) {
-    // Use user-defined widths
+    // Use user-defined widths; row stretches to fill the container.
     for (let colIdx = 0; colIdx < numColumns; colIdx++) {
       gridTracks.push(colIdx < customWidths.length ? customWidths[colIdx] : '1fr');
     }
+    setCssProps(
+      rowEl,
+      {
+        width: '100%',
+        'max-width': 'none',
+        'margin-left': '0',
+        'margin-right': '0',
+        'grid-template-columns': gridTracks.join(' ')
+      },
+      'important'
+    );
   } else {
-    // Auto-calculate proportional widths
-    const naturalWidths = columns.map(col => getColumnNaturalWidth(col));
-    const totalNaturalWidth = naturalWidths.reduce((sum, w) => sum + w, 0) || 1;
-
-    columns.forEach((_, colIdx) => {
-      const percentage = (naturalWidths[colIdx] / totalNaturalWidth) * 100;
-      gridTracks.push(`${percentage}%`);
-    });
+    // Size each column to its natural (max-content) width so block-level wrappers
+    // like mjx-container don't inflate the column to the full container width.
+    // The row itself shrinks to fit its content and is centered horizontally.
+    for (let colIdx = 0; colIdx < numColumns; colIdx++) {
+      gridTracks.push('max-content');
+    }
+    setCssProps(
+      rowEl,
+      {
+        width: 'fit-content',
+        'max-width': '100%',
+        'margin-left': 'auto',
+        'margin-right': 'auto',
+        'grid-template-columns': gridTracks.join(' ')
+      },
+      'important'
+    );
   }
-
-  setCssProps(rowEl, {
-    'grid-template-columns': gridTracks.join(' ')
-  });
 }
 
 // ==========================================
