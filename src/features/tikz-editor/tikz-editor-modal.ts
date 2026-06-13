@@ -338,7 +338,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     const offset = this.PX_PER_UNIT / 2; // Offset by half grid (40px)
     const copies = elementsToDuplicate.map(el => {
-      const copy: EditorElement = JSON.parse(JSON.stringify(el));
+      const copy = JSON.parse(JSON.stringify(el)) as EditorElement;
       copy.id = this.createId();
       copy.x += offset;
       copy.y += offset;
@@ -535,7 +535,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
       const uniqueIds = Array.from(new Set(this.selectedVertices.map(v => v.elementId)));
       const selectedElements = this.elements.filter(el => uniqueIds.includes(el.id));
       if (selectedElements.length > 0) {
-        this.copiedElements = JSON.parse(JSON.stringify(selectedElements));
+        this.copiedElements = JSON.parse(JSON.stringify(selectedElements)) as EditorElement[];
         showNotice(`Copied ${selectedElements.length} component(s)`);
       }
       return;
@@ -612,6 +612,17 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
   // Modal Lifecycles
   onOpen() {
+    this.plugin.isTikzEditorOpen = true;
+    this.plugin.updateEditorExtensions();
+
+    const removeOverlays = (doc: Document) => {
+      doc.querySelectorAll('.tikz-live-preview-overlay').forEach(el => el.remove());
+    };
+    removeOverlays(activeDocument);
+    if (this.app.workspace.containerEl && this.app.workspace.containerEl.ownerDocument) {
+      removeOverlays(this.app.workspace.containerEl.ownerDocument);
+    }
+
     const { contentEl, containerEl } = this;
     contentEl.empty();
 

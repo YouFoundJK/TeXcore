@@ -316,14 +316,7 @@ export default class LatexReferencer extends Plugin {
                 typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
 
               if (!activeFile || targetFile.path !== activeFile.path || activeContent === null) {
-                return oldFunc.call(
-                  this,
-                  hoverParent,
-                  targetEl,
-                  linktext,
-                  sourcePath,
-                  state
-                ) as unknown;
+                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
               }
 
               const equations = getEquations(activeFile, activeContent);
@@ -333,21 +326,14 @@ export default class LatexReferencer extends Plugin {
                 const line = targetEquation.$position.start;
                 const newState = { ...state, scroll: line };
                 // Immediately call the original function with the correct line number
-                return oldFunc.call(
-                  this,
-                  hoverParent,
-                  targetEl,
-                  linktext,
-                  sourcePath,
-                  newState
-                ) as unknown;
+                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, newState);
               }
             }
           }
 
           // If it's not our link, or if we couldn't find it in the cache,
           // call the original function without modification.
-          return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state) as unknown;
+          return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
         };
       }
     });

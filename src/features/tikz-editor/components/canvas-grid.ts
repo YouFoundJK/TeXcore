@@ -447,13 +447,13 @@ export class CanvasGrid {
     });
   }
 
-  private getCanvasCoords(e: MouseEvent): { x: number; y: number } {
+  private getCanvasCoords(e: MouseEvent, snap = true): { x: number; y: number } {
     const rect = this.workspaceEl.getBoundingClientRect();
     const zoom = this.context.getZoom();
     const rawX = (e.clientX - rect.left) / zoom;
     const rawY = (e.clientY - rect.top) / zoom;
 
-    if (this.context.isSnapToGrid() && !e.ctrlKey) {
+    if (snap && this.context.isSnapToGrid() && !e.ctrlKey) {
       const gridSize = this.context.isHalfGrid()
         ? this.context.PX_PER_UNIT / 2
         : this.context.PX_PER_UNIT;
@@ -608,11 +608,12 @@ export class CanvasGrid {
         this.context.handleSelectVertices([]);
       }
 
-      this.lassoStart = coords;
-      this.lassoCurrent = coords;
+      const nonSnappedCoords = this.getCanvasCoords(e, false);
+      this.lassoStart = nonSnappedCoords;
+      this.lassoCurrent = nonSnappedCoords;
 
       const onMouseMove = (moveEvent: MouseEvent) => {
-        const mCoords = this.getCanvasCoords(moveEvent);
+        const mCoords = this.getCanvasCoords(moveEvent, false);
         this.lassoCurrent = mCoords;
         this.renderWires();
       };

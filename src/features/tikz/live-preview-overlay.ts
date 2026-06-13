@@ -53,6 +53,17 @@ class TikzLivePreviewOverlay {
     if (this.overlayEl) return;
 
     const doc = this.view.dom.ownerDocument;
+    const isModalOpen =
+      this.plugin.isTikzEditorOpen ||
+      !!doc.querySelector('.tikz-editor-modal') ||
+      !!activeDocument.querySelector('.tikz-editor-modal') ||
+      !!this.plugin.app.workspace.containerEl.ownerDocument?.querySelector('.tikz-editor-modal');
+
+    if (isModalOpen) {
+      this.destroy();
+      return;
+    }
+
     const body = doc.body;
 
     this.overlayEl = doc.createElement('div');
@@ -412,7 +423,14 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
         constructor(private view: EditorView) {}
 
         update(update: ViewUpdate) {
-          if (!plugin.settings.enableTikzjax || plugin.isTikzEditorOpen) {
+          const doc = update.view.dom.ownerDocument;
+          const isModalOpen =
+            plugin.isTikzEditorOpen ||
+            !!doc.querySelector('.tikz-editor-modal') ||
+            !!activeDocument.querySelector('.tikz-editor-modal') ||
+            !!plugin.app.workspace.containerEl.ownerDocument?.querySelector('.tikz-editor-modal');
+
+          if (!plugin.settings.enableTikzjax || isModalOpen) {
             this.cleanup();
             return;
           }
