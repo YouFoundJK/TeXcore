@@ -415,7 +415,7 @@ export class RightSidebar {
         deleteBtn.appendChild(activeDocument.importNode(deleteDoc.documentElement, true));
         deleteBtn.createSpan({ text: ' Delete All Selected' });
         deleteBtn.onclick = () => {
-          selectedElements.forEach(el => this.context.handleDeleteElement(el.id));
+          this.context.handleDeleteElements(selectedElements.map(el => el.id));
         };
       } else {
         const emptyState = tabContent.createDiv({ cls: 'empty-state' });

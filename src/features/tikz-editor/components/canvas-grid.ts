@@ -186,8 +186,11 @@ export class CanvasGrid {
           : elem.style.color || 'var(--text-normal)';
 
         const parser = new DOMParser();
-        const doc = parser.parseFromString(elem.svgMarkup, 'image/svg+xml');
-        svgWrap.appendChild(activeDocument.importNode(doc.documentElement, true));
+        const doc = parser.parseFromString(elem.svgMarkup, 'text/html');
+        const svgNode = doc.querySelector('svg');
+        if (svgNode) {
+          svgWrap.appendChild(activeDocument.importNode(svgNode, true));
+        }
         innerG.appendChild(svgWrap);
         group.appendChild(innerG);
 
@@ -314,8 +317,11 @@ export class CanvasGrid {
         svgWrap.setCssStyles({ color: 'var(--text-accent)' });
 
         const parser = new DOMParser();
-        const doc = parser.parseFromString(activeTemplate.svgMarkup, 'image/svg+xml');
-        svgWrap.appendChild(activeDocument.importNode(doc.documentElement, true));
+        const doc = parser.parseFromString(activeTemplate.svgMarkup, 'text/html');
+        const svgNode = doc.querySelector('svg');
+        if (svgNode) {
+          svgWrap.appendChild(activeDocument.importNode(svgNode, true));
+        }
         innerG.appendChild(svgWrap);
         this.wiresOverlayEl.appendChild(innerG);
       } else {
@@ -339,13 +345,16 @@ export class CanvasGrid {
       const top = Math.min(this.lassoStart.y, this.lassoCurrent.y);
       const bottom = Math.max(this.lassoStart.y, this.lassoCurrent.y);
 
+      const isEraseMode = this.context.getActiveTool() === 'erase';
+      const lassoColor = isEraseMode ? 'var(--text-error)' : 'var(--interactive-accent)';
+
       rect.setAttribute('x', left.toString());
       rect.setAttribute('y', top.toString());
       rect.setAttribute('width', (right - left).toString());
       rect.setAttribute('height', (bottom - top).toString());
-      rect.setAttribute('fill', 'var(--interactive-accent)');
+      rect.setAttribute('fill', lassoColor);
       rect.setAttribute('fill-opacity', '0.2');
-      rect.setAttribute('stroke', 'var(--interactive-accent)');
+      rect.setAttribute('stroke', lassoColor);
       rect.setAttribute('stroke-width', '1');
       rect.setAttribute('stroke-dasharray', '4,4');
       this.wiresOverlayEl.appendChild(rect);
@@ -403,8 +412,11 @@ export class CanvasGrid {
         }
 
         const parser = new DOMParser();
-        const doc = parser.parseFromString(svg, 'image/svg+xml');
-        visual.appendChild(activeDocument.importNode(doc.documentElement, true));
+        const doc = parser.parseFromString(svg, 'text/html');
+        const svgNode = doc.querySelector('svg');
+        if (svgNode) {
+          visual.appendChild(activeDocument.importNode(svgNode, true));
+        }
         el.appendChild(visual);
 
         if (elem.label) {
@@ -591,8 +603,10 @@ export class CanvasGrid {
         svgMarkup: template.svgMarkup,
         tikzCommand: template.tikzCommand
       });
-    } else if (activeTool === 'select') {
-      this.context.handleSelectVertices([]);
+    } else if (activeTool === 'select' || activeTool === 'erase') {
+      if (activeTool === 'select') {
+        this.context.handleSelectVertices([]);
+      }
 
       this.lassoStart = coords;
       this.lassoCurrent = coords;
@@ -605,7 +619,11 @@ export class CanvasGrid {
 
       const onMouseUp = () => {
         if (this.lassoStart && this.lassoCurrent) {
-          this.applyLassoSelection();
+          if (activeTool === 'erase') {
+            this.applyLassoErase();
+          } else {
+            this.applyLassoSelection();
+          }
         }
         this.lassoStart = null;
         this.lassoCurrent = null;
@@ -616,6 +634,36 @@ export class CanvasGrid {
 
       activeDocument.addEventListener('mousemove', onMouseMove);
       activeDocument.addEventListener('mouseup', onMouseUp);
+    }
+  }
+
+  private applyLassoErase() {
+    if (!this.lassoStart || !this.lassoCurrent) return;
+
+    const left = Math.min(this.lassoStart.x, this.lassoCurrent.x);
+    const right = Math.max(this.lassoStart.x, this.lassoCurrent.x);
+    const top = Math.min(this.lassoStart.y, this.lassoCurrent.y);
+    const bottom = Math.max(this.lassoStart.y, this.lassoCurrent.y);
+
+    const isInside = (x: number, y: number) => {
+      return x >= left && x <= right && y >= top && y <= bottom;
+    };
+
+    const toDeleteIds: string[] = [];
+    this.context.getElements().forEach(elem => {
+      if (elem.type === 'wire' && elem.x2 !== undefined && elem.y2 !== undefined) {
+        if (isInside(elem.x, elem.y) || isInside(elem.x2, elem.y2)) {
+          toDeleteIds.push(elem.id);
+        }
+      } else {
+        if (isInside(elem.x, elem.y)) {
+          toDeleteIds.push(elem.id);
+        }
+      }
+    });
+
+    if (toDeleteIds.length > 0) {
+      this.context.handleDeleteElements(toDeleteIds);
     }
   }
 

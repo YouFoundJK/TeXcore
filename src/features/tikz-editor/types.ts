@@ -104,6 +104,7 @@ export interface TikzEditorContext {
   handleUpdateElement(updated: EditorElement, saveHistory?: boolean): void;
   handleUpdateElements(updatedElements: EditorElement[], saveHistory?: boolean): void;
   handleDeleteElement(id: string): void;
+  handleDeleteElements(ids: string[]): void;
   handleSelectTool(tool: 'select' | 'wire' | 'text' | 'erase'): void;
   handleSelectTemplate(template: ComponentTemplate): void;
   generateTikzSource(): string;

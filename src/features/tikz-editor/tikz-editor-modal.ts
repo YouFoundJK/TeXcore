@@ -37,9 +37,10 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   private activeTemplate: ComponentTemplate | null = null;
   private selectedVertices: SelectedVertex[] = [];
   private snapToGrid = true;
-  private halfGrid = false;
+  private halfGrid = true;
   private pictureOptions = '';
   private zoom = 1.0;
+  private copiedElements: EditorElement[] = [];
 
   // Panning state
   private isSpacePressed = false;
@@ -306,19 +307,64 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   handleDeleteElement(id: string) {
-    this.elements = this.elements.filter(el => el.id !== id);
-    this.selectedVertices = this.selectedVertices.filter(v => v.elementId !== id);
+    this.handleDeleteElements([id]);
+  }
+
+  handleDeleteElements(ids: string[]) {
+    if (ids.length === 0) return;
+    this.elements = this.elements.filter(el => !ids.includes(el.id));
+    this.selectedVertices = this.selectedVertices.filter(v => !ids.includes(v.elementId));
     this.saveHistoryState();
     this.renderCanvas();
     this.renderRightSidebar();
   }
 
   handleSelectTool(tool: 'select' | 'wire' | 'text' | 'erase') {
+    if (tool === 'erase' && this.selectedVertices.length > 0) {
+      const uniqueIds = Array.from(new Set(this.selectedVertices.map(v => v.elementId)));
+      this.handleDeleteElements(uniqueIds);
+    }
     this.activeTool = tool;
     this.activeTemplate = null;
     this.selectedVertices = [];
     this.leftSidebar.updateToolbarClasses();
     this.renderLeftSidebar();
+    this.renderCanvas();
+    this.renderRightSidebar();
+  }
+
+  duplicateElements(elementsToDuplicate: EditorElement[]) {
+    if (elementsToDuplicate.length === 0) return;
+
+    const offset = this.PX_PER_UNIT / 2; // Offset by half grid (40px)
+    const copies = elementsToDuplicate.map(el => {
+      const copy: EditorElement = JSON.parse(JSON.stringify(el));
+      copy.id = this.createId();
+      copy.x += offset;
+      copy.y += offset;
+      if (copy.x2 !== undefined) copy.x2 += offset;
+      if (copy.y2 !== undefined) copy.y2 += offset;
+      return copy;
+    });
+
+    this.elements = [...this.elements, ...copies];
+
+    // Select the newly duplicated elements
+    const newSelection: SelectedVertex[] = [];
+    copies.forEach(copy => {
+      if (copy.type === 'wire') {
+        newSelection.push({ elementId: copy.id, vertex: 'start' });
+        newSelection.push({ elementId: copy.id, vertex: 'end' });
+      } else {
+        newSelection.push({ elementId: copy.id, vertex: 'center' });
+      }
+    });
+
+    this.selectedVertices = newSelection;
+    this.activeTool = 'select';
+    this.activeTemplate = null;
+
+    this.saveHistoryState();
     this.renderCanvas();
     this.renderRightSidebar();
   }
@@ -471,6 +517,53 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
         this.isSpacePressed = true;
         this.canvasContainerEl.removeClass('is-grabbing');
         this.canvasContainerEl.addClass('is-grab');
+      }
+      return;
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (this.selectedVertices.length > 0) {
+        e.preventDefault();
+        const uniqueIds = Array.from(new Set(this.selectedVertices.map(v => v.elementId)));
+        this.handleDeleteElements(uniqueIds);
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      const uniqueIds = Array.from(new Set(this.selectedVertices.map(v => v.elementId)));
+      const selectedElements = this.elements.filter(el => uniqueIds.includes(el.id));
+      if (selectedElements.length > 0) {
+        this.copiedElements = JSON.parse(JSON.stringify(selectedElements));
+        showNotice(`Copied ${selectedElements.length} component(s)`);
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+      e.preventDefault();
+      if (this.copiedElements && this.copiedElements.length > 0) {
+        this.duplicateElements(this.copiedElements);
+        const offset = this.PX_PER_UNIT / 2;
+        this.copiedElements.forEach(el => {
+          el.x += offset;
+          el.y += offset;
+          if (el.x2 !== undefined) el.x2 += offset;
+          if (el.y2 !== undefined) el.y2 += offset;
+        });
+        showNotice(`Pasted ${this.copiedElements.length} component(s)`);
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      const uniqueIds = Array.from(new Set(this.selectedVertices.map(v => v.elementId)));
+      const selectedElements = this.elements.filter(el => uniqueIds.includes(el.id));
+      if (selectedElements.length > 0) {
+        this.duplicateElements(selectedElements);
+        showNotice(`Duplicated ${selectedElements.length} component(s)`);
       }
       return;
     }

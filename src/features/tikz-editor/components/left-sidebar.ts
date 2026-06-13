@@ -288,8 +288,11 @@ export class LeftSidebar {
         const svgContainer = card.createDiv({ cls: 'svg-container' });
 
         const compSvgParser = new DOMParser();
-        const compSvgDoc = compSvgParser.parseFromString(comp.svgMarkup, 'image/svg+xml');
-        svgContainer.appendChild(activeDocument.importNode(compSvgDoc.documentElement, true));
+        const compSvgDoc = compSvgParser.parseFromString(comp.svgMarkup, 'text/html');
+        const svgNode = compSvgDoc.querySelector('svg');
+        if (svgNode) {
+          svgContainer.appendChild(activeDocument.importNode(svgNode, true));
+        }
         card.createEl('span', { cls: 'comp-label', text: comp.name });
 
         card.onclick = () => {
