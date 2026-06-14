@@ -21,9 +21,29 @@ interface DviParsedCommand {
 }
 
 class CustomHTMLMachine extends HTMLMachine {
+  private originH: number = 0;
+  private originV: number = 0;
+  private textBlockOriginH: number = 0;
+  private textBlockOriginV: number = 0;
+
+  private get safePosition() {
+    return this.position || { h: 0, v: 0, w: 0, x: 0, y: 0, z: 0 };
+  }
+
   override putSVG(svgStr: string): void {
-    const left = this.position.h * this.pointsPerDviUnit;
-    const top = this.position.v * this.pointsPerDviUnit;
+    const pos = this.safePosition;
+    if (svgStr.includes('<svg beginpicture>') || svgStr.includes('<svg>')) {
+      this.originH = pos.h;
+      this.originV = pos.v;
+    }
+
+    if (svgStr.includes('{?x}')) {
+      this.textBlockOriginH = pos.h;
+      this.textBlockOriginV = pos.v;
+    }
+
+    const left = pos.h * this.pointsPerDviUnit;
+    const top = pos.v * this.pointsPerDviUnit;
 
     this.svgDepth = this.svgDepth || 0;
     this.svgDepth += (svgStr.match(/<svg/g) || []).length;
@@ -44,10 +64,11 @@ class CustomHTMLMachine extends HTMLMachine {
   }
 
   override putRule(rule: DviRule): void {
+    const pos = this.safePosition;
     const a = rule.a * this.pointsPerDviUnit;
     const b = rule.b * this.pointsPerDviUnit;
-    const left = this.position.h * this.pointsPerDviUnit;
-    const bottom = this.position.v * this.pointsPerDviUnit;
+    const left = pos.h * this.pointsPerDviUnit;
+    const bottom = pos.v * this.pointsPerDviUnit;
     const top = bottom - a;
 
     if (this.svgDepth === 0) {
@@ -55,8 +76,10 @@ class CustomHTMLMachine extends HTMLMachine {
         `<span style="background: ${this.color}; position: absolute; top: ${top}pt; left: ${left}pt; width:${b}pt; height: ${a}pt;"></span>\n`
       );
     } else {
+      const relH = (pos.h - this.originH) * this.pointsPerDviUnit;
+      const relV = (this.originV - pos.v) * this.pointsPerDviUnit;
       this.output.write(
-        `<rect x="${left}" y="${top}" width="${b}" height="${a}" fill="${this.color}" />\n`
+        `<rect x="${relH}" y="${relV}" width="${b}" height="${a}" fill="${this.color}" />\n`
       );
     }
   }
@@ -85,10 +108,11 @@ class CustomHTMLMachine extends HTMLMachine {
       }
     }
 
+    const pos = this.safePosition;
     const dviUnitsPerFontUnit = (this.font.metrics.designSize / 1048576.0) * (65536 / 1048576);
-    const left = this.position.h * this.pointsPerDviUnit;
+    const left = pos.h * this.pointsPerDviUnit;
     const height = textHeight * this.pointsPerDviUnit * dviUnitsPerFontUnit;
-    const top = this.position.v * this.pointsPerDviUnit;
+    const top = pos.v * this.pointsPerDviUnit;
     const fontsize =
       ((this.font.metrics.designSize / 1048576.0) * this.font.scaleFactor) / this.font.designSize;
 
@@ -97,9 +121,10 @@ class CustomHTMLMachine extends HTMLMachine {
         `<span style="color: ${this.color}; font-family: ${this.font.name}; font-size: ${fontsize}pt; position: absolute; top: ${top - height}pt; left: ${left}pt; overflow: visible;"><span style="margin-top: -${fontsize}pt; line-height: 0pt; height: ${fontsize}pt; display: inline-block; vertical-align: baseline; ">${htmlText}</span><span style="display: inline-block; vertical-align: ${height}pt; height: 0pt; line-height: 0;"></span></span>\n`
       );
     } else {
-      const bottom = this.position.v * this.pointsPerDviUnit;
+      const relH = (pos.h - this.textBlockOriginH) * this.pointsPerDviUnit;
+      const relV = (this.textBlockOriginV - pos.v) * this.pointsPerDviUnit;
       this.output.write(
-        `<text alignment-baseline="baseline" y="${bottom}" x="${left}" style="font-family: ${this.font.name}; font-size: ${fontsize};">${htmlText}</text>\n`
+        `<text alignment-baseline="baseline" y="${relV}" x="${relH}" style="font-family: ${this.font.name}; font-size: ${fontsize};">${htmlText}</text>\n`
       );
     }
     return (textWidth * dviUnitsPerFontUnit * this.font.scaleFactor) / this.font.designSize;
@@ -258,7 +283,10 @@ export class TikzJaxLoader {
           );
           return new Uint8Array(decompressed);
         } catch (decompError) {
-          console.warn(`Latex Referencer: Local cached file ${filename} is corrupt, redownloading...`, decompError);
+          console.warn(
+            `Latex Referencer: Local cached file ${filename} is corrupt, redownloading...`,
+            decompError
+          );
           try {
             await adapter.remove(filePath);
           } catch (e) {}
@@ -381,7 +409,14 @@ export class TikzJaxLoader {
             name =>
               name.startsWith('tex_files/circuitikz') ||
               name.startsWith('tex_files/pgfcirc') ||
-              name.startsWith('tex_files/t-circuitikz')
+              name.startsWith('tex_files/t-circuitikz') ||
+              name.includes('tikzlibrarycalc') ||
+              name.includes('tikzlibraryarrows.meta') ||
+              name.includes('pgflibraryarrows.meta') ||
+              name.includes('tikzlibrarybending') ||
+              name.includes('pgfmodulebending') ||
+              name.includes('pgfmodulenonlineartransformations') ||
+              name.includes('pgflibrarycurvilinear')
           )
           .forEach(name => assetsToLoad.add(name));
       } else if (pkg === 'chemfig') {
@@ -423,7 +458,7 @@ export class TikzJaxLoader {
     }
 
     // Load and decompress all resolved assets in parallel
-    const loadPromises = Array.from(assetsToLoad).map(async (asset) => {
+    const loadPromises = Array.from(assetsToLoad).map(async asset => {
       const data = await this.loadAssetFile(asset);
       if (data) {
         const workerVirtualPath = asset.replace(/^tex_files\//, '').replace(/\.gz$/, '');
