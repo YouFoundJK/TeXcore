@@ -2,7 +2,6 @@ import { Extension, Prec, EditorState } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { showNotice } from 'utils/obsidian';
 import LatexReferencer from '../../main';
-import { TikzEditorModal } from '../tikz-editor/tikz-editor-modal';
 
 interface CleanableDiv extends HTMLDivElement {
   _cleanup?: () => void;
@@ -170,21 +169,24 @@ class TikzLivePreviewOverlay {
         this.plugin.isTikzEditorOpen = true;
         this.destroy();
 
-        new TikzEditorModal(
-          this.plugin.app,
-          this.plugin,
-          blockRange.source,
-          (newSource: string) => {
-            this.view.dispatch({
-              changes: {
-                from: blockRange.from,
-                to: blockRange.to,
-                insert: newSource
-              }
-            });
-            showNotice('TikZ block updated.');
-          }
-        ).open();
+        void (async () => {
+          const { TikzEditorModal } = await import('../tikz-editor/tikz-editor-modal');
+          new TikzEditorModal(
+            this.plugin.app,
+            this.plugin,
+            blockRange.source,
+            (newSource: string) => {
+              this.view.dispatch({
+                changes: {
+                  from: blockRange.from,
+                  to: blockRange.to,
+                  insert: newSource
+                }
+              });
+              showNotice('TikZ block updated.');
+            }
+          ).open();
+        })();
       } else {
         showNotice('Please place your cursor inside a tikz block to edit.');
       }

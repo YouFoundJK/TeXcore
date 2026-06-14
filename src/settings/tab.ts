@@ -581,6 +581,9 @@ export class MathSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.enableTikzjax).onChange(async value => {
           this.plugin.settings.enableTikzjax = value;
           await this.plugin.saveSettings();
+          if (value) {
+            await this.plugin.initTikzRenderer();
+          }
         })
       );
 

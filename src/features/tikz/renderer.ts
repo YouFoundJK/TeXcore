@@ -5,7 +5,7 @@ import { TikzJaxLoader } from './tikzjax/loader';
 export class TikzRenderer {
   private loader: TikzJaxLoader;
   private tikzjaxCss: string = '';
-  private isLoaded: boolean = false;
+  public isLoaded: boolean = false;
 
   private renderCache = new Map<string, string>();
 
@@ -23,27 +23,6 @@ export class TikzRenderer {
     }
 
     try {
-      const adapter = this.plugin.app.vault.adapter;
-      const pluginDir = this.plugin.manifest.dir;
-
-      if (!pluginDir) {
-        throw new Error('Plugin manifest directory is not defined.');
-      }
-
-      // Load tikzjax.css (containing base64 math fonts)
-      const cssPath = `${pluginDir}/tikzjax-assets/tikzjax.css`;
-      if (await adapter.exists(cssPath)) {
-        this.tikzjaxCss = await adapter.read(cssPath);
-      } else {
-        // Try downloading it via loader
-        const cssData = await this.loader.loadAssetString('tikzjax.css');
-        if (cssData) {
-          this.tikzjaxCss = cssData;
-        } else {
-          console.warn('Latex Referencer: tikzjax.css not found and download failed.');
-        }
-      }
-
       // Inject styling for main window and pop-outs
       this.plugin.app.workspace.onLayoutReady(() => {
         this.injectCssAllWindows();

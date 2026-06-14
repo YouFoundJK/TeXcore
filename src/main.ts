@@ -1,6 +1,8 @@
 import {
+  App,
   MarkdownView,
   Plugin,
+  PluginSettingTab,
   TFile,
   parseLinktext,
   Menu,
@@ -13,7 +15,6 @@ import type { Extension } from '@codemirror/state';
 import { around } from 'monkey-around';
 
 import { PluginSettings, DEFAULT_SETTINGS } from './settings/settings';
-import { MathSettingTab } from './settings/tab';
 
 import { Provider } from './core/linker/provider-link-render';
 import { LatexLinkProvider } from './core/linker/latex-provider';
@@ -31,14 +32,11 @@ import { EquationBlock } from 'types';
 // ADDED: Import our new internal patcher function
 import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { processActiveNoteEquations } from './core/equations/numbering';
-import { ExportConfigModal } from './ui/export-pdf/modal';
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { showNotice } from 'utils/obsidian';
-import { traverseFolder } from 'features/export-pdf/utils';
 import { SnippetManager } from 'features/snippets/manager';
-import { processZoteroCleanup } from 'features/zotero-cleanup';
 import { CustomNoteManager } from 'features/custom-notes/manager';
-import { TikzRenderer } from './features/tikz/renderer';
+import type { TikzRenderer } from './features/tikz/renderer';
 import {
   createRowLayoutProcessor,
   createLivePreviewRowLayoutPlugin
@@ -85,10 +83,13 @@ export default class LatexReferencer extends Plugin {
     this.customNoteManager.onLoad();
 
     // TikZJax Rendering
-    this.tikzRenderer = new TikzRenderer(this);
-    await this.tikzRenderer.onLoad();
+    this.app.workspace.onLayoutReady(async () => {
+      if (this.settings.enableTikzjax) {
+        await this.initTikzRenderer();
+      }
+    });
 
-    this.addSettingTab(new MathSettingTab(this.app, this));
+    this.addSettingTab(new LazyMathSettingTab(this.app, this));
 
     // Commands
     this.registerZoteroCommand();
@@ -134,7 +135,10 @@ export default class LatexReferencer extends Plugin {
         if (checking) {
           return true;
         }
-        new ExportConfigModal(this, file).open();
+        void (async () => {
+          const { ExportConfigModal } = await import('./ui/export-pdf/modal');
+          new ExportConfigModal(this, file).open();
+        })();
 
         return true;
       }
@@ -158,6 +162,7 @@ export default class LatexReferencer extends Plugin {
             .setIcon('download')
             .setSection('action')
             .onClick(async () => {
+              const { ExportConfigModal } = await import('./ui/export-pdf/modal');
               new ExportConfigModal(this, file).open();
             });
         });
@@ -183,6 +188,7 @@ export default class LatexReferencer extends Plugin {
                 .setTitle('Export each file to pdf')
                 .setIcon('lucide-file-stack')
                 .onClick(async () => {
+                  const { ExportConfigModal } = await import('./ui/export-pdf/modal');
                   new ExportConfigModal(this, file, true).open();
                 })
             );
@@ -227,11 +233,15 @@ export default class LatexReferencer extends Plugin {
     });
 
     this.patchPagePreview();
-    this.register(setupDOMObserver(this));
+    this.app.workspace.onLayoutReady(() => {
+      this.register(setupDOMObserver(this));
+    });
   }
 
   onunload() {
-    this.tikzRenderer.onUnload();
+    if (this.tikzRenderer) {
+      this.tikzRenderer.onUnload();
+    }
   }
 
   async loadSettings() {
@@ -362,7 +372,10 @@ export default class LatexReferencer extends Plugin {
         name: 'Remove duplicate Zotero annotations',
         editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
           if (ctx instanceof MarkdownView) {
-            void processZoteroCleanup(this, ctx);
+            void (async () => {
+              const { processZoteroCleanup } = await import('features/zotero-cleanup');
+              await processZoteroCleanup(this, ctx);
+            })();
           }
         }
       });
@@ -373,6 +386,7 @@ export default class LatexReferencer extends Plugin {
     const tocPath = root.path === '/' || root.path === '.' ? '_TOC_.md' : `${root.path}/_TOC_.md`;
     let content = `---\ntoc: true\ntitle: ${root.name || 'Root'}\n---\n`;
     if (root instanceof TFolder) {
+      const { traverseFolder } = await import('features/export-pdf/utils');
       const files = traverseFolder(root);
       for (const file of files) {
         if (file.name === '_TOC_.md') {
@@ -387,5 +401,37 @@ export default class LatexReferencer extends Plugin {
     } else {
       await this.app.vault.create(tocPath, content);
     }
+  }
+
+  async initTikzRenderer() {
+    if (!this.tikzRenderer) {
+      const { TikzRenderer } = await import('./features/tikz/renderer');
+      this.tikzRenderer = new TikzRenderer(this);
+      await this.tikzRenderer.onLoad();
+    }
+  }
+}
+
+interface Displayable {
+  display(): void;
+}
+
+class LazyMathSettingTab extends PluginSettingTab {
+  constructor(
+    app: App,
+    public plugin: LatexReferencer
+  ) {
+    super(app, plugin);
+  }
+  display(): void {
+    import('./settings/tab')
+      .then(({ MathSettingTab }) => {
+        const tab = new MathSettingTab(this.app, this.plugin);
+        tab.containerEl = this.containerEl;
+        (tab as unknown as Displayable).display();
+      })
+      .catch(err => {
+        console.error('Failed to load settings tab:', err);
+      });
   }
 }
