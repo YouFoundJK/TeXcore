@@ -1290,7 +1290,8 @@ div.tikz-editor-modal .modal-close-button {
     flex-shrink: 0;
 }
 
-.tikz-editor-ui .tabs-header {
+.tikz-editor-ui .tabs-header,
+.tikz-editor-ui .library-tabs {
     display: flex;
     border-bottom: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary);

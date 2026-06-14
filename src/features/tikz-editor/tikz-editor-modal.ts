@@ -82,6 +82,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     private onSaveCallback?: (newSource: string) => void
   ) {
     super(app);
+    this.pinnedComponents = this.plugin.settings.pinnedTikzComponents || [];
     this.codec = new TikzCodec(
       x => this.toCanvasX(x),
       y => this.toCanvasY(y),
@@ -149,6 +150,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
   setPinnedComponents(pinned: string[]) {
     this.pinnedComponents = pinned;
+    this.plugin.settings.pinnedTikzComponents = pinned;
+    void this.plugin.saveSettings();
   }
   getActiveTab() {
     return this.activeTab;

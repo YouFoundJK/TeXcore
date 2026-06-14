@@ -135,6 +135,34 @@ export class AssetsManager {
           category: 'Circuits',
           svgMarkup: `<svg viewBox="0 0 50 20" width="40" height="20" style="color: var(--text-normal);"><path d="M0,10 L10,10 Q14,3 18,10 Q22,3 26,10 Q30,3 34,10 Q38,3 40,10 L50,10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
           tikzCommand: '\\draw ({x}, {y}) to[L, l={label}] ({x2}, {y2});'
+        },
+        {
+          name: 'Battery',
+          type: 'wire',
+          category: 'Circuits',
+          svgMarkup: `<svg viewBox="0 0 50 20" width="40" height="20" style="color: var(--text-normal);"><line x1="0" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="2"/><line x1="20" y1="2" x2="20" y2="18" stroke="currentColor" stroke-width="2"/><line x1="24" y1="6" x2="24" y2="14" stroke="currentColor" stroke-width="3"/><line x1="28" y1="2" x2="28" y2="18" stroke="currentColor" stroke-width="2"/><line x1="32" y1="6" x2="32" y2="14" stroke="currentColor" stroke-width="3"/><line x1="32" y1="10" x2="50" y2="10" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\draw ({x}, {y}) to[battery2, l={label}] ({x2}, {y2});'
+        },
+        {
+          name: 'Diode',
+          type: 'wire',
+          category: 'Circuits',
+          svgMarkup: `<svg viewBox="0 0 50 20" width="40" height="20" style="color: var(--text-normal);"><line x1="0" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="2"/><polygon points="20,4 20,16 32,10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="32" y1="4" x2="32" y2="16" stroke="currentColor" stroke-width="2"/><line x1="32" y1="10" x2="50" y2="10" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\draw ({x}, {y}) to[D, l={label}] ({x2}, {y2});'
+        },
+        {
+          name: 'AC Source',
+          type: 'wire',
+          category: 'Circuits',
+          svgMarkup: `<svg viewBox="0 0 50 20" width="40" height="20" style="color: var(--text-normal);"><line x1="0" y1="10" x2="15" y2="10" stroke="currentColor" stroke-width="2"/><circle cx="25" cy="10" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M 20 10 Q 22.5 5 25 10 T 30 10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="35" y1="10" x2="50" y2="10" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\draw ({x}, {y}) to[vsourcesin, l={label}] ({x2}, {y2});'
+        },
+        {
+          name: 'Ground',
+          type: 'component',
+          category: 'Circuits',
+          svgMarkup: `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><line x1="20" y1="5" x2="20" y2="25" stroke="currentColor" stroke-width="2"/><line x1="10" y1="25" x2="30" y2="25" stroke="currentColor" stroke-width="2"/><line x1="13" y1="29" x2="27" y2="29" stroke="currentColor" stroke-width="2"/><line x1="17" y1="33" x2="23" y2="33" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\draw ({x}, {y}) node[ground] {{{label}}};'
         }
       ]
     },
@@ -165,6 +193,41 @@ export class AssetsManager {
           category: 'Logic',
           svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><polygon points="10,5 30,15 10,25" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="34" cy="15" r="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="0" y1="15" x2="10" y2="15" stroke="currentColor" stroke-width="2"/><line x1="37" y1="15" x2="47" y2="15" stroke="currentColor" stroke-width="2"/></svg>`,
           tikzCommand: '\\node[not gate US, draw] at ({x}, {y}) (not1) {{label}};'
+        }
+      ]
+    },
+    {
+      name: 'tikz-flowchart',
+      displayName: 'Flowcharts',
+      installed: false,
+      components: [
+        {
+          name: 'Start/End',
+          type: 'component',
+          category: 'Flowcharts',
+          svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><rect x="5" y="5" width="40" height="20" rx="10" ry="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\node[draw, rounded corners=10pt] at ({x}, {y}) (start1) {{label}};'
+        },
+        {
+          name: 'Process',
+          type: 'component',
+          category: 'Flowcharts',
+          svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><rect x="5" y="5" width="40" height="20" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\node[draw, minimum width=1.5cm, minimum height=0.8cm] at ({x}, {y}) (proc1) {{label}};'
+        },
+        {
+          name: 'Decision',
+          type: 'component',
+          category: 'Flowcharts',
+          svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><polygon points="25,3 45,15 25,27 5,15" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\node[draw, diamond, aspect=1.5] at ({x}, {y}) (dec1) {{label}};'
+        },
+        {
+          name: 'Input/Output',
+          type: 'component',
+          category: 'Flowcharts',
+          svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><polygon points="10,5 45,5 40,25 5,25" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+          tikzCommand: '\\node[draw, trapezium, trapezium left angle=70, trapezium right angle=110] at ({x}, {y}) (io1) {{label}};'
         }
       ]
     }

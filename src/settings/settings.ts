@@ -77,6 +77,7 @@ export interface PluginSettings {
   // TikZJax Settings
   enableTikzjax: boolean;
   invertColorsInDarkMode: boolean;
+  pinnedTikzComponents?: string[];
 
   // Version tracking
   currentVersion: string | null;
@@ -155,5 +156,6 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
 
   // TikZJax Settings
   enableTikzjax: true,
-  invertColorsInDarkMode: true
+  invertColorsInDarkMode: true,
+  pinnedTikzComponents: []
 };

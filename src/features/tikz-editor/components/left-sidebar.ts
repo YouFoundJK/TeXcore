@@ -2,6 +2,8 @@ import { type TikzEditorContext, type ComponentTemplate } from '../types';
 import { AssetsManager } from '../assets-manager';
 
 export class LeftSidebar {
+  private activeLibraryTab: 'basic' | 'all' = 'basic';
+
   constructor(
     private context: TikzEditorContext,
     private containerEl: HTMLElement
@@ -126,6 +128,33 @@ export class LeftSidebar {
       this.renderLibraryList();
     };
 
+    // 2.5 Library Tabs
+    const tabsContainer = this.containerEl.createDiv({ cls: 'library-tabs' });
+    const basicTabBtn = tabsContainer.createEl('button', {
+      cls: `tab-btn${this.activeLibraryTab === 'basic' ? ' active' : ''}`,
+      text: 'Basic'
+    });
+    const allTabBtn = tabsContainer.createEl('button', {
+      cls: `tab-btn${this.activeLibraryTab === 'all' ? ' active' : ''}`,
+      text: 'All'
+    });
+
+    basicTabBtn.onclick = () => {
+      if (this.activeLibraryTab === 'basic') return;
+      this.activeLibraryTab = 'basic';
+      basicTabBtn.addClass('active');
+      allTabBtn.removeClass('active');
+      this.renderLibraryList();
+    };
+
+    allTabBtn.onclick = () => {
+      if (this.activeLibraryTab === 'all') return;
+      this.activeLibraryTab = 'all';
+      allTabBtn.addClass('active');
+      basicTabBtn.removeClass('active');
+      this.renderLibraryList();
+    };
+
     // 3. Component Library List Container
     this.containerEl.createDiv({ cls: 'library' });
     this.renderLibraryList();
@@ -209,7 +238,9 @@ export class LeftSidebar {
 
     // Category components builder
     const core = AssetsManager.getCoreComponents();
-    const extra = this.context.getPackages().flatMap(p => p.components);
+    const extra = this.context.getPackages()
+      .filter(p => p.installed)
+      .flatMap(p => p.components);
     const all = [...core, ...extra];
 
     const pinnedComponents = this.context.getPinnedComponents();
@@ -218,26 +249,44 @@ export class LeftSidebar {
     );
     const basic = [...core, ...pinned];
 
-    // Filter by query
-    const searchQuery = this.context.getSearchQuery();
-    let filtered = all;
-    if (searchQuery.trim()) {
-      filtered = all.filter(
-        c =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.category.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+    const searchQuery = this.context.getSearchQuery().trim().toLowerCase();
 
     const categoriesMap = new Map<string, ComponentTemplate[]>();
-    if (!searchQuery.trim()) {
-      categoriesMap.set('Basic', basic);
+
+    if (this.activeLibraryTab === 'basic') {
+      // Basic Tab: Show commonly used (basic) components, optionally filtered by search
+      const filteredBasic = searchQuery
+        ? basic.filter(
+            c =>
+              c.name.toLowerCase().includes(searchQuery) ||
+              c.category.toLowerCase().includes(searchQuery)
+          )
+        : basic;
+
+      if (filteredBasic.length > 0) {
+        categoriesMap.set('Basic', filteredBasic);
+      }
     } else {
-      filtered.forEach(c => {
-        if (!categoriesMap.has(c.category)) {
-          categoriesMap.set(c.category, []);
+      // All Tab: Show all components grouped by their categories
+      const filteredAll = searchQuery
+        ? all.filter(
+            c =>
+              c.name.toLowerCase().includes(searchQuery) ||
+              c.category.toLowerCase().includes(searchQuery)
+          )
+        : all;
+
+      filteredAll.forEach(c => {
+        // Core components are displayed under 'Basic'
+        const category = core.some(coreComp => coreComp.name === c.name) ? 'Basic' : c.category;
+        
+        if (!categoriesMap.has(category)) {
+          categoriesMap.set(category, []);
         }
-        categoriesMap.get(c.category)?.push(c);
+        const catList = categoriesMap.get(category);
+        if (catList && !catList.some(comp => comp.name === c.name)) {
+          catList.push(c);
+        }
       });
     }
 
