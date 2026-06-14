@@ -110,6 +110,8 @@ export class TikzCodec {
       if (
         !trimmed ||
         trimmed.startsWith('%') ||
+        trimmed.startsWith('\\usepackage') ||
+        trimmed.startsWith('\\usetikzlibrary') ||
         trimmed.startsWith('\\begin{tikzpicture}') ||
         trimmed.startsWith('\\end{tikzpicture}')
       ) {
@@ -304,7 +306,38 @@ export class TikzCodec {
   }
 
   public generate(elements: EditorElement[], pictureOptions: string): string {
+    const neededPackages = new Set<string>();
+    const neededLibraries = new Set<string>();
+
+    elements.forEach(elem => {
+      const regPkg = AssetsManager.getRegistry().find(p =>
+        p.components.some(comp => comp.name === elem.name)
+      );
+
+      if (regPkg) {
+        if (regPkg.name === 'circuitikz') {
+          neededPackages.add('circuitikz');
+        } else if (regPkg.name === 'tikz-logic') {
+          neededLibraries.add('circuits.logic.US');
+        } else if (regPkg.name === 'tikz-flowchart') {
+          neededLibraries.add('shapes.geometric');
+        }
+      }
+    });
+
+    let preamble = '';
+    neededPackages.forEach(pkg => {
+      preamble += `\\usepackage{${pkg}}\n`;
+    });
+    neededLibraries.forEach(lib => {
+      preamble += `\\usetikzlibrary{${lib}}\n`;
+    });
+    if (preamble) {
+      preamble += '\n';
+    }
+
     let output = '';
+    output += preamble;
     output += `\\begin{tikzpicture}${pictureOptions}\n\n`;
 
     elements.forEach(elem => {

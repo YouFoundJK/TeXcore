@@ -248,6 +248,7 @@ export function reset(length: number, pointer: number): number {
   filename = filename.replace(/ +$/g, '');
   filename = filename.replace(/^\*/, '');
   filename = filename.replace(/^TeXfonts:/, '');
+  filename = filename.replace(/"/g, '');
 
   if (filename === 'TeXformats:TEX.POOL') filename = 'tex.pool';
 
@@ -269,6 +270,7 @@ export function rewrite(length: number, pointer: number): number {
   if (!memory) return -1;
   let filename = textDecoder.decode(new Uint8Array(memory, pointer, length));
   filename = filename.replace(/ +$/g, '');
+  filename = filename.replace(/"/g, '');
 
   if (filename === 'TTY:') {
     files.push({
@@ -336,17 +338,22 @@ export function inputln(
     file.position = file.position + 1;
   }
 
-  let t = file.content.indexOf(10, file.position);
+  let startPos = file.position;
+  if (file.position === 1 && !file.eoln) {
+    startPos = 0;
+  }
+
+  let t = file.content.indexOf(10, startPos);
   if (t < 0) t = file.content.length;
 
-  if (file.position >= file.content.length) {
+  if (startPos >= file.content.length) {
     file.eof = true;
     return 0;
   }
 
-  const sourceSlice = file.content.subarray(file.position, t);
+  const sourceSlice = file.content.subarray(startPos, t);
   r.subarray(X[0]).set(sourceSlice);
-  H[0] = X[0] + t - file.position;
+  H[0] = X[0] + t - startPos;
   while (H[0] > X[0] && r[H[0] - 1] === 32) H[0]--;
   file.position = t;
   file.eoln = true;
@@ -555,6 +562,11 @@ ${bodyLines.join('\n')}
   if (wasmExports) {
     wasmExports.main();
     wasmExports.asyncify_stop_unwind?.();
+  }
+
+  if (texDoneResolve) {
+    texDoneResolve = undefined;
+    throw new Error('TeX engine halted or exited without signaling completion.');
   }
 
   // Wait for tex_final_end to be called — signals successful compilation

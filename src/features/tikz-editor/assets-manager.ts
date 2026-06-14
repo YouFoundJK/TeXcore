@@ -213,7 +213,8 @@ export class AssetsManager {
           type: 'component',
           category: 'Flowcharts',
           svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><rect x="5" y="5" width="40" height="20" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
-          tikzCommand: '\\node[draw, minimum width=1.5cm, minimum height=0.8cm] at ({x}, {y}) (proc1) {{label}};'
+          tikzCommand:
+            '\\node[draw, minimum width=1.5cm, minimum height=0.8cm] at ({x}, {y}) (proc1) {{label}};'
         },
         {
           name: 'Decision',
@@ -227,7 +228,8 @@ export class AssetsManager {
           type: 'component',
           category: 'Flowcharts',
           svgMarkup: `<svg viewBox="0 0 50 30" width="40" height="25" style="color: var(--text-normal);"><polygon points="10,5 45,5 40,25 5,25" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
-          tikzCommand: '\\node[draw, trapezium, trapezium left angle=70, trapezium right angle=110] at ({x}, {y}) (io1) {{label}};'
+          tikzCommand:
+            '\\node[draw, trapezium, trapezium left angle=70, trapezium right angle=110] at ({x}, {y}) (io1) {{label}};'
         }
       ]
     }

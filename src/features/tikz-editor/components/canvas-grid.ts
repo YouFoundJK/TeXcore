@@ -130,7 +130,7 @@ export class CanvasGrid {
         const midX = elem.x + dx / 2;
         const midY = elem.y + dy / 2;
 
-        const margin = Math.min(20, len / 2);
+        const margin = Math.min(25, len / 2);
         const startX = elem.x + (dx / len) * (len / 2 - margin);
         const startY = elem.y + (dy / len) * (len / 2 - margin);
         const endX = elem.x2 - (dx / len) * (len / 2 - margin);
@@ -170,25 +170,20 @@ export class CanvasGrid {
           `translate(${midX}, ${midY}) rotate(${angle}) translate(-25, -10)`
         );
 
-        const rect = activeDocument.createElementNS(svgNS, 'rect');
-        rect.setAttribute('x', '-2');
-        rect.setAttribute('y', '-2');
-        rect.setAttribute('width', '54');
-        rect.setAttribute('height', '24');
-        rect.setAttribute('fill', 'var(--background-primary)');
-        rect.setAttribute('stroke', 'none');
-        innerG.appendChild(rect);
-
         const svgWrap = activeDocument.createElementNS(svgNS, 'g');
         svgWrap.setAttribute('class', 'comp-svg-fill');
-        svgWrap.style.color = selectedVertices.some(v => v.elementId === elem.id)
+        const wireColor = selectedVertices.some(v => v.elementId === elem.id)
           ? 'var(--text-accent)'
           : elem.style.color || 'var(--text-normal)';
+        svgWrap.style.color = wireColor;
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(elem.svgMarkup, 'text/html');
         const svgNode = doc.querySelector('svg');
         if (svgNode) {
+          svgNode.setCssStyles({ color: wireColor });
+          svgNode.setAttribute('stroke', wireColor);
+          svgNode.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
           svgWrap.appendChild(activeDocument.importNode(svgNode, true));
         }
         innerG.appendChild(svgWrap);
@@ -304,15 +299,6 @@ export class CanvasGrid {
         );
         innerG.setCssStyles({ opacity: '0.7' });
 
-        const rect = activeDocument.createElementNS(svgNS, 'rect');
-        rect.setAttribute('x', '-2');
-        rect.setAttribute('y', '-2');
-        rect.setAttribute('width', '54');
-        rect.setAttribute('height', '24');
-        rect.setAttribute('fill', 'var(--background-primary)');
-        rect.setAttribute('stroke', 'none');
-        innerG.appendChild(rect);
-
         const svgWrap = activeDocument.createElementNS(svgNS, 'g');
         svgWrap.setCssStyles({ color: 'var(--text-accent)' });
 
@@ -320,6 +306,9 @@ export class CanvasGrid {
         const doc = parser.parseFromString(activeTemplate.svgMarkup, 'text/html');
         const svgNode = doc.querySelector('svg');
         if (svgNode) {
+          svgNode.setCssStyles({ color: 'var(--text-accent)' });
+          svgNode.setAttribute('stroke', 'var(--text-accent)');
+          svgNode.setAttribute('stroke-width', '1.5');
           svgWrap.appendChild(activeDocument.importNode(svgNode, true));
         }
         innerG.appendChild(svgWrap);

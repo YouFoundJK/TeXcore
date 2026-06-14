@@ -412,6 +412,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     try {
       const success = await AssetsManager.installPackage(pkgName);
       if (success) {
+        if (!this.plugin.settings.installedTikzPackages) {
+          this.plugin.settings.installedTikzPackages = [];
+        }
+        if (!this.plugin.settings.installedTikzPackages.includes(pkgName)) {
+          this.plugin.settings.installedTikzPackages.push(pkgName);
+          await this.plugin.saveSettings();
+        }
         this.packages = [...AssetsManager.getRegistry()];
       }
     } catch (err) {
@@ -426,6 +433,11 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     try {
       const success = await AssetsManager.uninstallPackage(pkgName);
       if (success) {
+        if (this.plugin.settings.installedTikzPackages) {
+          this.plugin.settings.installedTikzPackages =
+            this.plugin.settings.installedTikzPackages.filter(name => name !== pkgName);
+          await this.plugin.saveSettings();
+        }
         this.packages = [...AssetsManager.getRegistry()];
       }
     } catch (err) {
@@ -672,6 +684,10 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     this.rightSidebarEl = this.uiEl.createDiv({ cls: 'right-sidebar' });
 
     // Initialize package manager listings
+    const installed = this.plugin.settings.installedTikzPackages || [];
+    for (const pkg of AssetsManager.getRegistry()) {
+      pkg.installed = installed.includes(pkg.name);
+    }
     this.packages = [...AssetsManager.getRegistry()];
 
     // Add spacebar and shortcut key listeners

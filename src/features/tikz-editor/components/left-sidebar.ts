@@ -238,7 +238,8 @@ export class LeftSidebar {
 
     // Category components builder
     const core = AssetsManager.getCoreComponents();
-    const extra = this.context.getPackages()
+    const extra = this.context
+      .getPackages()
       .filter(p => p.installed)
       .flatMap(p => p.components);
     const all = [...core, ...extra];
@@ -279,7 +280,7 @@ export class LeftSidebar {
       filteredAll.forEach(c => {
         // Core components are displayed under 'Basic'
         const category = core.some(coreComp => coreComp.name === c.name) ? 'Basic' : c.category;
-        
+
         if (!categoriesMap.has(category)) {
           categoriesMap.set(category, []);
         }

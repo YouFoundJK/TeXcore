@@ -173,10 +173,16 @@ export class TikzJaxLoader {
     try {
       notice = showNotice(`TeXcore: Downloading TikZ asset ${filename}...`, 0);
 
-      const response = await requestUrl({
-        url: cdnUrl,
-        method: 'GET'
-      });
+      const response = await Promise.race([
+        requestUrl({
+          url: cdnUrl,
+          method: 'GET',
+          contentType: 'application/octet-stream'
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Network request timed out after 10 seconds.')), 10000)
+        )
+      ]);
 
       if (response.status !== 200) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -244,17 +250,27 @@ export class TikzJaxLoader {
     const filePath = `${pluginDir}/tikzjax-assets/${filename}`;
     try {
       let compressedData: ArrayBufferLike;
-      if (!(await adapter.exists(filePath))) {
-        const downloaded = await this.downloadAsset(filename);
-        if (!downloaded) {
-          return null;
+      if (await adapter.exists(filePath)) {
+        try {
+          compressedData = await adapter.readBinary(filePath);
+          const decompressed = (zlib as unknown as { gunzipSync(buf: Buffer): Buffer }).gunzipSync(
+            Buffer.from(compressedData)
+          );
+          return new Uint8Array(decompressed);
+        } catch (decompError) {
+          console.warn(`Latex Referencer: Local cached file ${filename} is corrupt, redownloading...`, decompError);
+          try {
+            await adapter.remove(filePath);
+          } catch (e) {}
         }
-        compressedData = downloaded.buffer;
-      } else {
-        compressedData = await adapter.readBinary(filePath);
       }
 
-      // Decompress gzip synchronously using Node zlib
+      // Download from CDN if file didn't exist or was corrupt
+      const downloaded = await this.downloadAsset(filename);
+      if (!downloaded) {
+        return null;
+      }
+      compressedData = downloaded.buffer;
       const decompressed = (zlib as unknown as { gunzipSync(buf: Buffer): Buffer }).gunzipSync(
         Buffer.from(compressedData)
       );
@@ -275,20 +291,32 @@ export class TikzJaxLoader {
       throw new Error('Plugin manifest directory is not defined.');
     }
 
-    // 1. Ensure core assets (tex.wasm.gz and core.dump.gz) are loaded/cached in memory
-    if (!cachedWasm) {
-      const wasmBuf = await this.loadAssetFile('tex.wasm.gz');
+    const adapter = this.plugin.app.vault.adapter;
+
+    // Pre-create the directory structure recursively to prevent parallel mkdir race conditions
+    try {
+      const assetsDir = `${pluginDir}/tikzjax-assets/tex_files`;
+      if (!(await adapter.exists(assetsDir))) {
+        await adapter.mkdir(assetsDir);
+      }
+    } catch (e) {
+      console.warn('Latex Referencer: Failed to pre-create tikzjax-assets directory', e);
+    }
+
+    // 1. Ensure core assets (tex.wasm.gz and core.dump.gz) are loaded/cached in memory in parallel
+    if (!cachedWasm || !cachedCore) {
+      const [wasmBuf, coreBuf] = await Promise.all([
+        cachedWasm ? Promise.resolve(cachedWasm) : this.loadAssetFile('tex.wasm.gz'),
+        cachedCore ? Promise.resolve(cachedCore) : this.loadAssetFile('core.dump.gz')
+      ]);
+
       if (!wasmBuf) {
         throw new Error('Required tex.wasm.gz file is missing from tikzjax-assets.');
       }
-      cachedWasm = wasmBuf;
-    }
-
-    if (!cachedCore) {
-      const coreBuf = await this.loadAssetFile('core.dump.gz');
       if (!coreBuf) {
         throw new Error('Required core.dump.gz file is missing from tikzjax-assets.');
       }
+      cachedWasm = wasmBuf;
       cachedCore = coreBuf;
     }
 
@@ -394,14 +422,20 @@ export class TikzJaxLoader {
       }
     }
 
-    // Load and decompress all resolved assets
-    for (const asset of assetsToLoad) {
+    // Load and decompress all resolved assets in parallel
+    const loadPromises = Array.from(assetsToLoad).map(async (asset) => {
       const data = await this.loadAssetFile(asset);
       if (data) {
-        // Strip the 'tex_files/' prefix and '.gz' suffix so TeX can find
-        // files by their bare name (e.g. 'tikz.sty', not 'tex_files/tikz.sty.gz')
         const workerVirtualPath = asset.replace(/^tex_files\//, '').replace(/\.gz$/, '');
-        filesToLoad[workerVirtualPath] = data;
+        return { path: workerVirtualPath, data };
+      }
+      return null;
+    });
+
+    const results = await Promise.all(loadPromises);
+    for (const res of results) {
+      if (res) {
+        filesToLoad[res.path] = res.data;
       }
     }
 
@@ -426,18 +460,26 @@ export class TikzJaxLoader {
         return;
       }
 
+      const timeoutId = setTimeout(() => {
+        worker.terminate();
+        reject(new Error('TikZ compilation timed out after 15 seconds.'));
+      }, 15000);
+
       worker.onmessage = (e: MessageEvent) => {
         const data = e.data as { type: string; dvi?: Uint8Array; error?: string };
         if (data.type === 'success' && data.dvi) {
+          clearTimeout(timeoutId);
           resolve(data.dvi);
           worker.terminate();
         } else if (data.type === 'error') {
+          clearTimeout(timeoutId);
           reject(new Error(data.error || 'Unknown error occurred in worker.'));
           worker.terminate();
         }
       };
 
       worker.onerror = (err: ErrorEvent) => {
+        clearTimeout(timeoutId);
         reject(err.error instanceof Error ? err.error : new Error(err.message || 'Worker error'));
         worker.terminate();
       };
@@ -514,12 +556,14 @@ export class TikzJaxLoader {
       throw new Error('TikZJax Error: DVI conversion succeeded but no SVGs were found.');
     }
 
-    // If there are multiple pages, one might be a blank cropping artifact.
-    // Grab the first SVG that actually contains drawing elements, or default to the first.
+    // If there are multiple pages, one might be a blank cropping artifact or typeset warnings.
+    // Prefer pages containing actual drawing shapes over pages containing only text.
     const svg =
       svgs.find(s =>
-        s.querySelector('path, use, rect, circle, ellipse, line, polyline, polygon, text')
-      ) || svgs[0];
+        s.querySelector('path, use, rect, circle, ellipse, line, polyline, polygon')
+      ) ||
+      svgs.find(s => s.querySelector('text')) ||
+      svgs[0];
 
     // Calculate the bounding box of the actual elements to crop margins perfectly
     const bbox = getSvgBoundingBox(svg);
