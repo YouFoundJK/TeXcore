@@ -305,10 +305,7 @@ export class TikzCodec {
 
   public generate(elements: EditorElement[], pictureOptions: string): string {
     let output = '';
-    output += `\\begin{tikzpicture}${pictureOptions}\n`;
-
-    const stateObj = { elements, pictureOptions };
-    output += `  % [ObsiTeXState:${JSON.stringify(stateObj)}]\n\n`;
+    output += `\\begin{tikzpicture}${pictureOptions}\n\n`;
 
     elements.forEach(elem => {
       const xVal = this.fromCanvasX(elem.x).toFixed(2);

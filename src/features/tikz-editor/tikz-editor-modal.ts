@@ -530,6 +530,12 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
       return;
     }
 
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      this.handleUndo();
+      return;
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
       e.preventDefault();
       const uniqueIds = Array.from(new Set(this.selectedVertices.map(v => v.elementId)));
