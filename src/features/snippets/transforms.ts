@@ -77,6 +77,22 @@ function cleanDoubleDollarSymbols(input: string): string {
   return input.replace(/\$\$/g, '$');
 }
 
+function cleanInlineDoubleDollarSymbols(input: string): string {
+  const lines = input.split(/\r?\n/);
+  const processedLines = lines.map(line => {
+    const trimmed = line.trim();
+    const isBlockEquation =
+      trimmed === '$$' ||
+      (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 2);
+    if (isBlockEquation) {
+      return line;
+    }
+    return line.replace(/\$\$/g, '$');
+  });
+  const hasCarriageReturn = input.includes('\r\n');
+  return processedLines.join(hasCarriageReturn ? '\r\n' : '\n');
+}
+
 export const BUILTIN_TEXT_TRANSFORM_SNIPPETS: TextTransformSnippet[] = [
   {
     id: 'kebab-case',
@@ -112,6 +128,13 @@ export const BUILTIN_TEXT_TRANSFORM_SNIPPETS: TextTransformSnippet[] = [
     description: 'Replace all $$ with $',
     keywords: ['dollar', 'latex', 'equation', 'cleanup'],
     transform: cleanDoubleDollarSymbols
+  },
+  {
+    id: 'clean-inline-double-dollar-symbols',
+    name: 'Clean Inline Double Dollar Symbols',
+    description: 'Replace inline $$ with $ while keeping block $$',
+    keywords: ['dollar', 'latex', 'equation', 'inline', 'cleanup'],
+    transform: cleanInlineDoubleDollarSymbols
   }
 ];
 

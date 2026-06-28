@@ -32,5 +32,7 @@ The **Run Text Transform Snippet** command processes your highlighted editor tex
 | **Title Kebab Case** | `Example-Text-String` | Title heading slugifications. |
 | **Title Case** | `Example Text String` | Formatting article or note headings. |
 | **Clean Zotero Highlight** | Reformats HTML tags to raw markdown | Converting Zotero desktop highlights into blockquotes. |
+| **Clean Double Dollar Symbols** | `$$` &rarr; `$` | Replaces all double dollar signs with single dollar signs in the selected text/line. |
+| **Clean Inline Double Dollar Symbols** | `$$x$$` &rarr; `$x$` | Converts inline double dollar math into single dollar inline math while preserving display/block math blocks. |
 
 When any transformation runs, TeXcore displays a notice toast in the top-right corner indicating whether the change was successfully applied.
