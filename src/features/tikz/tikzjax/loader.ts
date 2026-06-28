@@ -205,7 +205,10 @@ export class TikzJaxLoader {
           contentType: 'application/octet-stream'
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Network request timed out after 10 seconds.')), 10000)
+          window.setTimeout(
+            () => reject(new Error('Network request timed out after 10 seconds.')),
+            10000
+          )
         )
       ]);
 
@@ -289,7 +292,12 @@ export class TikzJaxLoader {
           );
           try {
             await adapter.remove(filePath);
-          } catch (e) {}
+          } catch (removeError) {
+            console.warn(
+              `Latex Referencer: Failed to remove corrupt cache file ${filePath}`,
+              removeError
+            );
+          }
         }
       }
 
@@ -495,7 +503,7 @@ export class TikzJaxLoader {
         return;
       }
 
-      const timeoutId = setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         worker.terminate();
         reject(new Error('TikZ compilation timed out after 15 seconds.'));
       }, 15000);
@@ -503,18 +511,18 @@ export class TikzJaxLoader {
       worker.onmessage = (e: MessageEvent) => {
         const data = e.data as { type: string; dvi?: Uint8Array; error?: string };
         if (data.type === 'success' && data.dvi) {
-          clearTimeout(timeoutId);
+          window.clearTimeout(timeoutId);
           resolve(data.dvi);
           worker.terminate();
         } else if (data.type === 'error') {
-          clearTimeout(timeoutId);
+          window.clearTimeout(timeoutId);
           reject(new Error(data.error || 'Unknown error occurred in worker.'));
           worker.terminate();
         }
       };
 
       worker.onerror = (err: ErrorEvent) => {
-        clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
         reject(err.error instanceof Error ? err.error : new Error(err.message || 'Worker error'));
         worker.terminate();
       };
