@@ -264,27 +264,33 @@ function createTagManagerPlugin(
           // --- Mode 1: Sub-equation ---
           if (info.subIndices && info.subIndices.size > 0 && info.printName) {
             const baseName = info.printName.slice(1, -1);
-            const rows = mathPart.trim().split(/\\\\/);
+            const parts = mathPart.trim().split(/(\\\\(?:\s*\[[^\]]*\])?)/);
             let hasContent = false;
+            const newParts = [...parts];
 
-            const taggedRows = rows.map((row, index) => {
+            for (let i = 0; i < parts.length; i += 2) {
+              const row = parts[i];
               const cleanedRow = row.replace(/^[ \t]+/, '');
-              if (cleanedRow.trim() === '') return cleanedRow;
+              if (cleanedRow.trim() === '') {
+                newParts[i] = cleanedRow;
+                continue;
+              }
               hasContent = true;
-              const subIndex = index + 1;
+              const subIndex = i / 2 + 1;
               const newTag = ` \\tag{${baseName}.${subIndex}}`;
               const endEnvMatch = cleanedRow.match(/(\\end\{[a-zA-Z*]+\})/);
               if (endEnvMatch && endEnvMatch.index !== undefined) {
                 const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
                 const environment = endEnvMatch[0];
                 const after = cleanedRow.substring(endEnvMatch.index + environment.length);
-                return `${before + newTag} ${environment}${after}`;
+                newParts[i] = `${before + newTag} ${environment}${after}`;
+              } else {
+                newParts[i] = cleanedRow.trimEnd() + newTag;
               }
-              return cleanedRow.trimEnd() + newTag;
-            });
+            }
 
             if (hasContent) {
-              newInnerContent = taggedRows.join(' \\\\ ');
+              newInnerContent = newParts.join('');
             }
           }
           // --- Mode 2: Normal Equation ---

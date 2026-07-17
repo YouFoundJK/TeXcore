@@ -5,7 +5,6 @@ import fs from 'fs';
 import path from 'path';
 import inlineWorkerPlugin from 'esbuild-plugin-inline-worker';
 
-
 const builtins = [
   ...new Set([...builtinModules, ...builtinModules.map(moduleName => `node:${moduleName}`)])
 ];

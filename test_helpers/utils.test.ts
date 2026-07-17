@@ -113,3 +113,22 @@ describe('general.ts tests', () => {
     expect(arr).toEqual([1, 99, 2, 3]);
   });
 });
+
+describe('Sub-equation splitting regex tests', () => {
+  it('should split rows while keeping \\[dimen] intact', () => {
+    const regex = /(\\\\(?:\s*\[[^\]]*\])?)/;
+    const input = `\\beta \\frac{\\partial P}{\\partial \\rho} & = \\frac{\\partial}{\\partial \\eta} \\left[ \\eta \\frac{1 + \\eta + \\eta^2}{(1 - \\eta)^3} \\right]  \\\\[0.6em]\n\\implies q(\\eta)  & = \\frac{(1 + 2\\eta)^2}{(1 - \\eta)^4}  \\end{align}`;
+    const parts = input.split(regex);
+    expect(parts.length).toBe(3);
+    expect(parts[0]).toContain('\\beta');
+    expect(parts[1]).toBe('\\\\[0.6em]');
+    expect(parts[2]).toContain('\\implies');
+  });
+
+  it('should split rows when there is no dimension parameter', () => {
+    const regex = /(\\\\(?:\s*\[[^\]]*\])?)/;
+    const input = `row1 \\\\ row2`;
+    const parts = input.split(regex);
+    expect(parts).toEqual(['row1 ', '\\\\', ' row2']);
+  });
+});
