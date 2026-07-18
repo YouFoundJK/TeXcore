@@ -30,6 +30,41 @@ function formatWidth(w: string): string {
   return w;
 }
 
+interface ColumnSpec {
+  align?: 'left' | 'center' | 'right';
+  width?: string;
+}
+
+function parseColumnSpec(specStr: string): ColumnSpec {
+  const spec: ColumnSpec = {};
+  const tokens = specStr.trim().split(/\s+/);
+  for (const token of tokens) {
+    const lower = token.toLowerCase();
+    if (lower === 'left' || lower === 'right' || lower === 'center' || lower === 'centre') {
+      spec.align = lower === 'centre' ? 'center' : lower;
+    } else if (token) {
+      spec.width = formatWidth(token);
+    }
+  }
+  return spec;
+}
+
+function parseRowSpec(line: string): ColumnSpec[] {
+  const content = line.substring(';;;row'.length).trim().replace(/^:/, '').trim();
+  if (!content) return [];
+
+  let parts: string[];
+  if (content.includes('|')) {
+    parts = content.split('|');
+  } else if (content.includes(',')) {
+    parts = content.split(',');
+  } else {
+    parts = content.split(/\s+/);
+  }
+
+  return parts.map(part => parseColumnSpec(part));
+}
+
 function setCssProps(el: HTMLElement, props: Record<string, string>, priority = '') {
   const style = el.style;
   const setProp = 'setProperty';
@@ -169,100 +204,72 @@ function preprocessContainerRows(container: HTMLElement) {
   }
 }
 
-function tightenColumn(colEl: HTMLElement, colIdx: number, numColumns: number) {
-  let align = 'center';
-  if (numColumns > 1) {
-    if (colIdx === 0) {
-      align = 'right';
-    } else if (colIdx === numColumns - 1) {
-      align = 'left';
+function tightenColumn(colEl: HTMLElement, colIdx: number, numColumns: number, spec?: ColumnSpec) {
+  let align = spec?.align;
+  if (!align) {
+    align = 'center';
+    if (numColumns > 1) {
+      if (colIdx === 0) {
+        align = 'right';
+      } else if (colIdx === numColumns - 1) {
+        align = 'left';
+      }
     }
   }
-
-  const colAlignItems = align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
-  const childJustifyContent =
-    align === 'right' ? 'flex-end' : align === 'left' ? 'flex-start' : 'center';
-  const childTextAlign = align;
 
   setCssProps(
     colEl,
     {
-      'margin-top': '0',
-      'margin-bottom': '0',
-      'padding-top': '0',
-      'padding-bottom': '0',
-      display: 'flex',
-      'flex-direction': 'column',
-      'justify-content': 'center',
-      'align-items': colAlignItems
+      'text-align': align,
+      'white-space': 'normal'
     },
     'important'
   );
 
-  const selectors =
-    'p, .math, .math-block, pre, code, .block-language-tikz, mjx-container, svg, .cm-embed-block';
-  colEl.querySelectorAll(selectors).forEach((item: Element) => {
-    const el = item as HTMLElement;
-    setCssProps(
-      el,
-      {
-        'margin-top': '0',
-        'margin-right': '0',
-        'margin-bottom': '0',
-        'margin-left': '0',
-        'padding-top': '0',
-        'padding-bottom': '0',
-        'line-height': 'normal'
-      },
-      'important'
-    );
-
-    const tag = el.tagName.toLowerCase();
-    if (
-      tag === 'p' ||
-      tag === 'pre' ||
-      tag === 'code' ||
-      el.classList.contains('math-block') ||
-      el.classList.contains('math') ||
-      el.classList.contains('block-language-tikz') ||
-      el.classList.contains('cm-embed-block')
-    ) {
-      const displayType =
-        (el.classList.contains('math') && !el.classList.contains('math-block')) || tag === 'code'
-          ? 'inline-flex'
-          : 'flex';
-
+  // Position lists (ul, ol) based on column alignment, but keep items left-aligned internally so bullets line up.
+  colEl.querySelectorAll('ul, ol').forEach(listEl => {
+    const el = listEl as HTMLElement;
+    const isInsideNested = !!el.parentElement?.closest('ul, ol');
+    if (!isInsideNested) {
+      const marginLeft = align === 'left' ? '0' : 'auto';
+      const marginRight = align === 'right' ? '0' : 'auto';
       setCssProps(
         el,
         {
-          display: displayType,
-          'align-items': 'center',
-          'justify-content': childJustifyContent,
-          'text-align': childTextAlign,
-          'vertical-align': 'middle'
-        },
-        'important'
-      );
-    } else if (tag === 'svg' || tag === 'mjx-container') {
-      setCssProps(
-        el,
-        {
-          'vertical-align': 'middle'
+          'margin-left': marginLeft,
+          'margin-right': marginRight,
+          width: 'fit-content',
+          'text-align': 'left'
         },
         'important'
       );
     }
   });
+
+  // Clean up any extra margins on direct block children of the column so they align nicely at the top and bottom.
+  Array.from(colEl.children).forEach(child => {
+    const el = child as HTMLElement;
+    setCssProps(
+      el,
+      {
+        'margin-top': '0',
+        'margin-bottom': '0'
+      },
+      'important'
+    );
+  });
 }
 
-function updateRowLayout(rowEl: HTMLElement, columns: HTMLElement[], customWidths: string[]) {
+function updateRowLayout(rowEl: HTMLElement, columns: HTMLElement[], specs: ColumnSpec[]) {
   const numColumns = columns.length;
   const gridTracks: string[] = [];
+  const hasCustomWidths = specs.some(s => s.width);
 
-  if (customWidths.length > 0) {
+  if (hasCustomWidths) {
     // Use user-defined widths; row stretches to fill the container.
     for (let colIdx = 0; colIdx < numColumns; colIdx++) {
-      gridTracks.push(colIdx < customWidths.length ? customWidths[colIdx] : '1fr');
+      const spec = specs[colIdx];
+      gridTracks.push(spec && spec.width ? spec.width : '1fr');
     }
     setCssProps(
       rowEl,
@@ -405,25 +412,18 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
 
         startP.dataset.rowProcessed = 'true';
 
-        // Parse widths from the start line
-        const widthsPart = text.substring(';;;row'.length).trim().replace(/^:/, '').trim();
-        let widths: string[] = [];
-        if (widthsPart) {
-          widths = widthsPart
-            .split(/\s*\|\s*|\s*,\s*|\s+/)
-            .map(w => w.trim())
-            .filter(w => w)
-            .map(formatWidth);
-        }
+        // Parse column specs from the start line
+        const specs = parseRowSpec(text);
 
         const numColumns = columnsElements.length;
         const rowEl = activeDocument.createElement('div');
         rowEl.classList.add('latex-referencer-row');
+        rowEl.classList.add('markdown-rendered');
         setCssProps(rowEl, {
           display: 'grid',
           gap: '1.5rem',
           width: '100%',
-          'align-items': 'center',
+          'align-items': 'flex-start',
           margin: '-0.5em 0'
         });
 
@@ -432,9 +432,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
         columnsElements.forEach((colEls, colIdx) => {
           const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
           setCssProps(colEl, {
-            display: 'flex',
-            'flex-direction': 'column',
-            'justify-content': 'center',
+            display: 'block',
             'min-width': '0'
           });
 
@@ -444,8 +442,10 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
         });
 
         const refresh = () => {
-          columns.forEach((colEl, colIdx) => tightenColumn(colEl, colIdx, numColumns));
-          updateRowLayout(rowEl, columns, widths);
+          columns.forEach((colEl, colIdx) =>
+            tightenColumn(colEl, colIdx, numColumns, specs[colIdx])
+          );
+          updateRowLayout(rowEl, columns, specs);
         };
 
         refresh();
@@ -465,6 +465,32 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
   };
 };
 
+function preprocessMarkdownForListEnd(markdown: string): string {
+  const lines = markdown.split('\n');
+  const processedLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const prevLine = i > 0 ? lines[i - 1] : '';
+
+    // If the previous line was a list item, and the current line is a non-empty, non-list, non-indented block,
+    // insert an empty line to cleanly terminate the list.
+    if (i > 0 && line.trim() && prevLine.trim()) {
+      const isPrevList = /^\s*([-*+]|\d+\.)\s+/.test(prevLine);
+      const isCurrentList = /^\s*([-*+]|\d+\.)\s+/.test(line);
+      const isCurrentIndented = /^\s+/.test(line);
+      const isCurrentHeader = /^\s*#+\s+/.test(line);
+
+      if (isPrevList && !isCurrentList && !isCurrentIndented && !isCurrentHeader) {
+        processedLines.push('');
+      }
+    }
+    processedLines.push(line);
+  }
+
+  return processedLines.join('\n');
+}
+
 // ==========================================
 // 2. Live Preview CodeMirror 6 Extension
 // ==========================================
@@ -474,7 +500,7 @@ class RowLayoutWidget extends WidgetType {
   constructor(
     public plugin: LatexReferencer,
     public sourcePath: string,
-    public widths: string[],
+    public specs: ColumnSpec[],
     public columnsMarkdown: string[],
     public startPos: number
   ) {
@@ -483,7 +509,7 @@ class RowLayoutWidget extends WidgetType {
 
   eq(other: RowLayoutWidget) {
     return (
-      this.widths.join('|') === other.widths.join('|') &&
+      JSON.stringify(this.specs) === JSON.stringify(other.specs) &&
       this.columnsMarkdown.join('---') === other.columnsMarkdown.join('---') &&
       this.sourcePath === other.sourcePath
     );
@@ -492,11 +518,12 @@ class RowLayoutWidget extends WidgetType {
   toDOM() {
     const rowEl = activeDocument.createElement('div');
     rowEl.classList.add('latex-referencer-row');
+    rowEl.classList.add('markdown-rendered');
     setCssProps(rowEl, {
       display: 'grid',
       gap: '1.5rem',
       width: '100%',
-      'align-items': 'center',
+      'align-items': 'flex-start',
       margin: '-0.5em 0'
     });
 
@@ -506,18 +533,18 @@ class RowLayoutWidget extends WidgetType {
     this.columnsMarkdown.forEach((colMarkdown, colIdx) => {
       const colEl = rowEl.createEl('div', { cls: 'latex-referencer-column' });
       setCssProps(colEl, {
-        display: 'flex',
-        'flex-direction': 'column',
-        'justify-content': 'center',
+        display: 'block',
         'min-width': '0'
       });
       columns.push(colEl);
+
+      const processedMarkdown = preprocessMarkdownForListEnd(colMarkdown);
 
       // Render Markdown asynchronously inside the editor column
       const comp = new MarkdownRenderChild(colEl);
       comp.load();
       this.components.push(comp);
-      MarkdownRenderer.render(this.plugin.app, colMarkdown, colEl, this.sourcePath, comp)
+      MarkdownRenderer.render(this.plugin.app, processedMarkdown, colEl, this.sourcePath, comp)
         .then(() => {
           refresh();
         })
@@ -527,8 +554,10 @@ class RowLayoutWidget extends WidgetType {
     });
 
     const refresh = () => {
-      columns.forEach((colEl, colIdx) => tightenColumn(colEl, colIdx, numColumns));
-      updateRowLayout(rowEl, columns, this.widths);
+      columns.forEach((colEl, colIdx) =>
+        tightenColumn(colEl, colIdx, numColumns, this.specs[colIdx])
+      );
+      updateRowLayout(rowEl, columns, this.specs);
     };
 
     refresh();
@@ -601,7 +630,7 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
         let inRow = false;
         let startPos = -1;
         let startLineIdx = -1;
-        let widths: string[] = [];
+        let specs: ColumnSpec[] = [];
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
@@ -610,17 +639,7 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
               inRow = true;
               startLineIdx = i;
               startPos = state.doc.line(i + 1).from;
-
-              const widthsPart = line.substring(';;;row'.length).trim().replace(/^:/, '').trim();
-              if (widthsPart) {
-                widths = widthsPart
-                  .split(/\s*\|\s*|\s*,\s*|\s+/)
-                  .map(w => w.trim())
-                  .filter(w => w)
-                  .map(formatWidth);
-              } else {
-                widths = [];
-              }
+              specs = parseRowSpec(line);
             }
           } else {
             if (line === ';;;') {
@@ -651,7 +670,7 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
                     widget: new RowLayoutWidget(
                       activePlugin || plugin,
                       sourcePath,
-                      widths,
+                      specs,
                       columnsMarkdown,
                       startPos
                     ),
