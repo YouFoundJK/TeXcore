@@ -1,5 +1,6 @@
 import { App, TFile } from 'obsidian';
 import { PluginSettings } from '../settings/settings';
+import { parseObsitexConfig } from './obsitex';
 
 const ROMAN = [
   '',
@@ -77,7 +78,14 @@ export const CONVERTER = {
 export function getEqNumberPrefix(
   app: App,
   file: TFile,
-  settings: Required<PluginSettings>
+  settings: Required<PluginSettings>,
+  content?: string
 ): string {
+  if (content) {
+    const config = parseObsitexConfig(content);
+    if (config.eqPrefix !== undefined) {
+      return config.eqPrefix;
+    }
+  }
   return settings.eqNumberPrefix;
 }

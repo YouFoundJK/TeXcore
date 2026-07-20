@@ -65,6 +65,33 @@ Configure the layout of your math indices globally via the [Settings Panel](conf
 
 ---
 
+## Document-Level Equation Prefix (`obsitex`)
+
+You can specify a document-wide equation prefix (e.g. `S` for supplementary equations like `(S1)`, `(S2)`, or section prefixes like `S3.2`) using an `obsitex` YAML codeblock:
+
+```obsitex
+- eq-prefix: S
+```
+
+Or key-value format:
+
+```obsitex
+eq-prefix: S3.2
+```
+
+### Features & Behavior
+- **Hidden Rendering**: The `obsitex` codeblock is invisible in Live Preview, Reading View, and PDF exports.
+- **Tag Prefixing**: Injected as a prefix into rendered equation tags (e.g. `(S1)`, `(S3.2.1)`).
+- **ID Generation**: Auto-generated equation IDs use the prefix format `% id: eq-S-xxxx`.
+- **Backwards Compatible**: Unprefixed block IDs (`% id: eq-einstein`) continue working seamlessly.
+
+### Architectural Engine Details
+- **YAML Parsing**: `parseObsitexConfig` parses `obsitex` blocks using Obsidian's `parseYaml` API.
+- **Prefix Pipeline**: `getEqNumberPrefix(app, file, settings, content)` prioritizes the document's `eq-prefix` over global settings.
+- **DOM Hiding**: `registerMarkdownCodeBlockProcessor('obsitex', ...)` and `.block-language-obsitex { display: none !important; }` prevent DOM artifacts across editor views and PDF export pipelines.
+
+---
+
 ## Sub-Equation System
 
 Multi-line equations (such as systems of equations using LaTeX `align` or split blocks) can be individually referenced using sub-indices. Reference rows sequentially by appending the row number to the parent ID:

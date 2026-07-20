@@ -9,6 +9,7 @@ export abstract class FileIO {
     public plugin: LatexReferencer,
     public file: TFile
   ) {}
+  abstract read(): Promise<string>;
   abstract setLine(lineNumber: number, text: string): Promise<void>;
   abstract setRange(position: Pos, text: string): Promise<void>;
   abstract insertLine(lineNumber: number, text: string): Promise<void>;
@@ -29,6 +30,10 @@ export class ActiveNoteIO extends FileIO {
     public editor: Editor
   ) {
     super(plugin, file);
+  }
+
+  async read(): Promise<string> {
+    return this.editor.getValue();
   }
 
   async setLine(lineNumber: number, text: string): Promise<void> {
@@ -66,6 +71,10 @@ export class NonActiveNoteIO extends FileIO {
    */
   constructor(plugin: LatexReferencer, file: TFile) {
     super(plugin, file);
+  }
+
+  async read(): Promise<string> {
+    return this.plugin.app.vault.cachedRead(this.file);
   }
 
   async setLine(lineNumber: number, text: string): Promise<void> {

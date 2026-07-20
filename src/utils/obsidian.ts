@@ -49,9 +49,10 @@ export function getModifierNameInPlatform(mod: Modifier): string {
   return 'ctrl';
 }
 
-export function generateEqId(length: number = 8): string {
+export function generateEqId(prefix?: string, length: number = 8): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let result = 'eq-';
+  const prefixPart = prefix ? `${prefix}-` : '';
+  let result = `eq-${prefixPart}`;
   for (let i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }

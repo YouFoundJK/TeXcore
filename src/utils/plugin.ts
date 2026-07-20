@@ -4,6 +4,7 @@ import { getIO } from './file-io';
 import { getCalloutPrefix, isStructuralCalloutLine } from './parse';
 import { EquationBlock } from 'types';
 import { generateEqId, showNotice } from './obsidian';
+import { parseObsitexConfig } from './obsitex';
 
 export function insertDisplayMath(editor: Editor) {
   const cursorPos = editor.getCursor();
@@ -26,9 +27,12 @@ export async function insertBlockIdIfNotExist(
   // Safeguard against missing cache sections.
   if (!cache?.sections) return;
 
-  // Generate a new ID in the format "eq-..."
-  const id = generateEqId();
   const io = getIO(plugin, targetFile);
+  const fullContent = await io.read();
+  const obsitexConfig = parseObsitexConfig(fullContent);
+
+  // Generate a new ID in the format "eq-[prefix]-..."
+  const id = generateEqId(obsitexConfig.eqPrefix);
 
   // Get the full text of the math block from the file, e.g., "$$\n\\sin(x)\n$$"
   const originalText = await io.getRange(block.$pos);

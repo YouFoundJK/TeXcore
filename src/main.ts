@@ -33,7 +33,7 @@ import { EquationBlock } from 'types';
 import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { processActiveNoteEquations } from './core/equations/numbering';
 import { checkAndFixCalloutMath } from 'utils/fixer';
-import { showNotice } from 'utils/obsidian';
+import { showNotice, setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
 import { CustomNoteManager } from 'features/custom-notes/manager';
 import type { TikzRenderer } from './features/tikz/renderer';
@@ -225,6 +225,10 @@ export default class LatexReferencer extends Plugin {
     patchSuggesterWithQuickPreview(this, MathSearchModal, itemNormalizer);
 
     // Markdown post processors for Reading View
+    this.registerMarkdownCodeBlockProcessor('obsitex', (_source, el) => {
+      setCssProps(el, { display: 'none' });
+      el.empty();
+    });
     this.registerMarkdownPostProcessor(createEquationNumberProcessor(this));
     this.registerMarkdownPostProcessor(CustomMathLinksProcessor(this));
     this.registerMarkdownPostProcessor(createRowLayoutProcessor(this));

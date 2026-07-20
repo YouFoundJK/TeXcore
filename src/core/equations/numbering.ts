@@ -25,7 +25,7 @@ export function processActiveNoteEquations(
 
   // 1. Scan the entire document once to build a map of reference counts.
   const referenceMap = new Map<string, ReferenceInfo>();
-  const linkRegex = /\[\[(?:#\^|\^)(eq-[\w-]+)\]\]/g;
+  const linkRegex = /\[\[(?:#\^|\^)(eq-[\w.-]+)\]\]/g;
   let match;
   while ((match = linkRegex.exec(content)) !== null) {
     const fullId = match[1];
@@ -54,7 +54,12 @@ export function processActiveNoteEquations(
 
   const processedEquations = new Map<string, EquationBlock>();
   let equationCount = 0;
-  const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>);
+  const eqPrefix = getEqNumberPrefix(
+    plugin.app,
+    file,
+    settings as Required<PluginSettings>,
+    content
+  );
   const eqSuffix = settings.eqNumberSuffix;
 
   // 2. Process each equation using the pre-computed reference map.

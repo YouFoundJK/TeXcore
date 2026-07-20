@@ -27,7 +27,7 @@ export class ActiveNoteEquationProvider {
 
       let blockId: string | undefined;
 
-      const internalIdMatch = trimmedMathText.match(/% id: (eq-[\w-]+)/);
+      const internalIdMatch = trimmedMathText.match(/% id: (eq-[\w.-]+)/);
       if (internalIdMatch) {
         blockId = internalIdMatch[1];
       }

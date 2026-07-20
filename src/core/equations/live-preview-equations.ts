@@ -110,7 +110,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
 
   // 1. Scan for all references, including sub-equation links
   const referenceMap = new Map<string, { totalCount: number; subIndices: Set<number> }>();
-  const linkRegex = /\[\[#\^eq-[\w-]+\]\]/g;
+  const linkRegex = /\[\[#\^eq-[\w.-]+\]\]/g;
   let match;
   while ((match = linkRegex.exec(text)) !== null) {
     const linkText = match[0].slice(4, -2); // eq-id or eq-id-2
@@ -141,7 +141,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
   const equationInfos: (EquationInfo & { refCount: number })[] = [];
   for (const block of mathBlocks) {
     const blockText = state.doc.sliceString(block.from, block.to);
-    const idMatch = blockText.match(/% id: (eq-[\w-]+)/);
+    const idMatch = blockText.match(/% id: (eq-[\w.-]+)/);
     if (idMatch) {
       const id = idMatch[1];
       const refInfo = referenceMap.get(id);
@@ -157,7 +157,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
   }
 
   let equationCount = 0;
-  const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>);
+  const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>, text);
   const eqSuffix = settings.eqNumberSuffix;
 
   for (const info of equationInfos) {
@@ -229,9 +229,9 @@ function createTagManagerPlugin(
 
           // --- Common Extraction Logic ---
           // 1. Extract existing ID if present
-          const idCommentRegex = /(\s*% id: eq-[\w-]+)/;
+          const idCommentRegex = /(\s*% id: eq-[\w.-]+)/;
           const idMatch = blockContent.match(idCommentRegex);
-          const idVal = idMatch ? idMatch[0].match(/eq-[\w-]+/)?.[0] : null;
+          const idVal = idMatch ? idMatch[0].match(/eq-[\w.-]+/)?.[0] : null;
 
           // 2. Isolate Math Part (all text before the ID comment)
           let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
