@@ -11,7 +11,8 @@ import {
   parseMarkdownComment,
   parseYamlLike,
   getCalloutPrefix,
-  isStructuralCalloutLine
+  isStructuralCalloutLine,
+  findDisplayMathBlocks
 } from '../src/utils/parse';
 
 import { splitIntoLines, insertAt } from '../src/utils/general';
@@ -71,6 +72,30 @@ describe('parse.ts tests', () => {
     expect(trimMathText('$$ E = mc^2 $$')).toBe('E = mc^2');
     expect(trimMathText('$$\nE = mc^2\n$$')).toBe('E = mc^2');
     expect(trimMathText('no math block')).toBe('');
+  });
+
+  it('findDisplayMathBlocks handles adjacent inline math like $[text]$$^2$', () => {
+    const content = `$[\\text{charge}]$$^2$ Refer Eq. [[#^eq-robp7m93]]
+$$
+\\mathbf{D}_0=\\begin{pmatrix}\\alpha_0^{\\,2}\\,Z_i Z_j & \\alpha_0\\alpha_2\\,Z_i\\\\-\\alpha_0\\alpha_2\\,Z_j & 0\\end{pmatrix}
+% id: eq-robp7m93
+$$`;
+    const blocks = findDisplayMathBlocks(content);
+    expect(blocks.length).toBe(1);
+    const matchedText = content.substring(blocks[0].from, blocks[0].to);
+    expect(matchedText).toContain('% id: eq-robp7m93');
+    expect(matchedText.startsWith('$$')).toBe(true);
+    expect(matchedText.endsWith('$$')).toBe(true);
+  });
+
+  it('findDisplayMathBlocks ignores math in code blocks', () => {
+    const content = `\`\`\`
+$$ fake math $$
+\`\`\`
+$$ real math $$`;
+    const blocks = findDisplayMathBlocks(content);
+    expect(blocks.length).toBe(1);
+    expect(content.substring(blocks[0].from, blocks[0].to)).toBe('$$ real math $$');
   });
 
   it('parseMarkdownComment', () => {

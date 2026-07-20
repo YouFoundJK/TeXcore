@@ -4,7 +4,12 @@ import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER, getEqNumberPrefix } from 'utils/format';
 import type { PluginSettings } from 'settings/settings';
-import { CALLOUT_PREFIX_REGEX, getCalloutPrefix, isStructuralCalloutLine } from 'utils/parse';
+import {
+  CALLOUT_PREFIX_REGEX,
+  getCalloutPrefix,
+  isStructuralCalloutLine,
+  findDisplayMathBlocks
+} from 'utils/parse';
 
 /**
  * The in-memory state for the TagManager. It holds only the information
@@ -25,67 +30,27 @@ type EquationState = readonly EquationInfo[];
  */
 function findMathBlocks(state: EditorState): readonly { from: number; to: number }[] {
   const text = state.doc.toString();
-  const codeBlockRanges: { from: number; to: number }[] = [];
+  const mathBlockRanges = findDisplayMathBlocks(text);
 
-  const fencedCodeRegex = /^```[\s\S]*?^```/gm;
-  let fencedMatch: RegExpExecArray | null;
-  while ((fencedMatch = fencedCodeRegex.exec(text)) !== null) {
-    codeBlockRanges.push({
-      from: fencedMatch.index,
-      to: fencedMatch.index + fencedMatch[0].length
-    });
-  }
-
-  const inlineCodeRegex = /(`+)(?:(?!\1|(?:\r\n|\n){2})[\s\S])+?\1/g;
-  let inlineMatch: RegExpExecArray | null;
-  while ((inlineMatch = inlineCodeRegex.exec(text)) !== null) {
-    const currentMatch = inlineMatch;
-    const isInsideFencedBlock = codeBlockRanges.some(
-      range =>
-        currentMatch.index >= range.from && currentMatch.index + currentMatch[0].length <= range.to
-    );
-    if (!isInsideFencedBlock) {
-      codeBlockRanges.push({
-        from: currentMatch.index,
-        to: currentMatch.index + currentMatch[0].length
-      });
-    }
-  }
-
-  const mathBlockRanges: { from: number; to: number }[] = [];
-  const mathRegex = /\$\$(.*?)\$\$/gs;
-  let mathMatch: RegExpExecArray | null;
-  while ((mathMatch = mathRegex.exec(text)) !== null) {
+  return mathBlockRanges.filter(mathRange => {
     // Guard against lazy-continuation callout math blocks.
     // When the opening $$ is on a callout line (e.g. "> $$") but the closing
     // $$ is NOT (lazy continuation), the tag manager would corrupt the document
     // by reconstructing the closing with the opening's prefix.
     // Only skip blocks with MISMATCHED prefixes; properly-formed callout
     // equations (where both $$ share the same prefix) are fine.
-    const openPos = mathMatch.index;
+    const openPos = mathRange.from;
     const openLineStart = text.lastIndexOf('\n', openPos - 1) + 1;
     const openPrefix = text.substring(openLineStart, openPos);
 
-    const closePos = mathMatch.index + mathMatch[0].length - 2; // position of closing $$
+    const closePos = mathRange.to - 2; // position of closing $$
     const closeLineStart = text.lastIndexOf('\n', closePos - 1) + 1;
     const closePrefix = text.substring(closeLineStart, closePos);
 
     const openCallout = (openPrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
     const closeCallout = (closePrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
-    if (openCallout !== closeCallout) {
-      continue;
-    }
-
-    mathBlockRanges.push({ from: mathMatch.index, to: mathMatch.index + mathMatch[0].length });
-  }
-
-  const validMathBlocks = mathBlockRanges.filter(mathRange => {
-    return !codeBlockRanges.some(
-      codeRange => mathRange.from >= codeRange.from && mathRange.to <= codeRange.to
-    );
+    return openCallout === closeCallout;
   });
-
-  return validMathBlocks;
 }
 
 const mathBlockPositionsField = StateField.define<readonly { from: number; to: number }[]>({

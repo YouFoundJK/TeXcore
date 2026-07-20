@@ -1,6 +1,11 @@
 import { TFile, App, CachedMetadata, Pos } from 'obsidian';
 import { EquationBlock } from 'types';
-import { trimMathText, parseMarkdownComment, parseYamlLike } from 'utils/parse';
+import {
+  trimMathText,
+  parseMarkdownComment,
+  parseYamlLike,
+  findDisplayMathBlocks
+} from 'utils/parse';
 
 export class ActiveNoteEquationProvider {
   constructor(public app: App) {}
@@ -100,21 +105,14 @@ export class ActiveNoteEquationProvider {
           processedText = cleanLines.join('\n');
         }
 
-        // Handle split/lazy blockquotes (odd number of $$) by appending a closing one
-        if ((processedText.match(/\$\$/g) || []).length % 2 !== 0) {
-          processedText += '\n$$';
-        }
+        const mathBlocks = findDisplayMathBlocks(processedText);
 
-        const mathRegex = /\$\$([\s\S]*?)\$\$/g;
-        let match;
-
-        while ((match = mathRegex.exec(processedText)) !== null) {
-          const mathContent = match[1];
-          const matchIndex = match.index;
-
-          const prefix = processedText.substring(0, matchIndex);
+        for (const block of mathBlocks) {
+          const mathContent = processedText.substring(block.from + 2, block.to - 2);
+          const prefix = processedText.substring(0, block.from);
           const startLineOffset = (prefix.match(/\n/g) || []).length;
-          const contentLineCount = (match[0].match(/\n/g) || []).length;
+          const blockText = processedText.substring(block.from, block.to);
+          const contentLineCount = (blockText.match(/\n/g) || []).length;
 
           const absStartLine = section.position.start.line + startLineOffset;
           const absEndLine = section.position.start.line + startLineOffset + contentLineCount;
