@@ -4,8 +4,7 @@
  */
 
 export type LinkTextSegment =
-  | { kind: 'text'; text: string }
-  | { kind: 'link'; text: string; href: string };
+  { kind: 'text'; text: string } | { kind: 'link'; text: string; href: string };
 
 export interface LinkItem {
   text: string;

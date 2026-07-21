@@ -681,7 +681,6 @@ export class ExportConfigModal extends Modal {
         .setValue(this.config['scale'])
         .onChange(async value => {
           this.config['scale'] = value;
-          slider.showTooltip();
         });
     });
     new Setting(contentEl).setName('Landscape').addToggle(toggle =>
