@@ -3,8 +3,11 @@ export interface EditorElementStyle {
   italic: boolean;
   math: boolean;
   color: string;
+  rawColor?: string;
   fontSize: number; // in pt
   thickness?: number; // line width in pt
+  lineStyle?: 'solid' | 'dashed' | 'dotted';
+  arrowStyle?: boolean;
 }
 
 export interface EditorElement {
@@ -56,6 +59,9 @@ export interface TikzEditorContext {
   getPictureOptions(): string;
   getZoom(): number;
   setZoom(zoom: number): void;
+  getPan(): { x: number; y: number };
+  setPan(x: number, y: number): void;
+  resetView(): void;
   getSearchQuery(): string;
   setSearchQuery(query: string): void;
   isShowPackageManager(): boolean;

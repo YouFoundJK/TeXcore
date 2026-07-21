@@ -18,10 +18,10 @@ import { TikzCodec } from './utils/tikz-codec';
 export class TikzEditorModal extends Modal implements TikzEditorContext {
   // Constants
   public readonly PX_PER_UNIT = 80;
-  public readonly ORIGIN_X = 120;
-  public readonly ORIGIN_Y = 360;
-  public readonly CANVAS_WIDTH = 1120;
-  public readonly CANVAS_HEIGHT = 720;
+  public readonly ORIGIN_X = 2000;
+  public readonly ORIGIN_Y = 2000;
+  public readonly CANVAS_WIDTH = 4000;
+  public readonly CANVAS_HEIGHT = 4000;
   public readonly DEFAULT_STYLE = {
     bold: false,
     italic: false,
@@ -40,13 +40,15 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   private halfGrid = true;
   private pictureOptions = '';
   private zoom = 1.0;
+  private panX = 0;
+  private panY = 0;
   private copiedElements: EditorElement[] = [];
 
   // Panning state
   private isSpacePressed = false;
   private isPanning = false;
   private panStartMouse = { x: 0, y: 0 };
-  private panStartScroll = { left: 0, top: 0 };
+  private panStartPan = { x: 0, y: 0 };
 
   // Sidebar / library state
   private searchQuery = '';
@@ -126,6 +128,32 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
   setZoom(zoom: number) {
     this.zoom = zoom;
+    this.updateWorkspaceTransform();
+  }
+  getPan() {
+    return { x: this.panX, y: this.panY };
+  }
+  setPan(x: number, y: number) {
+    this.panX = x;
+    this.panY = y;
+    this.updateWorkspaceTransform();
+  }
+  updateWorkspaceTransform() {
+    if (this.canvasWorkspaceEl) {
+      this.canvasWorkspaceEl.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+    }
+  }
+  resetView() {
+    const w = this.canvasContainerEl?.clientWidth || 800;
+    const h = this.canvasContainerEl?.clientHeight || 600;
+    this.zoom = 1.0;
+    this.panX = Math.round(w / 2 - (this.ORIGIN_X + 2.5 * this.PX_PER_UNIT) * this.zoom);
+    this.panY = Math.round(h / 2 - (this.ORIGIN_Y - 0.5 * this.PX_PER_UNIT) * this.zoom);
+    const zoomLabel = this.contentEl?.querySelector('.zoom-label');
+    if (zoomLabel) {
+      zoomLabel.textContent = '100%';
+    }
+    this.updateWorkspaceTransform();
   }
   getSearchQuery() {
     return this.searchQuery;
@@ -399,8 +427,14 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
   handleInsertCode() {
     if (this.onSaveCallback) {
-      const code =
-        this.activeTab === 'code' && this.codeDirty ? this.editableCode : this.generateTikzSource();
+      let code: string;
+      if (this.activeTab === 'code' && this.codeDirty) {
+        code = this.editableCode;
+      } else if (this.historyManager.canUndo()) {
+        code = this.generateTikzSource();
+      } else {
+        code = this.editableCode || this.generateTikzSource();
+      }
       this.onSaveCallback(code);
     }
     this.close();
@@ -486,11 +520,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   switchTab(tab: 'edit' | 'code') {
     this.activeTab = tab;
     if (tab === 'code' && !this.codeDirty) {
-      try {
-        this.editableCode = this.generateTikzSource();
-      } catch (err) {
-        console.error('[TikzEditorModal] Error generating TikZ code:', err);
-        this.editableCode = `% Error generating TikZ code: ${err instanceof Error ? err.message : String(err)}`;
+      if (!this.editableCode || this.historyManager.canUndo()) {
+        try {
+          this.editableCode = this.generateTikzSource();
+        } catch (err) {
+          console.error('[TikzEditorModal] Error generating TikZ code:', err);
+          this.editableCode = `% Error generating TikZ code: ${err instanceof Error ? err.message : String(err)}`;
+        }
       }
     }
     this.renderRightSidebar();
@@ -706,6 +742,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     // Parse initial source code if present
     this.elements = [];
+    this.editableCode = this.initialSource || '';
     if (this.initialSource) {
       const match = this.initialSource.match(/^\s*%\s*\[ObsiTeXState:(.*)\]\s*$/m);
       if (match && match[1]) {
@@ -770,7 +807,6 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     const controls = canvasAreaEl.createDiv({ cls: 'tikz-canvas-controls' });
 
     const zoomOutBtn = controls.createEl('button', { title: 'Zoom out [ctrl + -]' });
-
     const zoomOutParser = new DOMParser();
     const zoomOutDoc = zoomOutParser.parseFromString(
       `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
@@ -778,15 +814,23 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     );
     zoomOutBtn.appendChild(activeDocument.importNode(zoomOutDoc.documentElement, true));
     zoomOutBtn.onclick = () => {
-      this.zoom = Math.max(this.zoom - 0.1, 0.5);
+      const oldZoom = this.zoom;
+      this.zoom = Math.max(this.zoom - 0.1, 0.3);
+      const w = this.canvasContainerEl.clientWidth || 800;
+      const h = this.canvasContainerEl.clientHeight || 600;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const canvasX = (centerX - this.panX) / oldZoom;
+      const canvasY = (centerY - this.panY) / oldZoom;
+      this.panX = centerX - canvasX * this.zoom;
+      this.panY = centerY - canvasY * this.zoom;
       zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
-      this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
+      this.updateWorkspaceTransform();
     };
 
     const zoomLabel = controls.createSpan({ cls: 'zoom-label', text: '100%' });
 
     const zoomInBtn = controls.createEl('button', { title: 'Zoom in [ctrl + +]' });
-
     const zoomInParser = new DOMParser();
     const zoomInDoc = zoomInParser.parseFromString(
       `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
@@ -794,16 +838,33 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     );
     zoomInBtn.appendChild(activeDocument.importNode(zoomInDoc.documentElement, true));
     zoomInBtn.onclick = () => {
-      this.zoom = Math.min(this.zoom + 0.1, 2.0);
+      const oldZoom = this.zoom;
+      this.zoom = Math.min(this.zoom + 0.1, 3.0);
+      const w = this.canvasContainerEl.clientWidth || 800;
+      const h = this.canvasContainerEl.clientHeight || 600;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const canvasX = (centerX - this.panX) / oldZoom;
+      const canvasY = (centerY - this.panY) / oldZoom;
+      this.panX = centerX - canvasX * this.zoom;
+      this.panY = centerY - canvasY * this.zoom;
       zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
-      this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
+      this.updateWorkspaceTransform();
     };
+
+    const resetBtn = controls.createEl('button', { title: 'Center view' });
+    const resetParser = new DOMParser();
+    const resetDoc = resetParser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+      'image/svg+xml'
+    );
+    resetBtn.appendChild(activeDocument.importNode(resetDoc.documentElement, true));
+    resetBtn.onclick = () => this.resetView();
 
     controls.createDiv({ cls: 'divider' });
 
     const undoBtn = controls.createEl('button', { title: 'Undo [Ctrl + Z]' });
     undoBtn.disabled = true;
-
     const undoParser = new DOMParser();
     const undoDoc = undoParser.parseFromString(
       `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
@@ -814,7 +875,6 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     const redoBtn = controls.createEl('button', { title: 'Redo [Ctrl + Y]' });
     redoBtn.disabled = true;
-
     const redoParser = new DOMParser();
     const redoDoc = redoParser.parseFromString(
       `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
@@ -826,7 +886,6 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     // Workspace
     this.canvasWorkspaceEl = this.canvasContainerEl.createDiv({ cls: 'canvas-workspace' });
     this.canvasWorkspaceEl.setCssStyles({ transformOrigin: '0 0' });
-    this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
 
     // Grid lines
     this.canvasWorkspaceEl.createDiv({ cls: 'grid-background' });
@@ -853,28 +912,26 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
       this.wiresOverlayEl
     );
 
-    // Panning handler via spacebar holding
+    // Panning handler via Spacebar + Left Click or Middle Click
     this.canvasContainerEl.addEventListener(
       'mousedown',
       e => {
-        if (this.isSpacePressed) {
+        if (e.button === 1 || (e.button === 0 && this.isSpacePressed)) {
           e.preventDefault();
           e.stopPropagation();
           this.isPanning = true;
           this.canvasContainerEl.removeClass('is-grab');
           this.canvasContainerEl.addClass('is-grabbing');
           this.panStartMouse = { x: e.clientX, y: e.clientY };
-          this.panStartScroll = {
-            left: this.canvasContainerEl.scrollLeft,
-            top: this.canvasContainerEl.scrollTop
-          };
+          this.panStartPan = { x: this.panX, y: this.panY };
 
           const onMouseMove = (moveEvent: MouseEvent) => {
             if (!this.isPanning) return;
             const dx = moveEvent.clientX - this.panStartMouse.x;
             const dy = moveEvent.clientY - this.panStartMouse.y;
-            this.canvasContainerEl.scrollLeft = this.panStartScroll.left - dx;
-            this.canvasContainerEl.scrollTop = this.panStartScroll.top - dy;
+            this.panX = this.panStartPan.x + dx;
+            this.panY = this.panStartPan.y + dy;
+            this.updateWorkspaceTransform();
           };
 
           const onMouseUp = () => {
@@ -894,13 +951,9 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
         }
       },
       true
-    ); // Use capture phase to intercept before canvas events
+    );
 
-    // Scroll container behavior initial state
-    this.canvasContainerEl.scrollLeft = 0;
-    this.canvasContainerEl.scrollTop = 0;
-
-    // Mouse wheel zoom listener (centered on cursor)
+    // Mouse wheel / Trackpad pan & zoom listener
     this.canvasContainerEl.addEventListener(
       'wheel',
       e => {
@@ -915,32 +968,44 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
         }
         e.preventDefault();
 
-        const oldZoom = this.zoom;
-        const zoomFactor = e.ctrlKey ? 0.05 : 0.03;
-        if (e.deltaY < 0) {
-          this.zoom = Math.min(this.zoom + zoomFactor, 2.0);
+        if (e.ctrlKey || e.metaKey) {
+          const oldZoom = this.zoom;
+          const zoomFactor = 0.05;
+          const newZoom =
+            e.deltaY < 0
+              ? Math.min(this.zoom + zoomFactor, 3.0)
+              : Math.max(this.zoom - zoomFactor, 0.3);
+
+          if (newZoom !== oldZoom) {
+            const rect = this.canvasContainerEl.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const canvasX = (mouseX - this.panX) / oldZoom;
+            const canvasY = (mouseY - this.panY) / oldZoom;
+
+            this.zoom = newZoom;
+            this.panX = mouseX - canvasX * newZoom;
+            this.panY = mouseY - canvasY * newZoom;
+
+            const zoomLabel = this.contentEl.querySelector('.zoom-label');
+            if (zoomLabel) {
+              zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
+            }
+            this.updateWorkspaceTransform();
+          }
         } else {
-          this.zoom = Math.max(this.zoom - zoomFactor, 0.5);
+          this.panX -= e.deltaX;
+          this.panY -= e.deltaY;
+          this.updateWorkspaceTransform();
         }
-
-        const zoomLabel = this.contentEl.querySelector('.zoom-label');
-        if (zoomLabel) {
-          zoomLabel.textContent = `${Math.round(this.zoom * 100)}%`;
-        }
-        this.canvasWorkspaceEl.style.transform = `scale(${this.zoom})`;
-
-        // Adjust scroll to zoom towards mouse pointer
-        const rect = this.canvasContainerEl.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const canvasX = (mouseX + this.canvasContainerEl.scrollLeft) / oldZoom;
-        const canvasY = (mouseY + this.canvasContainerEl.scrollTop) / oldZoom;
-
-        this.canvasContainerEl.scrollLeft = canvasX * this.zoom - mouseX;
-        this.canvasContainerEl.scrollTop = canvasY * this.zoom - mouseY;
       },
       { passive: false }
     );
+
+    // Initial view positioning
+    window.setTimeout(() => {
+      this.resetView();
+    }, 0);
   }
 }

@@ -58,7 +58,7 @@ export class CanvasGrid {
     axisOverlay.appendChild(lineY);
 
     // X labels
-    for (let x = 0; x <= 12; x++) {
+    for (let x = -20; x <= 20; x++) {
       const text = activeDocument.createElementNS(svgNS, 'text');
       text.setAttribute('x', (this.context.ORIGIN_X + x * this.context.PX_PER_UNIT).toString());
       text.setAttribute('y', (this.context.ORIGIN_Y + 18).toString());
@@ -67,7 +67,7 @@ export class CanvasGrid {
     }
 
     // Y labels
-    for (let y = -4; y <= 4; y++) {
+    for (let y = -20; y <= 20; y++) {
       if (y !== 0) {
         const text = activeDocument.createElementNS(svgNS, 'text');
         text.setAttribute('x', (this.context.ORIGIN_X - 12).toString());
@@ -108,20 +108,47 @@ export class CanvasGrid {
       lineClick.setCssStyles({ cursor: 'pointer' });
       group.appendChild(lineClick);
 
-      if (elem.name === 'Wire') {
+      const isBasicWire =
+        elem.name === 'Wire' || elem.name === 'Dashed Wire' || elem.name === 'Arrow';
+      if (isBasicWire) {
         const line = activeDocument.createElementNS(svgNS, 'line');
         line.setAttribute('x1', elem.x.toString());
         line.setAttribute('y1', elem.y.toString());
         line.setAttribute('x2', elem.x2.toString());
         line.setAttribute('y2', elem.y2.toString());
-        line.setAttribute(
-          'stroke',
-          selectedVertices.some(v => v.elementId === elem.id)
-            ? 'var(--text-accent)'
-            : elem.style.color || 'var(--text-normal)'
-        );
+        const strokeColor = selectedVertices.some(v => v.elementId === elem.id)
+          ? 'var(--text-accent)'
+          : elem.style.color && elem.style.color !== '#f8e7ad'
+            ? elem.style.color
+            : '#e2e8f0';
+        line.setAttribute('stroke', strokeColor);
         line.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+
+        if (elem.name === 'Dashed Wire' || elem.style.lineStyle === 'dashed') {
+          line.setAttribute('stroke-dasharray', '6,4');
+        } else if (elem.style.lineStyle === 'dotted') {
+          line.setAttribute('stroke-dasharray', '2,4');
+        }
+
         group.appendChild(line);
+
+        if (elem.name === 'Arrow' || elem.style.arrowStyle) {
+          const dx = elem.x2 - elem.x;
+          const dy = elem.y2 - elem.y;
+          const len = Math.hypot(dx, dy);
+          if (len > 0) {
+            const angle = Math.atan2(dy, dx);
+            const headLen = Math.min(10, len);
+            const p1x = elem.x2 - headLen * Math.cos(angle - Math.PI / 6);
+            const p1y = elem.y2 - headLen * Math.sin(angle - Math.PI / 6);
+            const p2x = elem.x2 - headLen * Math.cos(angle + Math.PI / 6);
+            const p2y = elem.y2 - headLen * Math.sin(angle + Math.PI / 6);
+            const head = activeDocument.createElementNS(svgNS, 'polygon');
+            head.setAttribute('points', `${elem.x2},${elem.y2} ${p1x},${p1y} ${p2x},${p2y}`);
+            head.setAttribute('fill', strokeColor);
+            group.appendChild(head);
+          }
+        }
       } else {
         const dx = elem.x2 - elem.x;
         const dy = elem.y2 - elem.y;

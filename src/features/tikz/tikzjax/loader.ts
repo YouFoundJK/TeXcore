@@ -42,9 +42,6 @@ class CustomHTMLMachine extends HTMLMachine {
       this.textBlockOriginV = pos.v;
     }
 
-    const left = pos.h * this.pointsPerDviUnit;
-    const top = pos.v * this.pointsPerDviUnit;
-
     this.svgDepth = this.svgDepth || 0;
     this.svgDepth += (svgStr.match(/<svg/g) || []).length;
     this.svgDepth -= (svgStr.match(/<\/svg>/g) || []).length;
@@ -58,8 +55,11 @@ class CustomHTMLMachine extends HTMLMachine {
       `<svg width="10pt" height="10pt" viewBox="0 0 10 10" style="overflow: visible; position: relative;">`
     );
 
-    replacedSvg = replacedSvg.replace(/{\?x}/g, left.toString());
-    replacedSvg = replacedSvg.replace(/{\?y}/g, top.toString());
+    const relLeft = (pos.h - this.originH) * this.pointsPerDviUnit;
+    const relTop = (pos.v - this.originV) * this.pointsPerDviUnit;
+
+    replacedSvg = replacedSvg.replace(/{\?x}/g, relLeft.toString());
+    replacedSvg = replacedSvg.replace(/{\?y}/g, relTop.toString());
     this.output.write(replacedSvg);
   }
 
@@ -459,9 +459,14 @@ export class TikzJaxLoader {
 
     // Resolve TikZ libraries
     for (const lib of libraries) {
-      const cand = `tex_files/tikzlibrary${lib}.code.tex.gz`;
-      if (availableAssets.includes(cand)) {
-        assetsToLoad.add(cand);
+      const candidates = [
+        `tex_files/tikzlibrary${lib}.code.tex.gz`,
+        `tex_files/pgflibrary${lib}.code.tex.gz`
+      ];
+      for (const cand of candidates) {
+        if (availableAssets.includes(cand)) {
+          assetsToLoad.add(cand);
+        }
       }
     }
 
@@ -665,10 +670,10 @@ interface Matrix2D {
 function getSvgBoundingBox(
   svg: SVGElement
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
+  let minX = 0;
+  let minY = 0;
+  let maxX = 0;
+  let maxY = 0;
 
   function updateBounds(x: number, y: number) {
     if (x < minX) minX = x;
@@ -834,33 +839,6 @@ function getSvgBoundingBox(
     const p2 = applyTransform(matrix, x2, y2);
     updateBounds(p1.x, p1.y);
     updateBounds(p2.x, p2.y);
-  });
-
-  // 6. Scan texts
-  const texts = svg.querySelectorAll('text');
-  texts.forEach(text => {
-    if (text.closest('defs')) return;
-    const x = parseFloat(text.getAttribute('x') || '0');
-    const y = parseFloat(text.getAttribute('y') || '0');
-    const matrix = getAbsoluteMatrix(text);
-    const pt = applyTransform(matrix, x, y);
-
-    // Extract font size from style
-    const style = text.getAttribute('style') || '';
-    const fontSizeMatch = style.match(/font-size:\s*([\d.]+)/);
-    const fontSize = fontSizeMatch ? parseFloat(fontSizeMatch[1]) : 10;
-
-    // Extract text content and estimate width
-    const content = text.textContent || '';
-    const estimatedWidth = content.length * fontSize * 0.6;
-
-    // Add text box bounds
-    updateBounds(pt.x, pt.y);
-    updateBounds(pt.x + estimatedWidth, pt.y);
-    updateBounds(pt.x, pt.y - fontSize);
-    updateBounds(pt.x + estimatedWidth, pt.y - fontSize);
-    updateBounds(pt.x, pt.y + fontSize * 0.2); // descenders
-    updateBounds(pt.x + estimatedWidth, pt.y + fontSize * 0.2);
   });
 
   if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {

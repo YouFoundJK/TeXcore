@@ -1124,8 +1124,8 @@ div.tikz-editor-modal .modal-close-button {
 }
 
 .tikz-editor-ui .canvas-workspace {
-    width: 1120px;
-    height: 720px;
+    width: 4000px;
+    height: 4000px;
     position: relative;
     transform-origin: 0 0;
     cursor: crosshair;
@@ -1139,7 +1139,7 @@ div.tikz-editor-modal .modal-close-button {
     bottom: 0;
     background-image: radial-gradient(circle at 0px 0px, var(--text-muted) 1.8px, transparent 1.8px);
     background-size: 80px 80px;
-    background-position: 120px 360px;
+    background-position: 2000px 2000px;
     opacity: 0.35;
     pointer-events: none;
 }
@@ -1147,7 +1147,7 @@ div.tikz-editor-modal .modal-close-button {
 .tikz-editor-ui .grid-background.half-grid {
     background-image: radial-gradient(circle at 0px 0px, var(--text-muted) 1.5px, transparent 1.5px);
     background-size: 40px 40px;
-    background-position: 120px 360px;
+    background-position: 2000px 2000px;
     opacity: 0.35;
 }
 

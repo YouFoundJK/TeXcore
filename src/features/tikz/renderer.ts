@@ -48,15 +48,7 @@ export class TikzRenderer {
 
   public async render(source: string): Promise<SVGElement> {
     const code = this.tidyTikzSource(source);
-
-    // Check cache first
-    const cachedHtml = this.renderCache.get(code);
-    if (cachedHtml !== undefined) {
-      const domParser = new DOMParser();
-      const doc = domParser.parseFromString(cachedHtml, 'text/html');
-      const svg = doc.querySelector('svg') as unknown as SVGElement;
-      return svg;
-    }
+    this.renderCache.delete(code);
 
     // Lazy-load tikzjax.css if not loaded yet
     if (!this.tikzjaxCss) {
@@ -202,7 +194,19 @@ export class TikzRenderer {
     // Trim whitespace and remove empty lines
     lines = lines.map(line => line.trim()).filter(line => line);
 
-    return lines.join('\n');
+    let cleaned = lines.join('\n');
+    const needsArrowsMeta =
+      (cleaned.includes('Triangle') ||
+        cleaned.includes('stealth') ||
+        cleaned.includes('-{') ||
+        cleaned.includes('}->')) &&
+      !cleaned.includes('arrows.meta');
+
+    if (needsArrowsMeta) {
+      cleaned = `\\usetikzlibrary{arrows.meta}\n${cleaned}`;
+    }
+
+    return cleaned;
   }
 
   private registerCodeBlockProcessor() {
