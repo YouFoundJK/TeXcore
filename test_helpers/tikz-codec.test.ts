@@ -141,5 +141,24 @@ at (2.15,-1.8)
       e => e.type === 'wire' && e.style.rawColor === 'purple!70!red'
     );
     expect(dottedLine?.style.lineStyle).toBe('dotted');
+
+    // Test roundtrip: generate TikZ source and re-parse it
+    const generated = codec.generate(result.elements, result.pictureOptions);
+    expect(generated).toContain('color=blue!70!black');
+
+    const roundtrip = codec.parse(generated);
+    expect(roundtrip.elements.length).toBe(result.elements.length);
+
+    const roundtripBlueSegments = roundtrip.elements.filter(
+      e => e.type === 'wire' && e.style.rawColor === 'blue!70!black'
+    );
+    expect(roundtripBlueSegments.length).toBe(6);
+
+    // Verify hex color without rawColor produces braced rgb,255 output
+    const customElements = [result.elements[0]];
+    customElements[0].style.rawColor = undefined;
+    customElements[0].style.color = '#3b82f6';
+    const customGen = codec.generate(customElements, '');
+    expect(customGen).toContain('color={rgb,255:red,59;green,130;blue,246}');
   });
 });

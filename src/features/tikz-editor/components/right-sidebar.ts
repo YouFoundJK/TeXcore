@@ -109,7 +109,7 @@ export class RightSidebar {
         colorInput.oninput = () => {
           this.context.handleUpdateElement({
             ...selectedElement,
-            style: { ...selectedElement.style, color: colorInput.value }
+            style: { ...selectedElement.style, color: colorInput.value, rawColor: undefined }
           });
         };
 
@@ -331,7 +331,7 @@ export class RightSidebar {
         colorInput.oninput = () => {
           const updated = selectedElements.map(el => ({
             ...el,
-            style: { ...el.style, color: colorInput.value }
+            style: { ...el.style, color: colorInput.value, rawColor: undefined }
           }));
           this.context.handleUpdateElements(updated);
         };

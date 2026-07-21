@@ -430,10 +430,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
       let code: string;
       if (this.activeTab === 'code' && this.codeDirty) {
         code = this.editableCode;
-      } else if (this.historyManager.canUndo()) {
-        code = this.generateTikzSource();
       } else {
-        code = this.editableCode || this.generateTikzSource();
+        code = this.generateTikzSource();
       }
       this.onSaveCallback(code);
     }
@@ -584,6 +582,73 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       this.handleUndo();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      const allVertices: SelectedVertex[] = [];
+      this.elements.forEach(elem => {
+        if (elem.type === 'wire' && elem.x2 !== undefined && elem.y2 !== undefined) {
+          allVertices.push({ elementId: elem.id, vertex: 'start' });
+          allVertices.push({ elementId: elem.id, vertex: 'end' });
+        } else {
+          allVertices.push({ elementId: elem.id, vertex: 'center' });
+        }
+      });
+      this.handleSelectVertices(allVertices);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.handleSelectVertices([]);
+      return;
+    }
+
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (this.selectedVertices.length > 0) {
+        e.preventDefault();
+        const step = e.shiftKey
+          ? this.PX_PER_UNIT
+          : this.isHalfGrid()
+            ? this.PX_PER_UNIT / 2
+            : this.PX_PER_UNIT / 4;
+        let dx = 0;
+        let dy = 0;
+        if (e.key === 'ArrowLeft') dx = -step;
+        if (e.key === 'ArrowRight') dx = step;
+        if (e.key === 'ArrowUp') dy = -step;
+        if (e.key === 'ArrowDown') dy = step;
+
+        const selVertices = this.selectedVertices;
+        const updated = this.elements.map(elem => {
+          const el = { ...elem };
+          if (el.type === 'wire' && el.x2 !== undefined && el.y2 !== undefined) {
+            const hasStart = selVertices.some(v => v.elementId === el.id && v.vertex === 'start');
+            const hasEnd = selVertices.some(v => v.elementId === el.id && v.vertex === 'end');
+            if (hasStart) {
+              el.x += dx;
+              el.y += dy;
+            }
+            if (hasEnd) {
+              el.x2 += dx;
+              el.y2 += dy;
+            }
+          } else {
+            const hasCenter = selVertices.some(v => v.elementId === el.id && v.vertex === 'center');
+            if (hasCenter) {
+              el.x += dx;
+              el.y += dy;
+            }
+          }
+          return el;
+        });
+
+        this.setElements(updated);
+        this.renderCanvas();
+        this.saveHistoryState();
+      }
       return;
     }
 
@@ -742,29 +807,10 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
 
     // Parse initial source code if present
     this.elements = [];
-    this.editableCode = this.initialSource || '';
     if (this.initialSource) {
-      const match = this.initialSource.match(/^\s*%\s*\[ObsiTeXState:(.*)\]\s*$/m);
-      if (match && match[1]) {
-        try {
-          const parsed = JSON.parse(match[1]) as {
-            elements?: EditorElement[];
-            pictureOptions?: string;
-          };
-          if (Array.isArray(parsed.elements)) {
-            this.elements = parsed.elements;
-            this.pictureOptions = parsed.pictureOptions ?? '';
-          }
-        } catch (e) {
-          console.warn('Failed to parse visual state, using fallback parser:', e);
-        }
-      }
-
-      if (this.elements.length === 0) {
-        const parsedResult = this.codec.parse(this.initialSource);
-        this.elements = parsedResult.elements;
-        this.pictureOptions = parsedResult.pictureOptions;
-      }
+      const parsedResult = this.codec.parse(this.initialSource);
+      this.elements = parsedResult.elements;
+      this.pictureOptions = parsedResult.pictureOptions;
     }
 
     // Initial history state

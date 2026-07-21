@@ -86,7 +86,6 @@ export class CanvasGrid {
     const svgNS = 'http://www.w3.org/2000/svg';
     const selectedVertices = this.context.getSelectedVertices();
     const elements = this.context.getElements();
-
     // Draw elements
     elements.forEach(elem => {
       if (elem.type !== 'wire' || elem.x2 === undefined || elem.y2 === undefined) return;
@@ -620,7 +619,8 @@ export class CanvasGrid {
         tikzCommand: template.tikzCommand
       });
     } else if (activeTool === 'select' || activeTool === 'erase') {
-      if (activeTool === 'select') {
+      const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
+      if (activeTool === 'select' && !isMultiSelect) {
         this.context.handleSelectVertices([]);
       }
 
@@ -639,7 +639,7 @@ export class CanvasGrid {
           if (activeTool === 'erase') {
             this.applyLassoErase();
           } else {
-            this.applyLassoSelection();
+            this.applyLassoSelection(isMultiSelect);
           }
         }
         this.lassoStart = null;
@@ -684,7 +684,7 @@ export class CanvasGrid {
     }
   }
 
-  private applyLassoSelection() {
+  private applyLassoSelection(isMultiSelect = false) {
     if (!this.lassoStart || !this.lassoCurrent) return;
 
     const left = Math.min(this.lassoStart.x, this.lassoCurrent.x);
@@ -696,23 +696,34 @@ export class CanvasGrid {
       return x >= left && x <= right && y >= top && y <= bottom;
     };
 
-    const newSelection: import('../types').SelectedVertex[] = [];
+    const lassoVertices: import('../types').SelectedVertex[] = [];
     this.context.getElements().forEach(elem => {
       if (elem.type === 'wire' && elem.x2 !== undefined && elem.y2 !== undefined) {
         if (isInside(elem.x, elem.y)) {
-          newSelection.push({ elementId: elem.id, vertex: 'start' });
+          lassoVertices.push({ elementId: elem.id, vertex: 'start' });
         }
         if (isInside(elem.x2, elem.y2)) {
-          newSelection.push({ elementId: elem.id, vertex: 'end' });
+          lassoVertices.push({ elementId: elem.id, vertex: 'end' });
         }
       } else {
         if (isInside(elem.x, elem.y)) {
-          newSelection.push({ elementId: elem.id, vertex: 'center' });
+          lassoVertices.push({ elementId: elem.id, vertex: 'center' });
         }
       }
     });
 
-    this.context.handleSelectVertices(newSelection);
+    if (isMultiSelect) {
+      const existing = this.context.getSelectedVertices();
+      const merged = [...existing];
+      lassoVertices.forEach(v => {
+        if (!merged.some(e => e.elementId === v.elementId && e.vertex === v.vertex)) {
+          merged.push(v);
+        }
+      });
+      this.context.handleSelectVertices(merged);
+    } else {
+      this.context.handleSelectVertices(lassoVertices);
+    }
   }
 
   private handleElementMouseDown(e: MouseEvent, elem: EditorElement) {
@@ -725,6 +736,7 @@ export class CanvasGrid {
       return;
     }
 
+    const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
     const clickedVertices: import('../types').SelectedVertex[] =
       elem.type === 'wire'
         ? [
@@ -736,8 +748,18 @@ export class CanvasGrid {
     const selectedVertices = this.context.getSelectedVertices();
     const isAlreadySelected = selectedVertices.some(v => v.elementId === elem.id);
 
-    if (!isAlreadySelected) {
-      this.context.handleSelectVertices(clickedVertices);
+    if (isMultiSelect) {
+      if (isAlreadySelected) {
+        const newSel = selectedVertices.filter(v => v.elementId !== elem.id);
+        this.context.handleSelectVertices(newSel);
+      } else {
+        const newSel = [...selectedVertices, ...clickedVertices];
+        this.context.handleSelectVertices(newSel);
+      }
+    } else {
+      if (!isAlreadySelected) {
+        this.context.handleSelectVertices(clickedVertices);
+      }
     }
 
     if (activeTool === 'select') {
@@ -751,29 +773,22 @@ export class CanvasGrid {
         if (!this.dragStartCoords) return;
 
         const zoom = this.context.getZoom();
-        const dx = (moveEvent.clientX - this.dragStartCoords.x) / zoom;
-        const dy = (moveEvent.clientY - this.dragStartCoords.y) / zoom;
+        const rawDx = (moveEvent.clientX - this.dragStartCoords.x) / zoom;
+        const rawDy = (moveEvent.clientY - this.dragStartCoords.y) / zoom;
 
-        let newPrimaryX = elem.x + dx;
-        let newPrimaryY = elem.y + dy;
+        let snappedDx = rawDx;
+        let snappedDy = rawDy;
 
         if (this.context.isSnapToGrid() && !moveEvent.ctrlKey) {
           const gridSize = this.context.isHalfGrid()
             ? this.context.PX_PER_UNIT / 2
             : this.context.PX_PER_UNIT;
-          newPrimaryX =
-            Math.round((newPrimaryX - this.context.ORIGIN_X) / gridSize) * gridSize +
-            this.context.ORIGIN_X;
-          newPrimaryY =
-            Math.round((newPrimaryY - this.context.ORIGIN_Y) / gridSize) * gridSize +
-            this.context.ORIGIN_Y;
+          snappedDx = Math.round(rawDx / gridSize) * gridSize;
+          snappedDy = Math.round(rawDy / gridSize) * gridSize;
         } else {
-          newPrimaryX = Math.round(newPrimaryX);
-          newPrimaryY = Math.round(newPrimaryY);
+          snappedDx = Math.round(rawDx);
+          snappedDy = Math.round(rawDy);
         }
-
-        const snappedDx = newPrimaryX - elem.x;
-        const snappedDy = newPrimaryY - elem.y;
 
         const currentSelVertices = this.context.getSelectedVertices();
 

@@ -19,24 +19,24 @@ export class TikzCodec {
     const map: Record<string, string> = {
       black: '#000000',
       white: '#ffffff',
-      red: '#ff0000',
-      green: '#00cc00',
-      blue: '#0000ff',
-      cyan: '#00ffff',
-      magenta: '#ff00ff',
-      yellow: '#ffff00',
-      gray: '#808080',
-      grey: '#808080',
-      darkgray: '#404040',
-      lightgray: '#d3d3d3',
-      orange: '#ffa500',
-      purple: '#800080',
-      violet: '#8a2be2',
-      teal: '#008080',
-      olive: '#808000',
-      lime: '#00ff00',
-      brown: '#a52a2a',
-      pink: '#ffc0cb'
+      red: '#ef4444',
+      green: '#22c55e',
+      blue: '#3b82f6',
+      cyan: '#06b6d4',
+      magenta: '#ec4899',
+      yellow: '#eab308',
+      gray: '#6b7280',
+      grey: '#6b7280',
+      darkgray: '#374151',
+      lightgray: '#d1d5db',
+      orange: '#f97316',
+      purple: '#a855f7',
+      violet: '#8b5cf6',
+      teal: '#14b8a6',
+      olive: '#84cc16',
+      lime: '#84cc16',
+      brown: '#a16207',
+      pink: '#ec4899'
     };
     return map[name.toLowerCase()] ?? null;
   }
@@ -58,12 +58,26 @@ export class TikzCodec {
     return null;
   }
 
-  private parseTikzColor(colorStr: string): { hex: string; raw: string } | null {
+  private parseTikzColor(colorStr: string): { hex: string; raw?: string } | null {
     const trimmed = colorStr.trim();
     if (!trimmed) return null;
 
+    const rgb255Match = trimmed.match(/\{?rgb,255:red,(\d+);green,(\d+);blue,(\d+)\}?/i);
+    if (rgb255Match) {
+      const r = parseInt(rgb255Match[1]);
+      const g = parseInt(rgb255Match[2]);
+      const b = parseInt(rgb255Match[3]);
+      const hex = `#${[r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+      return { hex };
+    }
+
+    const htmlMatch = trimmed.match(/\{?HTML\}?\{?([0-9a-fA-F]{6})\}?/i);
+    if (htmlMatch) {
+      return { hex: `#${htmlMatch[1].toLowerCase()}` };
+    }
+
     if (trimmed.startsWith('#')) {
-      return { hex: trimmed, raw: trimmed };
+      return { hex: trimmed };
     }
 
     const parts = trimmed.split('!');
@@ -99,9 +113,10 @@ export class TikzCodec {
     if (!optsStr) return {};
     const res: ReturnType<typeof this.parseOptions> = {};
 
-    const colorMatch = optsStr.match(/color\s*=\s*([a-zA-Z0-9!#_]+)/i);
+    const colorMatch = optsStr.match(/color\s*=\s*(?:\{([^}]+)\}|([a-zA-Z0-9!#_:-]+))/i);
     if (colorMatch) {
-      const parsedColor = this.parseTikzColor(colorMatch[1]);
+      const colorVal = colorMatch[1] ?? colorMatch[2];
+      const parsedColor = this.parseTikzColor(colorVal);
       if (parsedColor) {
         res.color = parsedColor.hex;
         res.rawColor = parsedColor.raw;
@@ -315,21 +330,33 @@ export class TikzCodec {
       throw new Error("Core component 'Text' not found");
     }
     let label = rawLabel.trim();
+    if (label.startsWith('{') && label.endsWith('}')) {
+      label = label.slice(1, -1).trim();
+    }
+
     let math = false;
     let bold = false;
     let italic = false;
 
     if (label.startsWith('$') && label.endsWith('$')) {
-      label = label.substring(1, label.length - 1);
+      label = label.slice(1, -1).trim();
+      math = true;
+    } else if (
+      /\\(mathrm|mathbf|mathit|text|frac|alpha|beta|gamma|delta|pi|sigma|theta|sum|int)\b/.test(
+        label
+      ) ||
+      /[_^=]/.test(label)
+    ) {
       math = true;
     }
+
     if (label.includes('\\textbf{')) {
       bold = true;
-      label = label.replace(/\\textbf\{([^}]+)\}/, '$1');
+      label = label.replace(/\\textbf\{([^}]+)\}/g, '$1');
     }
     if (label.includes('\\textit{')) {
       italic = true;
-      label = label.replace(/\\textit\{([^}]+)\}/, '$1');
+      label = label.replace(/\\textit\{([^}]+)\}/g, '$1');
     }
 
     const style: EditorElementStyle = {
@@ -354,6 +381,32 @@ export class TikzCodec {
       svgMarkup: template.svgMarkup,
       tikzCommand: template.tikzCommand
     };
+  }
+
+  private splitTikzStatements(source: string): string[] {
+    const statements: string[] = [];
+    let current = '';
+    let braceDepth = 0;
+    let bracketDepth = 0;
+
+    for (let i = 0; i < source.length; i++) {
+      const char = source[i];
+      if (char === '{') braceDepth++;
+      else if (char === '}') braceDepth = Math.max(0, braceDepth - 1);
+      else if (char === '[') bracketDepth++;
+      else if (char === ']') bracketDepth = Math.max(0, bracketDepth - 1);
+
+      if (char === ';' && braceDepth === 0 && bracketDepth === 0) {
+        statements.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim()) {
+      statements.push(current);
+    }
+    return statements;
   }
 
   public parse(source: string): { elements: EditorElement[]; pictureOptions: string } {
@@ -393,7 +446,7 @@ export class TikzCodec {
     }
 
     const shifts: { x: number; y: number }[] = [{ x: 0, y: 0 }];
-    const statements = cleaned.split(';');
+    const statements = this.splitTikzStatements(cleaned);
 
     for (const rawStmt of statements) {
       const stmt = rawStmt.replace(/\s+/g, ' ').trim();
@@ -439,12 +492,19 @@ export class TikzCodec {
 
       // 2. Circle matching
       const circleMatch = stmt.match(
-        /\\(fill|draw)(?:\s*\[([^\]]*)\])?\s*(\([^)]+\))\s*circle\s*\(\s*(\d+(?:\.\d+)?)\s*(?:pt|cm)?\s*\)(?:\s*node\[[^\]]*\]\s*\{(.*)\})?/
+        /\\(fill|draw)(?:\s*\[([^\]]*)\])?\s*(\([^)]+\))\s*circle\s*\(\s*(\d+(?:\.\d+)?)\s*(pt|cm)?\s*\)(?:\s*node\[[^\]]*\]\s*\{(.*)\})?/
       );
       if (circleMatch) {
         const point = this.parsePoint(circleMatch[3], currentShift, namedCoords);
         if (point) {
-          const parsedRadius = parseFloat(circleMatch[4]);
+          let parsedRadius = parseFloat(circleMatch[4]);
+          const unit = circleMatch[5]?.toLowerCase();
+          if (!isNaN(parsedRadius)) {
+            if (unit === 'cm' || (unit === undefined && parsedRadius < 1.0)) {
+              parsedRadius = parsedRadius * 28.45;
+            }
+            parsedRadius = Math.max(parsedRadius, 2.0);
+          }
           const isFilled = circleMatch[1] === 'fill';
           const isLarge = !isNaN(parsedRadius) && parsedRadius >= 6.0;
           let nodeName: 'Filled node' | 'Open node' | 'Circle' | 'Filled Circle';
@@ -460,7 +520,7 @@ export class TikzCodec {
               nodeName,
               point.x,
               point.y,
-              circleMatch[5] ?? '',
+              circleMatch[6] ?? '',
               isNaN(parsedRadius) ? undefined : parsedRadius,
               optsStyle
             )
@@ -653,26 +713,60 @@ export class TikzCodec {
         opts.push('dashed');
       }
       if (elem.style.rawColor) {
-        opts.push(`color=${elem.style.rawColor}`);
+        const raw = elem.style.rawColor;
+        if (raw.includes(',') || raw.includes(' ')) {
+          opts.push(`color={${raw}}`);
+        } else {
+          opts.push(`color=${raw}`);
+        }
       } else if (elem.style.color && elem.style.color !== '#f8e7ad') {
-        opts.push(`color=${elem.style.color}`);
+        const hexVal = elem.style.color.startsWith('#')
+          ? elem.style.color.substring(1)
+          : elem.style.color;
+        if (/^[0-9A-F]{6}$/i.test(hexVal)) {
+          const r = parseInt(hexVal.slice(0, 2), 16);
+          const g = parseInt(hexVal.slice(2, 4), 16);
+          const b = parseInt(hexVal.slice(4, 6), 16);
+          opts.push(`color={rgb,255:red,${r};green,${g};blue,${b}}`);
+        } else {
+          opts.push(`color=${elem.style.color}`);
+        }
       }
 
       if (opts.length > 0) {
-        const optsStr = opts.join(', ');
-        if (cmd.startsWith('\\draw[')) {
-          cmd = cmd.replace(/\\draw\[/, `\\draw[${optsStr}, `);
-        } else if (cmd.startsWith('\\draw')) {
-          cmd = cmd.replace(/\\draw/, `\\draw[${optsStr}]`);
-        } else if (cmd.startsWith('\\fill[')) {
-          cmd = cmd.replace(/\\fill\[/, `\\fill[${optsStr}, `);
-        } else if (cmd.startsWith('\\fill')) {
-          cmd = cmd.replace(/\\fill/, `\\fill[${optsStr}]`);
-        } else if (cmd.startsWith('\\node[')) {
-          cmd = cmd.replace(/\\node\[/, `\\node[${optsStr}, `);
-        } else if (cmd.startsWith('\\node')) {
-          cmd = cmd.replace(/\\node/, `\\node[${optsStr}]`);
-        }
+        const hasColor = opts.some(o => o.startsWith('color='));
+        const hasLineWidth = opts.some(o => o.startsWith('line width='));
+        const hasLineStyle = opts.some(o => o === 'dotted' || o === 'dashed');
+
+        cmd = cmd.replace(
+          /(\\draw|\\fill|\\node)(\[[^\]]*\])?/,
+          (_match: string, head: string, brackets?: string): string => {
+            if (!brackets) {
+              return `${head}[${opts.join(', ')}]`;
+            }
+            let inner = brackets.slice(1, -1);
+            if (hasColor) {
+              inner = inner
+                .replace(/(?:color|draw|fill)=(?:\{[^}]*\}|[^,\]]+)/g, '')
+                .replace(/,,+/g, ',');
+            }
+            if (hasLineWidth) {
+              inner = inner.replace(/line width=[^,\]]+/g, '').replace(/,,+/g, ',');
+            }
+            if (hasLineStyle) {
+              inner = inner.replace(/\b(dotted|dashed|solid)\b/g, '').replace(/,,+/g, ',');
+            }
+            const cleanedInner = inner
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
+              .join(', ');
+            const finalOpts = cleanedInner
+              ? `${opts.join(', ')}, ${cleanedInner}`
+              : opts.join(', ');
+            return `${head}[${finalOpts}]`;
+          }
+        );
       }
 
       let formattedLabel = elem.label || '';
