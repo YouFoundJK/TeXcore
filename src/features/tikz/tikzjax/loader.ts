@@ -616,7 +616,7 @@ export class TikzJaxLoader {
     // Calculate the bounding box of the actual elements to crop margins perfectly
     const bbox = getSvgBoundingBox(svg);
     if (bbox) {
-      const padding = 4; // 4pt padding on all sides for layout safety
+      const padding = 3; // 3pt minimal padding on all sides for compact layout
       const width = bbox.maxX - bbox.minX + padding * 2;
       const height = bbox.maxY - bbox.minY + padding * 2;
       svg.setAttribute('width', `${width}pt`);
@@ -667,15 +667,16 @@ interface Matrix2D {
   f: number;
 }
 
-function getSvgBoundingBox(
+export function getSvgBoundingBox(
   svg: SVGElement
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  let minX = 0;
-  let minY = 0;
-  let maxX = 0;
-  let maxY = 0;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
   function updateBounds(x: number, y: number) {
+    if (isNaN(x) || isNaN(y)) return;
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
     if (y < minY) minY = y;
@@ -785,15 +786,75 @@ function getSvgBoundingBox(
       const id = href.substring(1);
       const defElement = svg.querySelector(`[id="${id}"]`);
       if (defElement) {
-        if (defElement.tagName === 'path') {
+        if (defElement.tagName.toLowerCase() === 'path') {
           const d = defElement.getAttribute('d') || '';
           parsePathBounds(d, matrix, x, y);
+        } else {
+          const innerPaths = defElement.querySelectorAll('path');
+          innerPaths.forEach(innerPath => {
+            const d = innerPath.getAttribute('d') || '';
+            const innerMatrix = multiply(matrix, getAbsoluteMatrix(innerPath));
+            parsePathBounds(d, innerMatrix, x, y);
+          });
         }
       }
     }
   });
 
-  // 3. Scan rects
+  // 3. Scan text and tspan elements
+  const texts = svg.querySelectorAll('text, tspan');
+  texts.forEach(text => {
+    if (text.closest('defs')) return;
+    const xStr = text.getAttribute('x');
+    const yStr = text.getAttribute('y');
+    if (!xStr && !yStr && text.tagName.toLowerCase() === 'tspan') return;
+
+    const x = parseFloat(xStr || '0');
+    const y = parseFloat(yStr || '0');
+    const dx = parseFloat(text.getAttribute('dx') || '0');
+    const dy = parseFloat(text.getAttribute('dy') || '0');
+
+    let fontSize = 10;
+    const fontSizeAttr = text.getAttribute('font-size');
+    if (fontSizeAttr) {
+      fontSize = parseFloat(fontSizeAttr) || 10;
+    } else {
+      const style = text.getAttribute('style') || '';
+      const match = style.match(/font-size\s*:\s*([0-9.]+)/i);
+      if (match) {
+        fontSize = parseFloat(match[1]) || 10;
+      }
+    }
+
+    const textContent = text.textContent?.trim() || '';
+    const textLen = textContent.length || 1;
+    const estimatedWidth = Math.max(fontSize * 0.6, textLen * fontSize * 0.55);
+
+    const textAnchor = text.getAttribute('text-anchor') || 'start';
+    let startX = x + dx;
+    if (textAnchor === 'middle') {
+      startX -= estimatedWidth / 2;
+    } else if (textAnchor === 'end') {
+      startX -= estimatedWidth;
+    }
+
+    const startY = y + dy - fontSize * 0.85;
+    const endY = y + dy + fontSize * 0.25;
+    const endX = startX + estimatedWidth;
+
+    const matrix = getAbsoluteMatrix(text);
+    const p1 = applyTransform(matrix, startX, startY);
+    const p2 = applyTransform(matrix, endX, startY);
+    const p3 = applyTransform(matrix, startX, endY);
+    const p4 = applyTransform(matrix, endX, endY);
+
+    updateBounds(p1.x, p1.y);
+    updateBounds(p2.x, p2.y);
+    updateBounds(p3.x, p3.y);
+    updateBounds(p4.x, p4.y);
+  });
+
+  // 4. Scan rects
   const rects = svg.querySelectorAll('rect');
   rects.forEach(rect => {
     if (rect.closest('defs')) return;
@@ -812,7 +873,7 @@ function getSvgBoundingBox(
     updateBounds(p4.x, p4.y);
   });
 
-  // 4. Scan circles
+  // 5. Scan circles
   const circles = svg.querySelectorAll('circle');
   circles.forEach(circle => {
     if (circle.closest('defs')) return;
@@ -826,7 +887,22 @@ function getSvgBoundingBox(
     updateBounds(p2.x, p2.y);
   });
 
-  // 5. Scan lines
+  // 6. Scan ellipses
+  const ellipses = svg.querySelectorAll('ellipse');
+  ellipses.forEach(ellipse => {
+    if (ellipse.closest('defs')) return;
+    const cx = parseFloat(ellipse.getAttribute('cx') || '0');
+    const cy = parseFloat(ellipse.getAttribute('cy') || '0');
+    const rx = parseFloat(ellipse.getAttribute('rx') || '0');
+    const ry = parseFloat(ellipse.getAttribute('ry') || '0');
+    const matrix = getAbsoluteMatrix(ellipse);
+    const p1 = applyTransform(matrix, cx - rx, cy - ry);
+    const p2 = applyTransform(matrix, cx + rx, cy + ry);
+    updateBounds(p1.x, p1.y);
+    updateBounds(p2.x, p2.y);
+  });
+
+  // 7. Scan lines
   const lines = svg.querySelectorAll('line');
   lines.forEach(line => {
     if (line.closest('defs')) return;
@@ -839,6 +915,25 @@ function getSvgBoundingBox(
     const p2 = applyTransform(matrix, x2, y2);
     updateBounds(p1.x, p1.y);
     updateBounds(p2.x, p2.y);
+  });
+
+  // 8. Scan polygons and polylines
+  const polys = svg.querySelectorAll('polygon, polyline');
+  polys.forEach(poly => {
+    if (poly.closest('defs')) return;
+    const pointsAttr = poly.getAttribute('points') || '';
+    const matches = pointsAttr.match(/[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g);
+    if (matches) {
+      const matrix = getAbsoluteMatrix(poly);
+      for (let i = 0; i < matches.length; i += 2) {
+        const x = parseFloat(matches[i]);
+        const y = parseFloat(matches[i + 1]);
+        if (!isNaN(x) && !isNaN(y)) {
+          const pt = applyTransform(matrix, x, y);
+          updateBounds(pt.x, pt.y);
+        }
+      }
+    }
   });
 
   if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {

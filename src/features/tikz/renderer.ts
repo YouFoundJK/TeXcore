@@ -100,14 +100,17 @@ export class TikzRenderer {
           display: flex;
           justify-content: center;
           align-items: center;
-          padding: 0;
-          margin: 0.3em 0;
+          padding: 0.1em 0.2em;
+          margin: 0.1em 0;
           overflow-x: auto;
+          overflow-y: visible;
           background-color: transparent;
         }
         .block-language-tikz svg {
           max-width: 100%;
           height: auto;
+          margin: 0;
+          overflow: visible;
           color: var(--text-normal);
         }
         .block-language-tikz .tikzjax-error {

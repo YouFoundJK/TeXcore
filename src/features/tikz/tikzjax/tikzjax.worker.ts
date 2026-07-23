@@ -163,8 +163,10 @@ export function getCurrentYear(): number {
 
 // ─── Text Encoding ────────────────────────────────────────────────────────────
 
-const textDecoder = new TextDecoder();
-const textEncoder = new TextEncoder();
+const textDecoder: TextDecoder | undefined =
+  typeof TextDecoder !== 'undefined' ? new TextDecoder() : undefined;
+const textEncoder: TextEncoder | undefined =
+  typeof TextEncoder !== 'undefined' ? new TextEncoder() : undefined;
 
 // ─── Print Functions ──────────────────────────────────────────────────────────
 
@@ -173,13 +175,13 @@ export function printString(descriptor: number, x: number) {
   const file = descriptor < 0 ? null : files[descriptor];
   const length = new Uint8Array(memory, x, 1)[0];
   const buf = new Uint8Array(memory, x + 1, length);
-  const string = textDecoder.decode(buf);
+  const string = textDecoder?.decode(buf) ?? '';
 
   if (!file || file.stdout) {
     writeToConsole(string);
     return;
   }
-  writeContent(file, textEncoder.encode(string));
+  writeContent(file, textEncoder?.encode(string) ?? new Uint8Array());
 }
 
 export function printBoolean(descriptor: number, x: boolean) {
@@ -189,7 +191,7 @@ export function printBoolean(descriptor: number, x: boolean) {
     writeToConsole(result);
     return;
   }
-  writeContent(file, textEncoder.encode(result));
+  writeContent(file, textEncoder?.encode(result) ?? new Uint8Array());
 }
 
 export function printChar(descriptor: number, x: number) {
@@ -208,7 +210,7 @@ export function printInteger(descriptor: number, x: number) {
     writeToConsole(str);
     return;
   }
-  writeContent(file, textEncoder.encode(str));
+  writeContent(file, textEncoder?.encode(str) ?? new Uint8Array());
 }
 
 export function printFloat(descriptor: number, x: number) {
@@ -218,7 +220,7 @@ export function printFloat(descriptor: number, x: number) {
     writeToConsole(str);
     return;
   }
-  writeContent(file, textEncoder.encode(str));
+  writeContent(file, textEncoder?.encode(str) ?? new Uint8Array());
 }
 
 export function printNewline(descriptor: number) {
@@ -227,7 +229,7 @@ export function printNewline(descriptor: number) {
     writeToConsole('\n');
     return;
   }
-  writeContent(file, textEncoder.encode('\n'));
+  writeContent(file, textEncoder?.encode('\n') ?? new Uint8Array());
 }
 
 function writeContent(file: VirtualFile, buf: Uint8Array, offset = 0, len = buf.length - offset) {
@@ -244,7 +246,7 @@ function writeContent(file: VirtualFile, buf: Uint8Array, offset = 0, len = buf.
 
 export function reset(length: number, pointer: number): number {
   if (!memory) return -1;
-  let filename = textDecoder.decode(new Uint8Array(memory, pointer, length));
+  let filename = textDecoder?.decode(new Uint8Array(memory, pointer, length)) ?? '';
   filename = filename.replace(/ +$/g, '');
   filename = filename.replace(/^\*/, '');
   filename = filename.replace(/^TeXfonts:/, '');
@@ -268,7 +270,7 @@ export function reset(length: number, pointer: number): number {
 
 export function rewrite(length: number, pointer: number): number {
   if (!memory) return -1;
-  let filename = textDecoder.decode(new Uint8Array(memory, pointer, length));
+  let filename = textDecoder?.decode(new Uint8Array(memory, pointer, length)) ?? '';
   filename = filename.replace(/ +$/g, '');
   filename = filename.replace(/"/g, '');
 
@@ -305,7 +307,7 @@ export function inputln(
     const H = new Uint32Array(memory, last_pointer, 4);
     H[0] = X[0];
 
-    const encoded = textEncoder.encode(inputBuffer);
+    const encoded = textEncoder?.encode(inputBuffer) ?? new Uint8Array();
 
     // Advance past the \n from the previous read (mirrors the file-read branch)
     if (bypass_eof && !file.eof && file.eoln) {
@@ -393,7 +395,7 @@ export function get(descriptor: number, pointer: number, length: number) {
   const buffer = new Uint8Array(memory);
 
   if (file.stdin) {
-    const encoded = textEncoder.encode(inputBuffer);
+    const encoded = textEncoder?.encode(inputBuffer) ?? new Uint8Array();
     if (file.position >= encoded.length) {
       buffer[pointer] = 13;
       file.eof = true;
@@ -506,7 +508,7 @@ ${bodyLines.join('\n')}
   }
 
   // Write input to the virtual fs; TeX engine outputs input.dvi
-  writeFileSync('input.tex', textEncoder.encode(input));
+  writeFileSync('input.tex', textEncoder?.encode(input) ?? new Uint8Array());
 
   // Set up WASM memory and load the core dump (TeX format file)
   const memoryInstance = new WebAssembly.Memory({ initial: PAGES, maximum: PAGES });
