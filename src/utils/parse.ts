@@ -182,3 +182,87 @@ export function isStructuralCalloutLine(line: string): boolean {
   // Matches start of line, optional prefix chars, end of line.
   return /^\s*(?:>\s?)*$/.test(line);
 }
+
+export const TOP_LEVEL_EQ_ENVS = new Set([
+  'align',
+  'align*',
+  'gather',
+  'gather*',
+  'eqnarray',
+  'eqnarray*',
+  'flalign',
+  'flalign*',
+  'alignat',
+  'alignat*',
+  'multline',
+  'multline*',
+  'subequations',
+  'subequations*',
+  'equation',
+  'equation*'
+]);
+
+/**
+ * Splits a LaTeX math text into top-level equation rows by '\\', ignoring
+ * line breaks that occur inside nested environments (like pmatrix, matrix, cases, array, etc.)
+ * or inside LaTeX comments.
+ */
+export function splitMathIntoTopLevelRows(mathText: string): string[] {
+  const TOKEN_REGEX =
+    /\\%|%[^\n]*|\\begin\{\s*([a-zA-Z*]+)\s*\}|\\end\{\s*([a-zA-Z*]+)\s*\}|(\\\\(?:\s*\[[^\]]*\])?)/g;
+
+  const envStack: string[] = [];
+  const parts: string[] = [];
+  let lastIndex = 0;
+
+  let match: RegExpExecArray | null;
+  while ((match = TOKEN_REGEX.exec(mathText)) !== null) {
+    const beginEnv = match[1];
+    const endEnv = match[2];
+    const lineBreak = match[3];
+
+    if (beginEnv) {
+      envStack.push(beginEnv);
+    } else if (endEnv) {
+      if (envStack.length > 0) {
+        const idx = envStack.lastIndexOf(endEnv);
+        if (idx !== -1) {
+          envStack.splice(idx);
+        } else {
+          envStack.pop();
+        }
+      }
+    } else if (lineBreak) {
+      const isTopLevel = envStack.every(env => TOP_LEVEL_EQ_ENVS.has(env));
+      if (isTopLevel) {
+        const breakStart = match.index;
+        const breakEnd = TOKEN_REGEX.lastIndex;
+        parts.push(mathText.substring(lastIndex, breakStart));
+        parts.push(mathText.substring(breakStart, breakEnd));
+        lastIndex = breakEnd;
+      }
+    }
+  }
+
+  parts.push(mathText.substring(lastIndex));
+  return parts;
+}
+
+/**
+ * Finds the first top-level \end{<env>} in text where <env> is a top-level equation container
+ * (e.g. align, gather), ignoring nested environment closes like \end{pmatrix} or comments.
+ */
+export function findTopLevelEndEnvMatch(text: string): { index: number; matchText: string } | null {
+  const TOKEN_REGEX = /\\%|%[^\n]*|\\end\{\s*([a-zA-Z*]+)\s*\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = TOKEN_REGEX.exec(text)) !== null) {
+    const endEnv = match[1];
+    if (endEnv && TOP_LEVEL_EQ_ENVS.has(endEnv)) {
+      return {
+        index: match.index,
+        matchText: match[0]
+      };
+    }
+  }
+  return null;
+}

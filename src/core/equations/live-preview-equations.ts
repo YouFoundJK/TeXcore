@@ -8,7 +8,9 @@ import {
   CALLOUT_PREFIX_REGEX,
   getCalloutPrefix,
   isStructuralCalloutLine,
-  findDisplayMathBlocks
+  findDisplayMathBlocks,
+  splitMathIntoTopLevelRows,
+  findTopLevelEndEnvMatch
 } from 'utils/parse';
 
 /**
@@ -229,7 +231,7 @@ function createTagManagerPlugin(
           // --- Mode 1: Sub-equation ---
           if (info.subIndices && info.subIndices.size > 0 && info.printName) {
             const baseName = info.printName.slice(1, -1);
-            const parts = mathPart.trim().split(/(\\\\(?:\s*\[[^\]]*\])?)/);
+            const parts = splitMathIntoTopLevelRows(mathPart);
             let hasContent = false;
             const newParts = [...parts];
 
@@ -243,10 +245,10 @@ function createTagManagerPlugin(
               hasContent = true;
               const subIndex = i / 2 + 1;
               const newTag = ` \\tag{${baseName}.${subIndex}}`;
-              const endEnvMatch = cleanedRow.match(/(\\end\{[a-zA-Z*]+\})/);
-              if (endEnvMatch && endEnvMatch.index !== undefined) {
+              const endEnvMatch = findTopLevelEndEnvMatch(cleanedRow);
+              if (endEnvMatch) {
                 const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
-                const environment = endEnvMatch[0];
+                const environment = endEnvMatch.matchText;
                 const after = cleanedRow.substring(endEnvMatch.index + environment.length);
                 newParts[i] = `${before + newTag} ${environment}${after}`;
               } else {
@@ -266,7 +268,16 @@ function createTagManagerPlugin(
             mathPart = mathPart.trimEnd();
 
             if (requiredTagContent) {
-              mathPart += ` \\tag{${requiredTagContent}}`;
+              const newTag = ` \\tag{${requiredTagContent}}`;
+              const endEnvMatch = findTopLevelEndEnvMatch(mathPart);
+              if (endEnvMatch) {
+                const before = mathPart.substring(0, endEnvMatch.index).trimEnd();
+                const environment = endEnvMatch.matchText;
+                const after = mathPart.substring(endEnvMatch.index + environment.length);
+                mathPart = `${before + newTag} ${environment}${after}`;
+              } else {
+                mathPart += newTag;
+              }
             }
             newInnerContent = mathPart;
           }

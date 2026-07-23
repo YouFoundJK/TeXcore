@@ -12,7 +12,9 @@ import {
   parseYamlLike,
   getCalloutPrefix,
   isStructuralCalloutLine,
-  findDisplayMathBlocks
+  findDisplayMathBlocks,
+  splitMathIntoTopLevelRows,
+  findTopLevelEndEnvMatch
 } from '../src/utils/parse';
 
 import { splitIntoLines, insertAt } from '../src/utils/general';
@@ -139,21 +141,45 @@ describe('general.ts tests', () => {
   });
 });
 
-describe('Sub-equation splitting regex tests', () => {
-  it('should split rows while keeping \\[dimen] intact', () => {
-    const regex = /(\\\\(?:\s*\[[^\]]*\])?)/;
+describe('Sub-equation splitting and matrix environment tests', () => {
+  it('should split rows while keeping \\[dimen] intact at top level', () => {
     const input = `\\beta \\frac{\\partial P}{\\partial \\rho} & = \\frac{\\partial}{\\partial \\eta} \\left[ \\eta \\frac{1 + \\eta + \\eta^2}{(1 - \\eta)^3} \\right]  \\\\[0.6em]\n\\implies q(\\eta)  & = \\frac{(1 + 2\\eta)^2}{(1 - \\eta)^4}  \\end{align}`;
-    const parts = input.split(regex);
+    const parts = splitMathIntoTopLevelRows(input);
     expect(parts.length).toBe(3);
     expect(parts[0]).toContain('\\beta');
     expect(parts[1]).toBe('\\\\[0.6em]');
     expect(parts[2]).toContain('\\implies');
   });
 
-  it('should split rows when there is no dimension parameter', () => {
-    const regex = /(\\\\(?:\s*\[[^\]]*\])?)/;
+  it('should split rows when there is no dimension parameter at top level', () => {
     const input = `row1 \\\\ row2`;
-    const parts = input.split(regex);
+    const parts = splitMathIntoTopLevelRows(input);
     expect(parts).toEqual(['row1 ', '\\\\', ' row2']);
   });
+
+  it('should NEVER split inside pmatrix or matrix environments', () => {
+    const input = `\\begin{align}
+J_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0
+\\end{pmatrix} \\int_r^\\infty dr_1 \\, r_1 P_l(r/r_1) \\hat{h}_{ij}^{mnl}(r_1)  \\\\
+S_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0 
+\\end{pmatrix} \\int_r^\\infty dr_1 \\, r_1 P_l(r/r_1) \\hat{c}_{ij}^{mnl}(r_1)  
+\\end{align}`;
+
+    const parts = splitMathIntoTopLevelRows(input);
+    expect(parts.length).toBe(3);
+    expect(parts[0]).toContain('\\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0\n\\end{pmatrix}');
+    expect(parts[1]).toBe('\\\\');
+    expect(parts[2]).toContain('\\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0 \n\\end{pmatrix}');
+  });
+
+  it('should correctly find top-level end environment matches while ignoring nested environments', () => {
+    const rowWithMatrix = `J = \\begin{pmatrix} a \\\\ b \\end{pmatrix} \\int f(x) dx`;
+    expect(findTopLevelEndEnvMatch(rowWithMatrix)).toBeNull();
+
+    const rowWithAlign = `S = \\begin{pmatrix} a \\\\ b \\end{pmatrix} \\int f(x) dx \\end{align}`;
+    const match = findTopLevelEndEnvMatch(rowWithAlign);
+    expect(match).not.toBeNull();
+    expect(match?.matchText).toBe('\\end{align}');
+  });
 });
+
