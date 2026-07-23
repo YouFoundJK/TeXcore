@@ -262,7 +262,7 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   printEl.findAll('a.internal-link').forEach((el: HTMLElement) => {
     const [title, anchor] = el.dataset.href?.split('#') ?? [];
 
-    if ((!title || title?.length === 0 || title === file.basename) && anchor?.startsWith('^')) {
+    if ((!title || title?.length === 0 || title === file.basename) && anchor && anchor.length > 0) {
       return;
     }
 

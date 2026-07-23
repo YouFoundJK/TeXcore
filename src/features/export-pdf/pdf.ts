@@ -54,6 +54,7 @@ interface TPosition {
 export async function getDestPosition(pdfDoc: PDFDocument): Promise<TPosition> {
   const pages = pdfDoc.getPages();
   const links: TPosition = {};
+  console.debug(`[PDF Export] Scanning ${pages.length} page(s) for destination anchors (af://)...`);
 
   pages.forEach((page, pageIndex) => {
     const annotations = page.node.Annots();
@@ -69,31 +70,40 @@ export async function getDestPosition(pdfDoc: PDFDocument): Promise<TPosition> {
         if (subtype?.toString() === '/Link') {
           const linkDict = annotation.get(PDFName.of('A')) as PDFDict;
           // @ts-ignore
-          const uri = linkDict?.get(PDFName.of('URI')).toString();
-          console.debug('uri', uri);
+          const uri = linkDict?.get(PDFName.of('URI'))?.toString();
+          if (uri) {
+            console.debug(`[PDF Export] Found Link URI: ${uri} on page ${pageIndex + 1}`);
+          }
           const regexMatch = /^\(af:\/\/(.+)\)$/.exec(uri || '');
 
           if (regexMatch) {
             const rect = (annotation.get(PDFName.of('Rect')) as PDFArray)?.asRectangle();
             const linkUrl = regexMatch[1];
-            const yPos = rect.y;
+            const yPos = rect ? rect.y : 0;
             links[linkUrl] = [pageIndex, yPos];
+            console.debug(
+              `[PDF Export] Found anchor target 'af://${linkUrl}' on page ${pageIndex + 1} at yPos=${yPos}`
+            );
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error('[PDF Export] Error in getDestPosition:', err);
       }
     }
   });
 
+  console.debug(`[PDF Export] Total destination anchors registered: ${Object.keys(links).length}`);
   return links;
 }
 
 // refer to: https://github.com/Hopding/pdf-lib/issues/206
 export async function setAnchors(pdfDoc: PDFDocument, links: TPosition) {
   const pages = pdfDoc.getPages();
+  let convertedCount = 0;
+  let skippedCount = 0;
+  console.debug(`[PDF Export] Resolving internal navigation links (an://)...`);
 
-  pages.forEach((page, _) => {
+  pages.forEach((page, pageIdx) => {
     const annots = page.node.Annots();
     if (!annots) {
       return;
@@ -108,33 +118,46 @@ export async function setAnchors(pdfDoc: PDFDocument, links: TPosition) {
         if (subtype?.toString() === '/Link') {
           const linkDict = linkAnnot.get(PDFName.of('A')) as PDFDict;
           // @ts-ignore
-          const uri = linkDict?.get(PDFName.of('URI')).toString();
-          console.debug('uri', uri);
+          const uri = linkDict?.get(PDFName.of('URI'))?.toString();
           const regexMatch = /^\(an:\/\/(.+)\)$/.exec(uri || '');
 
           const key = regexMatch?.[1];
-          if (key && links?.[key]) {
-            const [pageIdx, yPos] = links[key];
-            const newAnnot = pdfDoc.context.obj({
-              Type: 'Annot',
-              Subtype: 'Link',
-              Rect: linkAnnot.lookup(PDFName.of('Rect')),
-              Border: linkAnnot.lookup(PDFName.of('Border')),
-              C: linkAnnot.lookup(PDFName.of('C')),
-              Dest: [pages[pageIdx].ref, 'XYZ', null, yPos, null]
-            });
+          if (key) {
+            if (links?.[key]) {
+              const [targetPageIdx, yPos] = links[key];
+              const newAnnot = pdfDoc.context.obj({
+                Type: 'Annot',
+                Subtype: 'Link',
+                Rect: linkAnnot.lookup(PDFName.of('Rect')),
+                Border: linkAnnot.lookup(PDFName.of('Border')),
+                C: linkAnnot.lookup(PDFName.of('C')),
+                Dest: [pages[targetPageIdx].ref, 'XYZ', null, yPos, null]
+              });
 
-            // @ts-ignore
-            // Replace all occurrences of the external annotation with the internal one
-            pdfDoc.context.assign(linkAnnotRef, newAnnot);
+              // Replace external URI annotation with internal Dest annotation
+              // @ts-ignore
+              pdfDoc.context.assign(linkAnnotRef, newAnnot);
+              convertedCount++;
+              console.debug(
+                `[PDF Export] Converted link 'an://${key}' (on page ${pageIdx + 1}) to PDF Dest -> page ${targetPageIdx + 1}, yPos=${yPos}`
+              );
+            } else {
+              skippedCount++;
+              console.warn(
+                `[PDF Export] Destination key 'an://${key}' not found in registered anchors (page ${pageIdx + 1})`
+              );
+            }
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error('[PDF Export] Error in setAnchors:', err);
       }
     }
   });
 
+  console.debug(
+    `[PDF Export] PDF links resolution finished: ${convertedCount} converted, ${skippedCount} skipped.`
+  );
   return links;
 }
 

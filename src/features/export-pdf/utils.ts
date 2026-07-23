@@ -58,14 +58,52 @@ export function getHeadingTree(doc = activeDocument) {
 // modify heading/block, and get heading/block flag
 export function modifyDest(doc: Document): Map<string, string> {
   const data = new Map<string, string>();
-  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el: Element, i) => {
+  let count = 0;
+
+  // 1. Headings
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el: Element) => {
     const heading = el as HTMLElement;
+    if (heading.querySelector('a.md-print-anchor')) return;
+
     const link = activeDocument.createElement('a');
-    const flag = `${heading.tagName.toLowerCase()}-${i}`;
+    const flag = `${heading.tagName.toLowerCase()}-${count++}`;
     link.href = `af://${flag}`;
     link.className = 'md-print-anchor';
     heading.appendChild(link);
-    data.set(heading.dataset.heading ?? '', flag);
+
+    if (heading.dataset.heading) {
+      data.set(heading.dataset.heading, flag);
+    }
+    if (heading.id) {
+      data.set(heading.id, flag);
+      data.set(heading.id.startsWith('^') ? heading.id.substring(1) : `^${heading.id}`, flag);
+    }
+  });
+
+  // 2. Block IDs and elements with ID attributes (e.g. equation blocks, spans with id)
+  doc.querySelectorAll('.blockid, [id]').forEach((el: Element) => {
+    const blockEl = el as HTMLElement;
+    const rawId = blockEl.id || blockEl.getAttribute('id');
+
+    if (!rawId) return;
+
+    let flag: string;
+    const existingAnchor = blockEl.querySelector('a.md-print-anchor') as HTMLAnchorElement | null;
+
+    if (existingAnchor) {
+      const match = /^af:\/\/(.+)$/.exec(existingAnchor.href || '');
+      flag = match ? match[1] : `block-${count++}`;
+    } else {
+      flag = `block-${count++}`;
+      const link = activeDocument.createElement('a');
+      link.href = `af://${flag}`;
+      link.className = 'md-print-anchor';
+      blockEl.appendChild(link);
+    }
+
+    data.set(rawId, flag);
+    const altId = rawId.startsWith('^') ? rawId.substring(1) : `^${rawId}`;
+    data.set(altId, flag);
   });
 
   return data;
@@ -78,21 +116,38 @@ function convertMapKeysToLowercase(map: Map<string, string>) {
 export function fixAnchors(doc: Document, dest: Map<string, string>, basename: string) {
   const lowerDest = convertMapKeysToLowercase(dest);
 
-  doc.querySelectorAll('a.internal-link').forEach((el: Element, i) => {
+  doc.querySelectorAll('a.internal-link').forEach((el: Element) => {
     const anchorEl = el as HTMLAnchorElement;
-    const [title, anchor] = anchorEl.dataset.href?.split('#') ?? [];
-
-    if (anchor?.startsWith('^')) {
-      anchorEl.href = anchorEl.dataset.href?.toLowerCase() as string;
-    }
+    const dataHref = anchorEl.dataset.href ?? anchorEl.getAttribute('data-href') ?? '';
+    const [title, anchor] = dataHref.split('#') ?? [];
 
     if (anchor?.length > 0) {
       if (title?.length > 0 && title !== basename) {
         return;
       }
 
-      const flag = dest.get(anchor) || lowerDest.get(anchor?.toLowerCase());
-      if (flag && !anchor.startsWith('^')) {
+      // 1. Try exact anchor
+      let flag = dest.get(anchor) || lowerDest.get(anchor.toLowerCase());
+
+      // 2. Try with/without caret
+      if (!flag) {
+        const altAnchor = anchor.startsWith('^') ? anchor.substring(1) : `^${anchor}`;
+        flag = dest.get(altAnchor) || lowerDest.get(altAnchor.toLowerCase());
+      }
+
+      // 3. Try stripping sub-index suffix (-1, -2, etc.)
+      if (!flag) {
+        const baseAnchor = anchor.replace(/-(\d+)$/, '');
+        if (baseAnchor !== anchor) {
+          flag = dest.get(baseAnchor) || lowerDest.get(baseAnchor.toLowerCase());
+          if (!flag) {
+            const altBase = baseAnchor.startsWith('^') ? baseAnchor.substring(1) : `^${baseAnchor}`;
+            flag = dest.get(altBase) || lowerDest.get(altBase.toLowerCase());
+          }
+        }
+      }
+
+      if (flag) {
         anchorEl.href = `an://${flag}`;
       }
     }

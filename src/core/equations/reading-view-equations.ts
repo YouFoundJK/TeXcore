@@ -12,9 +12,7 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
     const file = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!(file instanceof TFile)) return;
 
-    // In reading view, we need to read the file content directly.
-    // We cannot rely on an active editor being open.
-    void plugin.app.vault.cachedRead(file).then(content => {
+    const promise = plugin.app.vault.cachedRead(file).then(content => {
       const equations = processActiveNoteEquations(plugin, file, content);
       if (equations.size === 0) return;
 
@@ -61,5 +59,10 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
         }
       });
     });
+
+    const ctxWithPromises = ctx as unknown as { promises?: Promise<unknown>[] };
+    if (ctxWithPromises.promises) {
+      ctxWithPromises.promises.push(promise);
+    }
   };
 };
