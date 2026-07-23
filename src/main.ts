@@ -4,7 +4,6 @@ import {
   Plugin,
   PluginSettingTab,
   TFile,
-  parseLinktext,
   Menu,
   TFolder,
   Editor,
@@ -12,7 +11,6 @@ import {
   EventRef
 } from 'obsidian';
 import type { Extension } from '@codemirror/state';
-import { around } from 'monkey-around';
 
 import { PluginSettings, DEFAULT_SETTINGS } from './settings/settings';
 
@@ -33,8 +31,9 @@ import { LinkAutocomplete } from 'ui/search/editor-suggest';
 import { MathSearchModal } from 'ui/search/modal';
 import { EquationBlock } from 'types';
 
-// ADDED: Import our new internal patcher function
+// ADDED: Import our new internal patcher functions
 import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
+import { setupPagePreviewPatcher } from 'ui/quick-preview/pagePreviewPatcher';
 import { processActiveNoteEquations } from './core/equations/numbering';
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { showNotice, setCssProps } from 'utils/obsidian';
@@ -249,7 +248,20 @@ export default class LatexReferencer extends Plugin {
       void this.forceRerender();
     });
 
-    this.patchPagePreview();
+    setupPagePreviewPatcher(this);
+    this.registerEvent(
+      this.app.metadataCache.on('changed', (file: TFile) => {
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (
+          activeView &&
+          activeView.file?.path === file.path &&
+          typeof activeView.getViewData === 'function'
+        ) {
+          processActiveNoteEquations(this, file, activeView.getViewData());
+        }
+      })
+    );
+
     this.app.workspace.onLayoutReady(() => {
       this.register(setupDOMObserver(this));
     });
@@ -290,83 +302,6 @@ export default class LatexReferencer extends Plugin {
         view.previewMode.rerender(true);
       }
     });
-  }
-
-  private patchPagePreview() {
-    const pagePreviewPlugin = this.app.internalPlugins.getPluginById('page-preview') as unknown as {
-      enabled: boolean;
-      instance: unknown;
-    } | null;
-    if (!pagePreviewPlugin?.enabled) {
-      return;
-    }
-
-    const instance = pagePreviewPlugin.instance;
-    const app = this.app;
-    const getEquations = (file: TFile, content: string) =>
-      processActiveNoteEquations(this, file, content);
-
-    const uninstaller = around(instance as Record<string, unknown>, {
-      onLinkHover(old: unknown) {
-        const oldFunc = old as (
-          this: unknown,
-          hoverParent: unknown,
-          targetEl: unknown,
-          linktext: string,
-          sourcePath: string,
-          state: Record<string, unknown>
-        ) => unknown;
-        return function (
-          this: unknown,
-          hoverParent: unknown,
-          targetEl: unknown,
-          linktext: string,
-          sourcePath: string,
-          state: Record<string, unknown>
-        ) {
-          const { path, subpath } = parseLinktext(linktext);
-
-          // Check if it's our custom equation link (e.g., [[#^eq-...]] or [[file#^eq-...]])
-          if (subpath && subpath.startsWith('^eq-')) {
-            const subpathText = subpath.substring(1); // Remove '^', leaving 'eq-...'
-            const subIndexMatch = subpathText.match(/-(\d+)$/);
-            let blockId = subpathText;
-
-            if (subIndexMatch) {
-              blockId = subpathText.substring(0, subIndexMatch.index);
-            }
-            const targetFile = app.metadataCache.getFirstLinkpathDest(path, sourcePath);
-
-            if (targetFile instanceof TFile) {
-              const activeView = app.workspace.getActiveViewOfType(MarkdownView);
-              const activeFile = activeView?.file;
-              const activeContent =
-                typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
-
-              if (!activeFile || targetFile.path !== activeFile.path || activeContent === null) {
-                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
-              }
-
-              const equations = getEquations(activeFile, activeContent);
-              const targetEquation = equations.get(blockId);
-
-              if (targetEquation) {
-                const line = targetEquation.$position.start;
-                const newState = { ...state, scroll: line };
-                // Immediately call the original function with the correct line number
-                return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, newState);
-              }
-            }
-          }
-
-          // If it's not our link, or if we couldn't find it in the cache,
-          // call the original function without modification.
-          return oldFunc.call(this, hoverParent, targetEl, linktext, sourcePath, state);
-        };
-      }
-    });
-
-    this.register(uninstaller);
   }
 
   registerZoteroCommand() {

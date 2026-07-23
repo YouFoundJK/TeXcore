@@ -257,5 +257,22 @@ $$
 
     const eq2 = equations.get('eq-222');
     expect(eq2?.$printName).toBe('(A2)');
+
+    // Verify metadata cache blocks injection
+    expect(cache.blocks).toBeDefined();
+    expect(cache.blocks!['eq-111']).toEqual({
+      id: 'eq-111',
+      position: {
+        start: { line: 0, col: 0, offset: eq1Start },
+        end: { line: 3, col: 2, offset: eq1End }
+      }
+    });
+    expect(cache.blocks!['eq-222']).toEqual({
+      id: 'eq-222',
+      position: {
+        start: { line: 9, col: 0, offset: eq2Start },
+        end: { line: 12, col: 2, offset: eq2End }
+      }
+    });
   });
 });

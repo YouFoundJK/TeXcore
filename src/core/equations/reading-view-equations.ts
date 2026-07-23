@@ -39,11 +39,22 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
         }
 
         if (equation?.$printName && !equation.$subIndices) {
-          const numberEl = createSpan({
-            cls: 'math-booster-equation-number',
-            text: equation.$printName
-          });
-          if (!mathEl.parentElement?.querySelector('.math-booster-equation-number')) {
+          const hasMjxTag = Boolean(
+            mathEl.querySelector('mjx-labels, mjx-tag, .mjx-tag') ||
+            (equation.$mathText && equation.$mathText.includes('\\tag{'))
+          );
+
+          if (hasMjxTag) {
+            const existing = mathEl.parentElement?.querySelector('.math-booster-equation-number');
+            if (existing) {
+              existing.remove();
+            }
+            mathEl.parentElement?.classList.remove('math-booster-has-equation-number');
+          } else if (!mathEl.parentElement?.querySelector('.math-booster-equation-number')) {
+            const numberEl = createSpan({
+              cls: 'math-booster-equation-number',
+              text: equation.$printName
+            });
             mathEl.parentElement?.classList.add('math-booster-has-equation-number');
             mathEl.parentElement?.appendChild(numberEl);
           }

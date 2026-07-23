@@ -122,5 +122,30 @@ export function processActiveNoteEquations(
       processedEquations.set(eq.$blockId, eq);
     }
   }
+
+  // Inject equation block positions into Obsidian's Metadata Cache
+  const cache = plugin.app.metadataCache.getFileCache(file);
+  if (cache) {
+    cache.blocks = cache.blocks || {};
+    for (const [blockId, eq] of processedEquations) {
+      if (eq.$pos) {
+        cache.blocks[blockId] = {
+          id: blockId,
+          position: eq.$pos
+        };
+
+        if (eq.$subIndices) {
+          for (const subIdx of eq.$subIndices) {
+            const subBlockId = `${blockId}-${subIdx}`;
+            cache.blocks[subBlockId] = {
+              id: subBlockId,
+              position: eq.$pos
+            };
+          }
+        }
+      }
+    }
+  }
+
   return processedEquations;
 }
