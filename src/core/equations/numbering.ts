@@ -4,7 +4,6 @@ import { parsePositionalObsitexConfigs } from '../../utils/obsitex';
 import { EquationBlock } from '../../types';
 import LatexReferencer from '../../main';
 import { ActiveNoteEquationProvider } from './provider-equation';
-import type { PluginSettings } from '../../settings/settings';
 
 interface ReferenceInfo {
   totalCount: number;

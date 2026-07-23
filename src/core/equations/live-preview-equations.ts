@@ -4,7 +4,6 @@ import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
 import { CONVERTER } from 'utils/format';
 import { parsePositionalObsitexConfigs } from 'utils/obsitex';
-import type { PluginSettings } from 'settings/settings';
 import {
   CALLOUT_PREFIX_REGEX,
   getCalloutPrefix,

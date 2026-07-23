@@ -1,14 +1,11 @@
-import {
-  parseObsitexConfig,
-  getObsitexConfigAtPosition,
-  parsePositionalObsitexConfigs
-} from '../src/utils/obsitex';
+import { parseObsitexConfig, getObsitexConfigAtPosition } from '../src/utils/obsitex';
 import { getEqNumberPrefix } from '../src/utils/format';
 import { processActiveNoteEquations } from '../src/core/equations/numbering';
 import { MockAppBuilder } from './AppBuilder';
 import { FileBuilder } from './FileBuilder';
 import { App, TFile } from 'obsidian';
 import LatexReferencer from '../src/main';
+import type { PluginSettings } from '../src/settings/settings';
 
 describe('obsitex config tests', () => {
   it('parses eq-prefix with dash syntax', () => {
@@ -93,8 +90,18 @@ $$
 
   it('getEqNumberPrefix uses obsitex eqPrefix positionally over default settings', () => {
     const dummyApp = {} as App;
-    const dummyFile = {} as TFile;
-    const settings = { eqNumberPrefix: 'Default-' } as any;
+    const dummyFile = new TFile();
+    const settings: Required<PluginSettings> = {
+      numberOnlyReferencedEquations: false,
+      eqNumberPrefix: 'Default-',
+      eqNumberSuffix: '',
+      eqNumberInit: 1,
+      eqNumberStyle: 'arabic',
+      eqRefPrefix: '',
+      eqRefSuffix: '',
+      defaultCalloutType: 'note',
+      showNoteTitleInLink: true
+    };
 
     const content = 'Eq before\n```obsitex\n- eq-prefix: S\n```\nEq after';
     const obsitexPos = content.indexOf('```obsitex');
@@ -154,17 +161,21 @@ $$
       }
     ];
 
+    const testSettings: Required<PluginSettings> = {
+      numberOnlyReferencedEquations: false,
+      eqNumberPrefix: '',
+      eqNumberSuffix: '',
+      eqNumberInit: 1,
+      eqNumberStyle: 'arabic',
+      eqRefPrefix: '',
+      eqRefSuffix: '',
+      defaultCalloutType: 'note',
+      showNoteTitleInLink: true
+    };
+
     const mockPlugin = {
       app: mockApp,
-      settings: {
-        numberOnlyReferencedEquations: false,
-        eqNumberPrefix: '',
-        eqNumberSuffix: '',
-        eqNumberInit: 1,
-        eqNumberStyle: 'arabic',
-        eqRefPrefix: '',
-        eqRefSuffix: ''
-      }
+      settings: testSettings
     } as unknown as LatexReferencer;
 
     const equations = processActiveNoteEquations(mockPlugin, file, content);
@@ -222,17 +233,21 @@ $$
       }
     ];
 
+    const testSettings2: Required<PluginSettings> = {
+      numberOnlyReferencedEquations: false,
+      eqNumberPrefix: '',
+      eqNumberSuffix: '',
+      eqNumberInit: 1,
+      eqNumberStyle: 'arabic',
+      eqRefPrefix: '',
+      eqRefSuffix: '',
+      defaultCalloutType: 'note',
+      showNoteTitleInLink: true
+    };
+
     const mockPlugin = {
       app: mockApp,
-      settings: {
-        numberOnlyReferencedEquations: false,
-        eqNumberPrefix: '',
-        eqNumberSuffix: '',
-        eqNumberInit: 1,
-        eqNumberStyle: 'arabic',
-        eqRefPrefix: '',
-        eqRefSuffix: ''
-      }
+      settings: testSettings2
     } as unknown as LatexReferencer;
 
     const equations = processActiveNoteEquations(mockPlugin, file, content);

@@ -22,6 +22,10 @@ import { createEquationNumberProcessor } from 'core/equations/reading-view-equat
 import { CustomMathLinksProcessor } from './core/linker/reading-view-linker';
 import { setupDOMObserver } from './core/linker/dom-observer';
 import { createEquationNumberPlugin } from 'core/equations/live-preview-equations';
+import {
+  createObsitexAutoTemplatePlugin,
+  DEFAULT_OBSITEX_TEMPLATE
+} from './core/equations/obsitex-auto-template';
 import { createLivePreviewLinkRendererPlugin } from './core/linker/live-preview-link-renderer';
 
 import { insertDisplayMath } from 'utils/plugin';
@@ -113,6 +117,15 @@ export default class LatexReferencer extends Plugin {
       id: 'insert-display-math',
       name: 'Insert display math',
       editorCallback: insertDisplayMath
+    });
+
+    this.addCommand({
+      id: 'insert-obsitex-block',
+      name: 'Insert configuration block',
+      editorCallback: (editor: Editor) => {
+        const block = `\`\`\`obsitex\n${DEFAULT_OBSITEX_TEMPLATE}\n\`\`\`\n`;
+        editor.replaceSelection(block);
+      }
     });
 
     this.addCommand({
@@ -263,6 +276,7 @@ export default class LatexReferencer extends Plugin {
     this.editorExtensions.length = 0;
     // PUSH ALL PLUGINS
     this.editorExtensions.push(createEquationNumberPlugin(this));
+    this.editorExtensions.push(createObsitexAutoTemplatePlugin());
     this.editorExtensions.push(createLivePreviewLinkRendererPlugin(this));
     this.editorExtensions.push(createLivePreviewRowLayoutPlugin(this));
     this.editorExtensions.push(createTikzLivePreviewPlugin(this));

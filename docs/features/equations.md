@@ -86,6 +86,8 @@ eq-continuity: false
 - **Continuity Control (`eq-continuity`)**:
   - `eq-continuity: false` (or `eq-continuous: false`): Resets the equation counter back to 1 (or `eqNumberInit`) starting from this codeblock location.
   - `eq-continuity: true` (or omitted): Keeps continuous counting across section transitions (e.g. equation 1 becomes tag `(1)`, and next section equation with prefix `A` becomes `(A2)`).
+- **Auto-Templating**: Typing an empty ```` ```obsitex ```` block immediately pre-fills it with default keys, values, and inline hints (strictly leaving non-empty blocks untouched).
+- **Command Palette Integration**: Includes an `ObsiTeX: Insert configuration block` command to insert pre-filled blocks at cursor.
 - **Hidden Rendering**: The `obsitex` codeblock is invisible in Live Preview, Reading View, and PDF exports.
 - **Tag Prefixing**: Injected as a prefix into rendered equation tags (e.g. `(A1)`, `(S3.2.1)`).
 - **ID Generation**: Auto-generated equation IDs use the active section prefix (e.g. `% id: eq-A-xxxx`).
