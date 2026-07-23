@@ -37,11 +37,15 @@ export function getHeadingTree(doc = activeDocument) {
     const level = parseInt(heading.tagName.slice(1));
 
     const link = heading.querySelector('a.md-print-anchor') as HTMLLinkElement;
-    const regexMatch = /^af:\/\/(.+)$/.exec(link?.href ?? '');
+    const regexMatch = /^af:\/\/(.+)$/.exec(link?.getAttribute('href') ?? link?.href ?? '');
     if (!regexMatch) {
       return;
     }
-    const newNode = new TreeNode(regexMatch[1], heading.innerText, level);
+    const newNode = new TreeNode(
+      regexMatch[1],
+      heading.innerText ?? heading.textContent ?? '',
+      level
+    );
 
     while (prev.level >= level) {
       prev = prev.parent;
@@ -65,7 +69,7 @@ export function modifyDest(doc: Document): Map<string, string> {
     const heading = el as HTMLElement;
     if (heading.querySelector('a.md-print-anchor')) return;
 
-    const link = activeDocument.createElement('a');
+    const link = doc.createElement('a');
     const flag = `${heading.tagName.toLowerCase()}-${count++}`;
     link.href = `af://${flag}`;
     link.className = 'md-print-anchor';
@@ -83,19 +87,27 @@ export function modifyDest(doc: Document): Map<string, string> {
   // 2. Block IDs and elements with ID attributes (e.g. equation blocks, spans with id)
   doc.querySelectorAll('.blockid, [id]').forEach((el: Element) => {
     const blockEl = el as HTMLElement;
+
+    // Do not insert HTML anchor tags inside SVG elements (e.g. TikZ diagram nodes or MathJax SVGs)
+    if (blockEl.namespaceURI === 'http://www.w3.org/2000/svg' || blockEl.closest('svg')) {
+      return;
+    }
+
     const rawId = blockEl.id || blockEl.getAttribute('id');
 
     if (!rawId) return;
 
     let flag: string;
-    const existingAnchor = blockEl.querySelector('a.md-print-anchor') as HTMLAnchorElement | null;
+    const existingAnchor = blockEl.querySelector<HTMLAnchorElement>('a.md-print-anchor');
 
     if (existingAnchor) {
-      const match = /^af:\/\/(.+)$/.exec(existingAnchor.href || '');
+      const match = /^af:\/\/(.+)$/.exec(
+        existingAnchor.getAttribute('href') || existingAnchor.href || ''
+      );
       flag = match ? match[1] : `block-${count++}`;
     } else {
       flag = `block-${count++}`;
-      const link = activeDocument.createElement('a');
+      const link = doc.createElement('a');
       link.href = `af://${flag}`;
       link.className = 'md-print-anchor';
       blockEl.appendChild(link);
@@ -122,20 +134,22 @@ export function fixAnchors(doc: Document, dest: Map<string, string>, basename: s
     const [title, anchor] = dataHref.split('#') ?? [];
 
     if (anchor?.length > 0) {
-      if (title?.length > 0 && title !== basename) {
-        return;
-      }
-
-      // 1. Try exact anchor
+      // 1. Try exact anchor in current document destinations
       let flag = dest.get(anchor) || lowerDest.get(anchor.toLowerCase());
 
-      // 2. Try with/without caret
+      // 2. Try with title prefix for multi-file / merged documents
+      if (!flag && title?.length > 0) {
+        const fullKey = `${title}#${anchor}`;
+        flag = dest.get(fullKey) || lowerDest.get(fullKey.toLowerCase());
+      }
+
+      // 3. Try with/without caret
       if (!flag) {
         const altAnchor = anchor.startsWith('^') ? anchor.substring(1) : `^${anchor}`;
         flag = dest.get(altAnchor) || lowerDest.get(altAnchor.toLowerCase());
       }
 
-      // 3. Try stripping sub-index suffix (-1, -2, etc.)
+      // 4. Try stripping sub-index suffix (-1, -2, etc.)
       if (!flag) {
         const baseAnchor = anchor.replace(/-(\d+)$/, '');
         if (baseAnchor !== anchor) {

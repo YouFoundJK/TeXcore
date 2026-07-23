@@ -1,4 +1,4 @@
-import { App, Component, MarkdownRenderer, MarkdownView, TFile } from 'obsidian';
+import { App, Component, MarkdownRenderer, TFile } from 'obsidian';
 import type { TConfig } from '../../ui/export-pdf/modal';
 import { copyAttributes, fixAnchors, modifyDest } from './utils';
 import { checkAndFixCalloutMath } from '../../utils/fixer';
@@ -135,19 +135,9 @@ export type ParamType = {
 // 逆向原生打印函数
 export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   const ws = app.workspace;
-  // if (ws.getActiveFile()?.path != file.path) {
-  //   const leaf = ws.getLeaf(true);
-  //   console.log(file, leaf);
-  //   await leaf.openFile(file);
-  // }
-  // const view = ws.getActiveViewOfType(MarkdownView) as MarkdownView;
-
   const leaf = ws.getLeaf(true);
   await leaf.openFile(file);
-  const view = leaf.view as MarkdownView;
-  const activeFileView = ws.getActiveFileView() as MarkdownView | null;
-  const activeEditor = ws.activeEditor as MarkdownView | null;
-  const data: string = view?.data ?? activeFileView?.data ?? activeEditor?.data ?? '';
+  const data: string = await app.vault.cachedRead(file);
   if (!data) {
     showNotice('Data is empty!');
   }
@@ -158,9 +148,19 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   for (const [key, val] of Object.entries(frontMatter)) {
     if (key.toLowerCase() === 'cssclass' || key.toLowerCase() === 'cssclasses') {
       if (Array.isArray(val)) {
-        cssclasses.push(...(val as unknown[]).map(v => String(v)));
+        cssclasses.push(
+          ...(val as unknown[]).flatMap(v =>
+            String(v)
+              .split(/[\s,]+/)
+              .filter(Boolean)
+          )
+        );
       } else {
-        cssclasses.push(String(val));
+        cssclasses.push(
+          ...String(val)
+            .split(/[\s,]+/)
+            .filter(Boolean)
+        );
       }
     }
   }
@@ -172,7 +172,6 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   const viewEl = printEl.createDiv({
     cls: `markdown-preview-view markdown-rendered ${cssclasses.join(' ')}`
   });
-  void app.vault.cachedRead(file);
 
   viewEl.toggleClass('rtl', app.vault.getConfig('rightToLeft') as boolean);
   viewEl.toggleClass(
@@ -189,12 +188,6 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
 
   const cache = app.metadataCache.getFileCache(file);
 
-  // const lines = data?.split("\n") ?? [];
-  // Object.entries(cache?.blocks ?? {}).forEach(([key, c]) => {
-  //   const idx = c.position.end.line;
-  //   lines[idx] = `<span id="^${key}" class="blockid"></span>\n` + lines[idx];
-  // });
-
   const blocks = new Map(Object.entries(cache?.blocks ?? {}));
   const lines = (data?.split('\n') ?? []).map((line, i) => {
     for (const {
@@ -210,21 +203,16 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
     return line;
   });
 
-  [...blocks.values()].forEach(({ id, position: { start, end } }) => {
+  [...blocks.values()].forEach(({ id, position: { start } }) => {
     const idx = start.line;
-    lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n${lines[idx]}`;
+    if (idx < lines.length) {
+      lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n${lines[idx]}`;
+    }
   });
 
   const promises: AyncFnType[] = [];
 
-  // Use a temporary container for initial rendering.
-  // Previous versions used a hack (throwing Error) to stop post-processing, but this causes
-  // visible error artifacts in newer Obsidian versions.
-  // We allow the render to complete (including implicit post-processing on the detached element)
-  // and then move the content. The subsequent manual postProcess call ensures we capture
-  // any necessary promises for the PDF generation wait-cycle.
   const tempContainer = activeDocument.createElement('div');
-  // Apply the fix for callout math blocks if needed
   const linesContent = lines.join('\n');
   const fixedContent = checkAndFixCalloutMath(linesContent) ?? linesContent;
 
@@ -239,9 +227,6 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
 
   viewEl.appendChild(el);
 
-  // @ts-ignore
-  // (app: App: param: T) => T
-  // MarkdownPostProcessorContext
   await MarkdownRenderer.postProcess(app, {
     docId: generateDocId(16),
     sourcePath: file.path,
@@ -304,24 +289,33 @@ export function encodeEmbeds(doc: Document) {
 
 export async function fixWaitRender(data: string, viewEl: HTMLElement) {
   if (data.includes('```dataview') || data.includes('```gEvent') || data.includes('![[')) {
-    await sleep(2000);
+    await sleep(1500);
   }
+
+  // Explicitly wait for any pending TikZJax diagram compilation tasks to finish in viewEl
+  const tikzStart = Date.now();
+  while (viewEl.textContent?.includes('Rendering TikZ diagram...')) {
+    if (Date.now() - tikzStart > 20000) {
+      console.warn('[PDF Export] Timed out waiting for TikZ diagrams to render.');
+      break;
+    }
+    await sleep(100);
+  }
+
   try {
     await waitForDomChange(viewEl);
   } catch {
-    await sleep(1000);
+    await sleep(200);
   }
 }
 
-// TODO: base64 to canvas
-// TODO: light render canvas
 export function fixCanvasToImage(el: HTMLElement) {
   for (const canvas of Array.from(el.querySelectorAll('canvas'))) {
     const data = canvas.toDataURL();
     const img = activeDocument.createElement('img');
     img.src = data;
     copyAttributes(img, canvas.attributes);
-    img.className = '__canvas__';
+    img.classList.add('__canvas__');
 
     canvas.replaceWith(img);
   }
@@ -343,8 +337,8 @@ export function createWebview(scale = 1.25) {
   return webview;
 }
 
-function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): Promise<boolean> {
-  return new Promise((resolve, reject) => {
+function waitForDomChange(target: HTMLElement, timeout = 1000, interval = 150): Promise<boolean> {
+  return new Promise(resolve => {
     let timer: number | null = null;
     const observer = new MutationObserver(() => {
       if (timer) window.clearTimeout(timer);
@@ -361,9 +355,19 @@ function waitForDomChange(target: HTMLElement, timeout = 2000, interval = 200): 
       characterData: true
     });
 
+    // Short settlement check: if no mutations happen within 300ms, assume DOM has settled
+    const initialTimer = window.setTimeout(() => {
+      if (!timer) {
+        observer.disconnect();
+        resolve(true);
+      }
+    }, 300);
+
     window.setTimeout(() => {
+      window.clearTimeout(initialTimer);
+      if (timer) window.clearTimeout(timer);
       observer.disconnect();
-      reject(new Error(`timeout ${timeout}ms`));
+      resolve(true);
     }, timeout);
   });
 }

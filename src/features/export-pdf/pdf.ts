@@ -166,7 +166,10 @@ export function generateOutlines(root: TreeNode, positions: TPosition, maxLevel 
     if (node.level > maxLevel) {
       return;
     }
-    const [pageIdx, pos] = positions?.[node.key] ?? [0, 0];
+    const posInfo = positions?.[node.key];
+    const [pageIdx, pos] =
+      posInfo ??
+      (node.parent && positions?.[node.parent.key] ? positions[node.parent.key] : [0, 0]);
     const outline: PDFOutline = {
       title: node.title,
       to: [pageIdx, 0, pos],
@@ -237,6 +240,8 @@ const getOpeningCount = (outlines: readonly PDFOutline[]) => {
 };
 
 export const setOutline = async (doc: PDFDocument, outlines: readonly PDFOutline[]) => {
+  if (!outlines || outlines.length === 0) return;
+
   // Refs
   const rootRef = doc.context.nextRef();
   const refMap = new WeakMap<PDFOutline, PDFRef>();
@@ -528,7 +533,7 @@ export async function exportToPDF(
       await fs.writeFile(outputFile, data);
     }
 
-    if (config.open && electron) {
+    if (config.open && electron?.remote?.shell) {
       void electron.remote.shell.openPath(outputFile);
     }
   } catch (error) {

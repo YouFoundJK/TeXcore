@@ -223,7 +223,7 @@ export class TikzRenderer {
       const container = el.createDiv({ cls: 'block-language-tikz' });
       container.createEl('div', { text: 'Rendering TikZ diagram...' });
 
-      this.render(source)
+      const promise = this.render(source)
         .then(svg => {
           container.empty();
           container.appendChild(svg);
@@ -234,6 +234,11 @@ export class TikzRenderer {
           const msg = err instanceof Error ? err.message : String(err);
           errorEl.textContent = `TikZJax Error: ${msg}`;
         });
+
+      const postCtx = ctx as typeof ctx & { promises?: Promise<unknown>[] };
+      if (postCtx && Array.isArray(postCtx.promises)) {
+        postCtx.promises.push(promise);
+      }
     });
   }
 }

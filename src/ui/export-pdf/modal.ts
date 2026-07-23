@@ -125,6 +125,7 @@ export class ExportConfigModal extends Modal {
   frontMatter!: FrontMatterCache;
   scale!: number;
   svelte: Progress | null = null;
+  resizeObserver: ResizeObserver | null = null;
 
   constructor(
     public plugin: LatexReferencer,
@@ -152,7 +153,7 @@ export class ExportConfigModal extends Modal {
       marginLeft: '10',
       marginRight: '10',
       displayHeader: plugin.settings.displayHeader ?? true,
-      displayFooter: plugin.settings.displayHeader ?? true,
+      displayFooter: plugin.settings.displayFooter ?? true,
       cssSnippet: '0',
       ...(plugin.settings?.prevConfig ?? {})
     };
@@ -332,20 +333,20 @@ export class ExportConfigModal extends Modal {
       
       // Function to recursively decode and replace innerHTML of span.markdown-embed elements
       function decodeAndReplaceEmbed(element) {
-				// Replace the innerHTML with the decoded content
-				element.innerHTML = decodeURIComponent(element.innerHTML);
-				// Check if the new content contains further span.markdown-embed elements
-				const newEmbeds = element.querySelectorAll("span.markdown-embed");
-				newEmbeds.forEach(decodeAndReplaceEmbed);
+        try {
+          element.innerHTML = decodeURIComponent(element.innerHTML);
+          const newEmbeds = element.querySelectorAll("span.markdown-embed");
+          newEmbeds.forEach(decodeAndReplaceEmbed);
+        } catch (err) {}
       }
       
       // Start the process with all span.markdown-embed elements in the document
       document.querySelectorAll("span.markdown-embed").forEach(decodeAndReplaceEmbed);
  
-      document.body.setAttribute("class", \`${activeDocument.body.getAttribute('class')}\`)
-      document.body.setAttribute("style", \`${activeDocument.body.getAttribute('style')}\`)
-      document.body.addClass("theme-light");
-      document.body.removeClass("theme-dark");
+      document.body.setAttribute("class", \`${activeDocument.body.getAttribute('class')}\`);
+      document.body.setAttribute("style", \`${activeDocument.body.getAttribute('style')}\`);
+      document.body.classList.add("theme-light");
+      document.body.classList.remove("theme-dark");
       document.title = \`${doc.title}\`;
       `;
   }
@@ -434,10 +435,10 @@ export class ExportConfigModal extends Modal {
 
     this.previewDiv = wrapper.createDiv({ attr: { class: 'pdf-preview' } }, el => {
       el.empty();
-      const resizeObserver = new ResizeObserver(() => {
+      this.resizeObserver = new ResizeObserver(() => {
         this.calcPageSize(el);
       });
-      resizeObserver.observe(el);
+      this.resizeObserver.observe(el);
       void (async () => {
         await this.appendWebviews(el);
         this.calcPageSize(el);
@@ -677,7 +678,7 @@ export class ExportConfigModal extends Modal {
 
     new Setting(contentEl).setName('Downscale percent').addSlider(slider => {
       slider
-        .setLimits(0, 100, 1)
+        .setLimits(10, 200, 1)
         .setValue(this.config['scale'])
         .onChange(async value => {
           this.config['scale'] = value;
@@ -742,6 +743,10 @@ export class ExportConfigModal extends Modal {
     contentEl.empty();
     if (this.svelte) {
       this.svelte.destroy();
+    }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
     }
   }
 

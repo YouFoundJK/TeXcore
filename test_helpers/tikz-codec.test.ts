@@ -157,7 +157,7 @@ at (2.15,-1.8)
     // Verify hex color without rawColor produces braced rgb,255 output
     const customElements = [result.elements[0]];
     customElements[0].style.rawColor = undefined;
-    customElements[0].style.color = '#3b82f6';
+    Object.assign(customElements[0].style, { color: '#3b82f6' });
     const customGen = codec.generate(customElements, '');
     expect(customGen).toContain('color={rgb,255:red,59;green,130;blue,246}');
   });
