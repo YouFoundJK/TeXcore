@@ -29,7 +29,18 @@ export async function insertBlockIdIfNotExist(
 
   const io = getIO(plugin, targetFile);
   const fullContent = await io.read();
-  const obsitexConfig = parseObsitexConfig(fullContent);
+
+  let blockOffset = block.$pos?.start?.offset ?? 0;
+  if (!blockOffset && block.$pos?.start?.line > 0) {
+    const lines = fullContent.split('\n');
+    let offset = 0;
+    for (let i = 0; i < Math.min(block.$pos.start.line, lines.length); i++) {
+      offset += lines[i].length + 1;
+    }
+    blockOffset = offset;
+  }
+
+  const obsitexConfig = parseObsitexConfig(fullContent, blockOffset);
 
   // Generate a new ID in the format "eq-[prefix]-..."
   const id = generateEqId(obsitexConfig.eqPrefix);

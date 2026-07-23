@@ -79,10 +79,11 @@ export function getEqNumberPrefix(
   app: App,
   file: TFile,
   settings: Required<PluginSettings>,
-  content?: string
+  content?: string,
+  position?: number
 ): string {
   if (content) {
-    const config = parseObsitexConfig(content);
+    const config = parseObsitexConfig(content, position);
     if (config.eqPrefix !== undefined) {
       return config.eqPrefix;
     }

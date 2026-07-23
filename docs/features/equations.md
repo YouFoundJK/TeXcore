@@ -65,29 +65,35 @@ Configure the layout of your math indices globally via the [Settings Panel](conf
 
 ---
 
-## Document-Level Equation Prefix (`obsitex`)
+## Section & Document Equation Formatting (`obsitex`)
 
-You can specify a document-wide equation prefix (e.g. `S` for supplementary equations like `(S1)`, `(S2)`, or section prefixes like `S3.2`) using an `obsitex` YAML codeblock:
+You can specify section-level equation prefixes (e.g. `A` for Appendix equations like `(A1)`, `(A2)`, or `S` for supplementary sections) and control numbering continuity using an `obsitex` YAML codeblock:
 
 ```obsitex
-- eq-prefix: S
+- eq-prefix: A
+- eq-continuity: false
 ```
 
 Or key-value format:
 
 ```obsitex
-eq-prefix: S3.2
+eq-prefix: A
+eq-continuity: false
 ```
 
 ### Features & Behavior
+- **Position Scoped**: `obsitex` properties only apply to equations located **after** the codeblock's position in the document. Equations prior to the codeblock retain standard numbering or previous section settings.
+- **Continuity Control (`eq-continuity`)**:
+  - `eq-continuity: false` (or `eq-continuous: false`): Resets the equation counter back to 1 (or `eqNumberInit`) starting from this codeblock location.
+  - `eq-continuity: true` (or omitted): Keeps continuous counting across section transitions (e.g. equation 1 becomes tag `(1)`, and next section equation with prefix `A` becomes `(A2)`).
 - **Hidden Rendering**: The `obsitex` codeblock is invisible in Live Preview, Reading View, and PDF exports.
-- **Tag Prefixing**: Injected as a prefix into rendered equation tags (e.g. `(S1)`, `(S3.2.1)`).
-- **ID Generation**: Auto-generated equation IDs use the prefix format `% id: eq-S-xxxx`.
+- **Tag Prefixing**: Injected as a prefix into rendered equation tags (e.g. `(A1)`, `(S3.2.1)`).
+- **ID Generation**: Auto-generated equation IDs use the active section prefix (e.g. `% id: eq-A-xxxx`).
 - **Backwards Compatible**: Unprefixed block IDs (`% id: eq-einstein`) continue working seamlessly.
 
 ### Architectural Engine Details
-- **YAML Parsing**: `parseObsitexConfig` parses `obsitex` blocks using Obsidian's `parseYaml` API.
-- **Prefix Pipeline**: `getEqNumberPrefix(app, file, settings, content)` prioritizes the document's `eq-prefix` over global settings.
+- **Positional YAML Parsing**: `parsePositionalObsitexConfigs(content)` parses `obsitex` blocks alongside character offsets using Obsidian's `parseYaml` API and line fallback parsing.
+- **Sequential Pipeline**: `processActiveNoteEquations` (Reading View) and `parseEquationInfo` (Live Preview) enumerate equations top-to-bottom, dynamically updating active prefix state and evaluating continuity resets as equations are encountered.
 - **DOM Hiding**: `registerMarkdownCodeBlockProcessor('obsitex', ...)` and `.block-language-obsitex { display: none !important; }` prevent DOM artifacts across editor views and PDF export pipelines.
 
 ---

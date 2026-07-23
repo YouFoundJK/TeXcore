@@ -6,6 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.eslint.json' }]
   },
+  moduleDirectories: ['node_modules', 'src'],
   moduleNameMapper: {
     '\\.css$': '<rootDir>/__mocks__/styleMock.js',
     '\\.md$': '<rootDir>/__mocks__/mdMock.js'

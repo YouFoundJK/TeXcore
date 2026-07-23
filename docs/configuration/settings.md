@@ -19,8 +19,8 @@ Adjust how equations are counted, tagged, and linked inside Obsidian. For detail
 | **Reference link suffix** | Text (empty) | Character string injected after references. |
 | **Show note title in equation link** | Toggle (`On`) | Format for display links. `On` resolves to `Note Title > (1)`; `Off` resolves to `(1)`. |
 
-!!! info "Document-Level Prefix Override"
-    Global settings can be overridden per document by defining `eq-prefix` inside an `obsitex` YAML code block. See [Document-Level Equation Prefix](../features/equations.md#document-level-equation-prefix-obsitex).
+!!! info "Section & Document Equation Formatting Override"
+    Global equation settings can be overridden per section/document by defining `eq-prefix` and `eq-continuity` inside `obsitex` YAML code blocks. See [Section & Document Equation Formatting](../features/equations.md#section--document-equation-formatting-obsitex).
 
 ---
 

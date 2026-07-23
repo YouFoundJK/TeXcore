@@ -1,9 +1,10 @@
 import { TFile } from 'obsidian';
-import { CONVERTER, getEqNumberPrefix } from 'utils/format';
-import { EquationBlock } from 'types';
-import LatexReferencer from 'main';
-import { ActiveNoteEquationProvider } from 'core/equations/provider-equation';
-import type { PluginSettings } from 'settings/settings';
+import { CONVERTER } from '../../utils/format';
+import { parsePositionalObsitexConfigs } from '../../utils/obsitex';
+import { EquationBlock } from '../../types';
+import LatexReferencer from '../../main';
+import { ActiveNoteEquationProvider } from './provider-equation';
+import type { PluginSettings } from '../../settings/settings';
 
 interface ReferenceInfo {
   totalCount: number;
@@ -53,17 +54,40 @@ export function processActiveNoteEquations(
   }
 
   const processedEquations = new Map<string, EquationBlock>();
+  const obsitexConfigs = parsePositionalObsitexConfigs(content);
+  let configIdx = 0;
+  let currentPrefix = settings.eqNumberPrefix;
   let equationCount = 0;
-  const eqPrefix = getEqNumberPrefix(
-    plugin.app,
-    file,
-    settings as Required<PluginSettings>,
-    content
-  );
   const eqSuffix = settings.eqNumberSuffix;
+
+  const lines = content.split('\n');
+  const getEqOffset = (eq: EquationBlock): number => {
+    if (eq.$pos?.start?.offset && eq.$pos.start.offset > 0) {
+      return eq.$pos.start.offset;
+    }
+    const line = eq.$pos?.start?.line ?? 0;
+    let offset = 0;
+    for (let i = 0; i < Math.min(line, lines.length); i++) {
+      offset += lines[i].length + 1;
+    }
+    return offset;
+  };
 
   // 2. Process each equation using the pre-computed reference map.
   for (const eq of equations) {
+    const eqOffset = getEqOffset(eq);
+
+    while (configIdx < obsitexConfigs.length && obsitexConfigs[configIdx].from < eqOffset) {
+      const cfg = obsitexConfigs[configIdx].config;
+      if (cfg.eqPrefix !== undefined) {
+        currentPrefix = cfg.eqPrefix;
+      }
+      if (cfg.eqContinuity === false) {
+        equationCount = 0;
+      }
+      configIdx++;
+    }
+
     let printName: string | null = null;
     let refName: string | null = null;
 
@@ -83,7 +107,7 @@ export function processActiveNoteEquations(
         const num = settings.eqNumberInit + equationCount;
         const numberStyle = settings.eqNumberStyle;
         const convertedNum = CONVERTER[numberStyle](num);
-        printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
+        printName = `(${currentPrefix}${convertedNum}${eqSuffix})`;
         equationCount++;
       }
 

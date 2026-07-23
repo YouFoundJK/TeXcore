@@ -2,7 +2,8 @@ import { Extension, StateField, EditorState, Annotation } from '@codemirror/stat
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
-import { CONVERTER, getEqNumberPrefix } from 'utils/format';
+import { CONVERTER } from 'utils/format';
+import { parsePositionalObsitexConfigs } from 'utils/obsitex';
 import type { PluginSettings } from 'settings/settings';
 import {
   CALLOUT_PREFIX_REGEX,
@@ -123,16 +124,29 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
     }
   }
 
+  const obsitexConfigs = parsePositionalObsitexConfigs(text);
+  let configIdx = 0;
+  let currentPrefix = settings.eqNumberPrefix;
   let equationCount = 0;
-  const eqPrefix = getEqNumberPrefix(plugin.app, file, settings as Required<PluginSettings>, text);
   const eqSuffix = settings.eqNumberSuffix;
 
   for (const info of equationInfos) {
+    while (configIdx < obsitexConfigs.length && obsitexConfigs[configIdx].from < info.from) {
+      const cfg = obsitexConfigs[configIdx].config;
+      if (cfg.eqPrefix !== undefined) {
+        currentPrefix = cfg.eqPrefix;
+      }
+      if (cfg.eqContinuity === false) {
+        equationCount = 0;
+      }
+      configIdx++;
+    }
+
     if (!settings.numberOnlyReferencedEquations || info.refCount > 0) {
       const num = settings.eqNumberInit + equationCount;
       const numberStyle = settings.eqNumberStyle;
       const convertedNum = CONVERTER[numberStyle](num);
-      info.printName = `(${eqPrefix}${convertedNum}${eqSuffix})`;
+      info.printName = `(${currentPrefix}${convertedNum}${eqSuffix})`;
       equationCount++;
     }
   }
