@@ -156,7 +156,7 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
                 ) {
                   const linkText = state.sliceDoc(linkNode.from, linkNode.to);
 
-                  if (linkText.startsWith('#^eq-')) {
+                  if (linkText.includes('#^eq-')) {
                     const outLinkMathLink = getMathLink(plugin, linkText, sourcePath);
 
                     if (

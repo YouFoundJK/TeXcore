@@ -20,4 +20,6 @@ export interface EquationBlock {
   $refName: string | null;
   $index?: number;
   $subIndices?: Set<number>; // Add this line
+  $supplementAlias?: string;
+  $isSupplement?: boolean;
 }
