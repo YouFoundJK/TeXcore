@@ -72,3 +72,17 @@ export function checkAndFixCalloutMath(content: string): string | null {
   if (!changed) return null;
   return newLines.join('\n');
 }
+
+/**
+ * Cleans illegal HTML <br> tags from inside LaTeX math expressions for DOM rendering.
+ */
+export function cleanMathBrTags(mathText: string): string {
+  if (!mathText) return mathText;
+
+  const brRegex = /<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;/gi;
+  if (!brRegex.test(mathText)) {
+    return mathText;
+  }
+
+  return mathText.replace(brRegex, ' ').replace(/[ \t]{2,}/g, ' ');
+}

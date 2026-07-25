@@ -18,6 +18,7 @@
 import { MarkdownView } from 'obsidian';
 import LatexReferencer from 'main';
 import { processInternalLink } from './reading-view-linker';
+import { fixMathBrInContainer } from '../equations/reading-view-equations';
 
 /**
  * Process all equation links within a given HTML element, stripping any
@@ -92,15 +93,26 @@ function scanExistingCallouts(plugin: LatexReferencer): void {
  * @returns A cleanup function that disconnects the observer
  */
 export function setupDOMObserver(plugin: LatexReferencer): () => void {
+  let pendingTimeout: number | null = null;
+
   const observer = new MutationObserver(mutations => {
+    let checkNeeded = false;
     for (const mutation of mutations) {
       if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
           if (node.instanceOf(HTMLElement)) {
             processEquationLinksInElement(node, plugin);
+            checkNeeded = true;
           }
         }
       }
+    }
+
+    if (checkNeeded) {
+      if (pendingTimeout) window.clearTimeout(pendingTimeout);
+      pendingTimeout = window.setTimeout(() => {
+        fixMathBrInContainer(activeDocument.body);
+      }, 100);
     }
   });
 

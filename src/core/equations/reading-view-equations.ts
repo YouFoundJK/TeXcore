@@ -7,8 +7,78 @@ import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './numbering';
 import { EquationBlock } from 'types';
 
+import { cleanMathBrTags } from '../../utils/fixer';
+
+/**
+ * Universal surgical fix for <br> / &lt;br&gt; / < b r > in rendered MathJax containers.
+ * Surgically prunes MathJax-rendered < b r > rows and glyph sequences without affecting actual math content.
+ */
+export function fixMathBrInContainer(container: HTMLElement): void {
+  if (!container) return;
+
+  // 1. Clear MathJax cells/rows whose entire content is <br>
+  const cells = container.querySelectorAll('mjx-mtd, mjx-mtr');
+  cells.forEach(cell => {
+    const text = (cell.textContent || '').trim().replace(/\s+/g, '').toLowerCase();
+    if (text === '<br>' || text === '<br/>' || text === '<br>') {
+      const tag = cell.tagName.toLowerCase();
+      if (tag === 'mjx-mtr') {
+        cell.remove();
+      } else {
+        cell.innerHTML = '';
+      }
+    }
+  });
+
+  // 2. Remove inline < b r > glyph sequences (< + b + r + >) inside MathJax table cells
+  const c3cEls = container.querySelectorAll('mjx-c[c="3C"], mjx-c.mjx-c3C');
+  c3cEls.forEach(c3c => {
+    const moOpen = c3c.closest('mjx-mo');
+    if (!moOpen) return;
+
+    const bEl = moOpen.nextElementSibling as HTMLElement | null;
+    const rEl = bEl?.nextElementSibling as HTMLElement | null;
+    const moClose = rEl?.nextElementSibling as HTMLElement | null;
+
+    if (bEl && rEl && moClose) {
+      const bHTML = bEl.innerHTML || '';
+      const bText = (bEl.textContent || '').trim();
+      const isB = bText === 'b' || bHTML.includes('1D44F') || bHTML.includes('c1D44F');
+
+      const rHTML = rEl.innerHTML || '';
+      const rText = (rEl.textContent || '').trim();
+      const isR = rText === 'r' || rHTML.includes('1D45F') || rHTML.includes('c1D45F');
+
+      const closeHTML = moClose.innerHTML || '';
+      const isCloseGt =
+        closeHTML.includes('3E') ||
+        closeHTML.includes('c3E') ||
+        moClose.textContent?.trim() === '>';
+
+      if (isB && isR && isCloseGt) {
+        moOpen.remove();
+        bEl.remove();
+        rEl.remove();
+        moClose.remove();
+      }
+    }
+  });
+
+  // 3. Clean data-math attribute if present
+  const mathEls = container.querySelectorAll<HTMLElement>('.math, [data-math]');
+  mathEls.forEach(mathEl => {
+    const dataMath = mathEl.getAttribute('data-math');
+    if (dataMath && /<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;/i.test(dataMath)) {
+      const cleaned = cleanMathBrTags(dataMath);
+      mathEl.setAttribute('data-math', cleaned);
+    }
+  });
+}
+
 export const createEquationNumberProcessor = (plugin: LatexReferencer): MarkdownPostProcessor => {
   return (el, ctx) => {
+    fixMathBrInContainer(el);
+
     const file = plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
     if (!(file instanceof TFile)) return;
 
