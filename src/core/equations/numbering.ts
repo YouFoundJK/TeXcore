@@ -11,6 +11,23 @@ interface ReferenceInfo {
   subIndices: Set<number>;
 }
 
+interface CacheEntry {
+  content: string;
+  extraContent: string;
+  settingsKey: string;
+  result: Map<string, EquationBlock>;
+}
+
+const equationCache = new Map<string, CacheEntry>();
+
+export function clearEquationCache(filePath?: string): void {
+  if (filePath) {
+    equationCache.delete(filePath);
+  } else {
+    equationCache.clear();
+  }
+}
+
 function getReferencingContents(plugin: LatexReferencer, file: TFile): string {
   const parts: string[] = [];
   const app = plugin.app;
@@ -57,14 +74,26 @@ export function processActiveNoteEquations(
   content: string,
   referencerContent?: string
 ): Map<string, EquationBlock> {
+  const settings = plugin.settings;
+  const settingsKey = `${settings.eqNumberPrefix}_${settings.eqNumberSuffix}_${settings.eqNumberInit}_${settings.eqNumberStyle}_${settings.numberOnlyReferencedEquations}_${settings.eqRefPrefix}_${settings.eqRefSuffix}`;
+  const extraContent = referencerContent ?? getReferencingContents(plugin, file);
+
+  const cached = equationCache.get(file.path);
+  if (
+    cached &&
+    cached.content === content &&
+    cached.extraContent === extraContent &&
+    cached.settingsKey === settingsKey
+  ) {
+    return cached.result;
+  }
+
   const provider = new ActiveNoteEquationProvider(plugin.app);
   const equations = provider.getEquations(file, content);
-  const settings = plugin.settings;
 
   // 1. Scan document(s) to build a map of reference counts.
   const referenceMap = new Map<string, ReferenceInfo>();
   const linkRegex = /\[\[(?:[^\]]*?#\^|\^)(eq-[\w.-]+)\]\]/g;
-  const extraContent = referencerContent ?? getReferencingContents(plugin, file);
   const textToScan = extraContent ? `${content}\n${extraContent}` : content;
   let match;
   while ((match = linkRegex.exec(textToScan)) !== null) {
@@ -188,6 +217,13 @@ export function processActiveNoteEquations(
       }
     }
   }
+
+  equationCache.set(file.path, {
+    content,
+    extraContent,
+    settingsKey,
+    result: processedEquations
+  });
 
   return processedEquations;
 }

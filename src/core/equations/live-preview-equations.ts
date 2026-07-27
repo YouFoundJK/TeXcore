@@ -1,12 +1,10 @@
-import { Extension, StateField, EditorState, Annotation } from '@codemirror/state';
+import { Extension, StateField, EditorState, Annotation, Transaction } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { editorInfoField } from 'obsidian';
+import { editorInfoField, MarkdownView } from 'obsidian';
 import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './numbering';
 import {
   CALLOUT_PREFIX_REGEX,
-  getCalloutPrefix,
-  isStructuralCalloutLine,
   findDisplayMathBlocks,
   splitMathIntoTopLevelRows,
   findTopLevelEndEnvMatch
@@ -116,7 +114,7 @@ function createTagManagerPlugin(
       }
       update(update: ViewUpdate) {
         if (!update.transactions.some(tr => tr.annotation(tagManagerAnnotation))) {
-          if (update.docChanged || update.viewportChanged || update.focusChanged) {
+          if (update.docChanged) {
             this.scheduleCheck(update.view);
           }
         }
@@ -135,138 +133,139 @@ function createTagManagerPlugin(
       // equations/live-preview.ts (inside ViewPlugin.fromClass)
 
       runCheck(view: EditorView) {
+        if (view.hasFocus === false && view.dom.ownerDocument?.hasFocus?.()) return;
+
         const equationInfos = view.state.field(equationField);
+        if (!equationInfos || equationInfos.length === 0) return;
+
         const changes: { from: number; to: number; insert: string }[] = [];
-        const selection = view.state.selection.main;
+        const selection = view.state.selection;
         let blockedChanges = 0;
 
+        // Multi-Window Guard 2: Gather selections from all split-screen leaves open for this note.
+        const file = view.state.field(editorInfoField, false)?.file;
+        const activeSelections = [selection];
+
+        if (file && plugin.app?.workspace) {
+          const allLeaves = plugin.app.workspace.getLeavesOfType('markdown');
+          for (const leaf of allLeaves) {
+            const mdView = leaf.view as MarkdownView;
+            if (mdView && mdView.file?.path === file.path && mdView.editor) {
+              const cm = (mdView.editor as unknown as { cm?: EditorView }).cm;
+              if (cm && cm !== view && cm.state?.selection) {
+                activeSelections.push(cm.state.selection);
+              }
+            }
+          }
+        }
+
         for (const info of equationInfos) {
-          const selectionOverlapsEquation = selection.from <= info.to && selection.to >= info.from;
-          // Determine the prefix from the OPENING line of the block.
-          // This is the source of truth for indentation/callout level.
-          const startLine = view.state.doc.lineAt(info.from);
-          const prefix = getCalloutPrefix(startLine.text);
-
-          // Get inner content (excluding $$ delimiters)
-          const blockContent = view.state.doc.sliceString(info.from + 2, info.to - 2);
-
-          // --- Common Extraction Logic ---
-          // 1. Extract existing ID if present
-          const idCommentRegex = /(\s*% id: eq-[\w.-]+)/;
-          const idMatch = blockContent.match(idCommentRegex);
-          const idVal = idMatch ? idMatch[0].match(/eq-[\w.-]+/)?.[0] : null;
-
-          // 2. Isolate Math Part (all text before the ID comment)
-          let mathPart = idMatch ? blockContent.substring(0, idMatch.index) : blockContent;
-
-          // 3. Clean existing tags
-          mathPart = mathPart.replace(/\\tag\{[^{}]+\}/g, '');
-
-          // 4. Robust Line-Based Trimming
-          // Split into lines to inspect them individually.
-          const mathLines = mathPart.split(/\r?\n/);
-
-          // We want to remove trailing lines that contain ONLY the prefix (or whitespace).
-          // These are "structural" lines that shouldn't be treated as math content.
-          // e.g. a line that is just "> " or "   > "
-
-          // Pop lines from the end until we hit content or run out
-          while (mathLines.length > 0 && isStructuralCalloutLine(mathLines[mathLines.length - 1])) {
-            mathLines.pop();
+          // Safety bounds check
+          if (info.from < 0 || info.to > view.state.doc.length || info.from >= info.to) {
+            continue;
           }
 
-          // Be careful: if we stripped everything (empty block), we might want to keep one empty line?
-          // Or just have empty content.
-          // If mathLines is empty now, it means block was empty.
+          // Strict selection check across ALL split views open for this file
+          const isNearOrInside = activeSelections.some(sel =>
+            sel.ranges.some(r => r.from <= info.to + 20 && r.to >= info.from - 20)
+          );
+          if (isNearOrInside) {
+            blockedChanges++;
+            continue;
+          }
 
-          // Rejoin the trimmed math part
-          mathPart = mathLines.join('\n');
+          const startPos = info.from + 2;
+          const endPos = info.to - 2;
+          if (startPos >= endPos) continue;
 
-          let newInnerContent: string | null = null;
+          const blockContent = view.state.doc.sliceString(startPos, endPos);
+          const idCommentMatch = blockContent.match(/\s*% id: eq-[\w.-]+/);
+          const idIndex = idCommentMatch ? (idCommentMatch.index ?? -1) : -1;
+          const mathText = idIndex !== -1 ? blockContent.substring(0, idIndex) : blockContent;
 
-          // --- Mode 1: Sub-equation ---
+          // Mode 1: Sub-equations
           if (info.subIndices && info.subIndices.size > 0 && info.printName) {
             const baseName = info.printName.slice(1, -1);
-            const parts = splitMathIntoTopLevelRows(mathPart);
-            let hasContent = false;
+            const parts = splitMathIntoTopLevelRows(mathText);
+            let needsUpdate = false;
             const newParts = [...parts];
 
             for (let i = 0; i < parts.length; i += 2) {
               const row = parts[i];
               const cleanedRow = row.replace(/^[ \t]+/, '');
-              if (cleanedRow.trim() === '') {
-                newParts[i] = cleanedRow;
-                continue;
-              }
-              hasContent = true;
+              if (cleanedRow.trim() === '') continue;
               const subIndex = i / 2 + 1;
-              const newTag = ` \\tag{${baseName}.${subIndex}}`;
-              const endEnvMatch = findTopLevelEndEnvMatch(cleanedRow);
-              if (endEnvMatch) {
-                const before = cleanedRow.substring(0, endEnvMatch.index).trimEnd();
-                const environment = endEnvMatch.matchText;
-                const after = cleanedRow.substring(endEnvMatch.index + environment.length);
-                newParts[i] = `${before + newTag} ${environment}${after}`;
-              } else {
-                newParts[i] = cleanedRow.trimEnd() + newTag;
+              const expectedTag = `\\tag{${baseName}.${subIndex}}`;
+
+              if (!cleanedRow.includes(expectedTag)) {
+                needsUpdate = true;
+                const stripped = cleanedRow.replace(/\\tag\{[^{}]+\}/g, '');
+                const endEnvMatch = findTopLevelEndEnvMatch(stripped);
+                if (endEnvMatch && endEnvMatch.index !== undefined) {
+                  const before = stripped.substring(0, endEnvMatch.index).trimEnd();
+                  const environment = endEnvMatch.matchText;
+                  const after = stripped.substring(endEnvMatch.index + environment.length);
+                  newParts[i] = `${before} ${expectedTag} ${environment}${after}`;
+                } else {
+                  newParts[i] = `${stripped.trimEnd()} ${expectedTag}`;
+                }
               }
             }
 
-            if (hasContent) {
-              newInnerContent = newParts.join('');
+            if (needsUpdate) {
+              const newMathText = newParts.join('');
+              changes.push({
+                from: startPos,
+                to: startPos + mathText.length,
+                insert: newMathText
+              });
             }
-          }
-          // --- Mode 2: Normal Equation ---
-          else {
-            const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
-            // mathPart is already trimmed of trailing structural lines.
-            // We still trimEnd to remove trailing spaces on the last content line itself.
-            mathPart = mathPart.trimEnd();
-
-            if (requiredTagContent) {
-              const newTag = ` \\tag{${requiredTagContent}}`;
-              const endEnvMatch = findTopLevelEndEnvMatch(mathPart);
-              if (endEnvMatch) {
-                const before = mathPart.substring(0, endEnvMatch.index).trimEnd();
-                const environment = endEnvMatch.matchText;
-                const after = mathPart.substring(endEnvMatch.index + environment.length);
-                mathPart = `${before + newTag} ${environment}${after}`;
-              } else {
-                mathPart += newTag;
-              }
-            }
-            newInnerContent = mathPart;
+            continue;
           }
 
-          // --- Reconstruction ---
-          if (newInnerContent !== null) {
-            // Logic to reconstruct the block end
-            const existingSuffix = view.state.doc.sliceString(info.from + 2, info.to);
-            // But if we trimmed, we might lose them.
-            // blockContent usually starts with `\n`.
+          // Mode 2: Normal equations
+          const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
+          const existingTagMatch = mathText.match(/\\tag\{([^{}]+)\}/);
 
-            // Simple heuristic: If original started with newline, keep it.
-            const leadingNewline = blockContent.startsWith('\n') ? '\n' : '';
-            const cleanMath = newInnerContent.trim();
-
-            let proposedSuffix = leadingNewline + cleanMath;
-
-            if (idVal) {
-              proposedSuffix += `\n${prefix}% id: ${idVal}`;
+          if (!requiredTagContent) {
+            if (existingTagMatch && existingTagMatch.index !== undefined) {
+              const tagStart = startPos + existingTagMatch.index;
+              const tagEnd = tagStart + existingTagMatch[0].length;
+              changes.push({ from: tagStart, to: tagEnd, insert: '' });
             }
-            proposedSuffix += `\n${prefix}$$`;
-
-            // Comparison
-            // We simply compare the strings.
-            // Note: This replaces EVERYTHING from inside the block to the end of the block.
-            if (existingSuffix !== proposedSuffix) {
-              if (selectionOverlapsEquation) {
-                blockedChanges += 1;
-                continue;
-              }
-              changes.push({ from: info.from + 2, to: info.to, insert: proposedSuffix });
-            }
+            continue;
           }
+
+          const expectedTagStr = `\\tag{${requiredTagContent}}`;
+
+          if (existingTagMatch && existingTagMatch.index !== undefined) {
+            if (existingTagMatch[1] === requiredTagContent) {
+              // Tag already matches - DO NOTHING
+              continue;
+            }
+            // Replace ONLY the tag string
+            const tagStart = startPos + existingTagMatch.index;
+            const tagEnd = tagStart + existingTagMatch[0].length;
+            changes.push({ from: tagStart, to: tagEnd, insert: expectedTagStr });
+            continue;
+          }
+
+          // No tag exists - insert expectedTagStr right before endEnv or before % id: / end of mathText
+          const endEnvMatch = findTopLevelEndEnvMatch(mathText);
+          if (endEnvMatch && endEnvMatch.index !== undefined) {
+            const insertPos = startPos + endEnvMatch.index;
+            changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr} ` });
+            continue;
+          }
+
+          let insertPos = startPos + mathText.length;
+          while (
+            insertPos > startPos &&
+            /\s/.test(view.state.doc.sliceString(insertPos - 1, insertPos))
+          ) {
+            insertPos--;
+          }
+          changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr}` });
         }
 
         this.blockedBySelection = blockedChanges > 0;
@@ -274,7 +273,7 @@ function createTagManagerPlugin(
         if (changes.length > 0) {
           view.dispatch({
             changes,
-            annotations: tagManagerAnnotation.of(true)
+            annotations: [tagManagerAnnotation.of(true), Transaction.addToHistory.of(false)]
           });
         }
       }
@@ -294,6 +293,7 @@ function getEquationField(): StateField<EquationState> {
       },
       update(value, tr) {
         if (!activePlugin) return [];
+        if (!tr.docChanged) return value;
         return parseEquationInfo(tr.state, activePlugin);
       }
     });

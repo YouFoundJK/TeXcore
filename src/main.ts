@@ -34,7 +34,7 @@ import { EquationBlock } from 'types';
 // ADDED: Import our new internal patcher functions
 import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { setupPagePreviewPatcher } from 'ui/quick-preview/pagePreviewPatcher';
-import { processActiveNoteEquations } from './core/equations/numbering';
+import { processActiveNoteEquations, clearEquationCache } from './core/equations/numbering';
 import { checkAndFixCalloutMath } from 'utils/fixer';
 import { showNotice, setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
@@ -250,19 +250,6 @@ export default class LatexReferencer extends Plugin {
 
     setupPagePreviewPatcher(this);
     this.registerEvent(
-      this.app.metadataCache.on('changed', (file: TFile) => {
-        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (
-          activeView &&
-          activeView.file?.path === file.path &&
-          typeof activeView.getViewData === 'function'
-        ) {
-          processActiveNoteEquations(this, file, activeView.getViewData());
-        }
-      })
-    );
-
-    this.registerEvent(
       this.app.workspace.on('file-open', (file: TFile | null) => {
         if (!file) return;
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -295,6 +282,7 @@ export default class LatexReferencer extends Plugin {
   }
 
   async saveSettings() {
+    clearEquationCache();
     await this.saveData(this.settings);
   }
 

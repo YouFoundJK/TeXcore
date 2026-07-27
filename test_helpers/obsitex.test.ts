@@ -2,6 +2,7 @@ import { parseObsitexConfig, getObsitexConfigAtPosition } from '../src/utils/obs
 import { getEqNumberPrefix } from '../src/utils/format';
 import { processActiveNoteEquations } from '../src/core/equations/numbering';
 import { LatexLinkProvider } from '../src/core/linker/latex-provider';
+import { findTopLevelEndEnvMatch, splitMathIntoTopLevelRows } from '../src/utils/parse';
 import { MockAppBuilder } from './AppBuilder';
 import { FileBuilder } from './FileBuilder';
 import { App, TFile } from 'obsidian';
@@ -461,5 +462,44 @@ $$
     );
 
     expect(linkText).toBe('(S1-C1)');
+  });
+
+  describe('multi-line and surgical tag insertion tests', () => {
+    it('finds endEnv in multi-line align blocks for tag insertion', () => {
+      const mathText = `\\begin{align}\na &= b + c \\\\\nd &= e + f\n\\end{align}`;
+      const endMatch = findTopLevelEndEnvMatch(mathText);
+      expect(endMatch).not.toBeNull();
+      expect(endMatch?.matchText).toBe('\\end{align}');
+
+      const rows = splitMathIntoTopLevelRows(mathText);
+      expect(rows.length).toBe(3); // row 1, '\\', row 2
+    });
+
+    it('handles sub-equation row splitting and tag formatting', () => {
+      const mathText = `\\begin{align}\nx &= 1 \\\\\ny &= 2\n\\end{align}`;
+      const parts = splitMathIntoTopLevelRows(mathText);
+      const baseName = '1';
+      const newParts = [...parts];
+
+      for (let i = 0; i < parts.length; i += 2) {
+        const row = parts[i];
+        const subIndex = i / 2 + 1;
+        const expectedTag = `\\tag{${baseName}.${subIndex}}`;
+        const endEnvMatch = findTopLevelEndEnvMatch(row);
+        if (endEnvMatch && endEnvMatch.index !== undefined) {
+          const before = row.substring(0, endEnvMatch.index).trimEnd();
+          const environment = endEnvMatch.matchText;
+          const after = row.substring(endEnvMatch.index + environment.length);
+          newParts[i] = `${before} ${expectedTag} ${environment}${after}`;
+        } else {
+          newParts[i] = `${row.trimEnd()} ${expectedTag}`;
+        }
+      }
+
+      const result = newParts.join('');
+      expect(result).toContain('\\tag{1.1}');
+      expect(result).toContain('\\tag{1.2}');
+      expect(result).toContain('\\end{align}');
+    });
   });
 });

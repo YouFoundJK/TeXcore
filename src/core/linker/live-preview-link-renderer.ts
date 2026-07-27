@@ -1,5 +1,5 @@
-import { editorLivePreviewField, finishRenderMath, renderMath, editorInfoField } from 'obsidian';
-import { EditorSelection, RangeSetBuilder, Extension, Prec } from '@codemirror/state';
+import { editorLivePreviewField, renderMath, editorInfoField } from 'obsidian';
+import { EditorSelection, EditorState, RangeSetBuilder, Extension, Prec } from '@codemirror/state';
 import {
   Decoration,
   DecorationSet,
@@ -112,15 +112,48 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
   const viewPlugin = ViewPlugin.fromClass(
     class implements PluginValue {
       decorations!: DecorationSet;
+      lastFingerprint = '';
 
       constructor(view: EditorView) {
         this.buildDecorations(view);
       }
 
       update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        let shouldRebuild = update.docChanged || update.viewportChanged;
+        if (!shouldRebuild && update.selectionSet) {
+          shouldRebuild = this.selectionIntersectsLink(update);
+        }
+        if (shouldRebuild) {
           this.buildDecorations(update.view);
         }
+      }
+
+      selectionIntersectsLink(update: ViewUpdate): boolean {
+        const { state, startState } = update;
+        const checkSelection = (sel: EditorSelection, st: EditorState) => {
+          let intersects = false;
+          syntaxTree(st).iterate({
+            from: update.view.viewport.from,
+            to: update.view.viewport.to,
+            enter: node => {
+              if (node.name.includes('hmd-internal-link')) {
+                const linkText = st.sliceDoc(node.from, node.to);
+                if (linkText.includes('#^eq-')) {
+                  if (selectionAndRangeOverlap(sel, node.from, node.to)) {
+                    intersects = true;
+                    return false;
+                  }
+                }
+              }
+            }
+          });
+          return intersects;
+        };
+
+        return (
+          checkSelection(update.startState.selection, startState) ||
+          checkSelection(update.state.selection, state)
+        );
       }
 
       buildDecorations(view: EditorView): void {
@@ -128,6 +161,7 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
 
         if (!state.field(editorLivePreviewField)) {
           this.decorations = Decoration.none;
+          this.lastFingerprint = '';
           return;
         }
 
@@ -135,10 +169,12 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
         const sourcePath = file?.path ?? '';
         if (!sourcePath) {
           this.decorations = Decoration.none;
+          this.lastFingerprint = '';
           return;
         }
 
         const builder = new RangeSetBuilder<Decoration>();
+        const fingerprintParts: string[] = [];
 
         for (const { from, to } of view.visibleRanges) {
           syntaxTree(state).iterate({
@@ -176,6 +212,7 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
                           )
                         })
                       );
+                      fingerprintParts.push(`${linkNode.from}-${linkNode.to}:${outLinkMathLink}`);
                     }
                   }
                 }
@@ -185,12 +222,11 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
         }
 
         this.decorations = builder.finish();
-        if (this.decorations.size > 0) {
-          const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } })
-            .MathJax;
-          if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
-            void finishRenderMath();
-          }
+        const newFingerprint = fingerprintParts.join('|');
+        if (this.decorations.size > 0 && newFingerprint !== this.lastFingerprint) {
+          this.lastFingerprint = newFingerprint;
+        } else if (this.decorations.size === 0) {
+          this.lastFingerprint = '';
         }
       }
     },

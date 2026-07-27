@@ -605,7 +605,7 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
       },
       update(decorations, tr) {
         // Re-evaluate whenever the document contents or selections change
-        if (!tr.docChanged && !tr.selection) {
+        if (!tr.docChanged && !tr.selectionSet) {
           return decorations;
         }
 

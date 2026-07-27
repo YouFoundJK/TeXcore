@@ -1,4 +1,4 @@
-import { Extension, Annotation } from '@codemirror/state';
+import { Extension, Annotation, Transaction } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 
 export const DEFAULT_OBSITEX_TEMPLATE = `eq-prefix: A          # Prefix added to equation numbers (e.g., 'A' for (A1), (A2))
@@ -38,6 +38,7 @@ export function createObsitexAutoTemplatePlugin(): Extension {
       }
 
       runCheck(view: EditorView) {
+        if (view.hasFocus === false && view.dom.ownerDocument?.hasFocus?.()) return;
         const text = view.state.doc.toString();
         const blockRegex = /```obsitex[ \t]*\r?\n([\s\S]*?)```/g;
         let match: RegExpExecArray | null;
@@ -66,7 +67,7 @@ export function createObsitexAutoTemplatePlugin(): Extension {
         if (changes.length > 0) {
           view.dispatch({
             changes,
-            annotations: obsitexTemplateAnnotation.of(true)
+            annotations: [obsitexTemplateAnnotation.of(true), Transaction.addToHistory.of(false)]
           });
         }
       }
