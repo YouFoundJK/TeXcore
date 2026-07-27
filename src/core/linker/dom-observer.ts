@@ -94,15 +94,25 @@ function scanExistingCallouts(plugin: LatexReferencer): void {
  */
 export function setupDOMObserver(plugin: LatexReferencer): () => void {
   const observer = new MutationObserver(mutations => {
+    const nodesToFix: HTMLElement[] = [];
     for (const mutation of mutations) {
       if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
           if (node.instanceOf(HTMLElement)) {
             processEquationLinksInElement(node, plugin);
-            fixMathBrInContainer(node);
+            nodesToFix.push(node);
           }
         }
       }
+    }
+    if (nodesToFix.length > 0) {
+      window.requestAnimationFrame(() => {
+        for (const node of nodesToFix) {
+          if (node.isConnected) {
+            fixMathBrInContainer(node);
+          }
+        }
+      });
     }
   });
 

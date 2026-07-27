@@ -93,7 +93,7 @@ export function processActiveNoteEquations(
 
   // 1. Scan document(s) to build a map of reference counts.
   const referenceMap = new Map<string, ReferenceInfo>();
-  const linkRegex = /\[\[(?:[^\]]*?#\^|\^)(eq-[\w.-]+)\]\]/g;
+  const linkRegex = /(?:\[\[(?:[^\]]*?#\^|\^)|(?<=\s|^|\()\^)(eq-[\w.-]+)(?:\b|\]\])/g;
   const textToScan = extraContent ? `${content}\n${extraContent}` : content;
   let match;
   while ((match = linkRegex.exec(textToScan)) !== null) {
@@ -123,8 +123,7 @@ export function processActiveNoteEquations(
 
   const processedEquations = new Map<string, EquationBlock>();
   const obsitexConfigs = parsePositionalObsitexConfigs(content);
-  const shouldNumberAll =
-    !settings.numberOnlyReferencedEquations || obsitexConfigs.length > 0 || referenceMap.size > 0;
+  const shouldNumberAll = !settings.numberOnlyReferencedEquations;
   let configIdx = 0;
   let currentPrefix = settings.eqNumberPrefix;
   let equationCount = 0;

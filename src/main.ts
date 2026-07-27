@@ -263,6 +263,14 @@ export default class LatexReferencer extends Plugin {
       })
     );
 
+    this.registerEvent(
+      this.app.vault.on('modify', abstractFile => {
+        if (abstractFile instanceof TFile && abstractFile.extension === 'md') {
+          clearEquationCache(abstractFile.path);
+        }
+      })
+    );
+
     this.app.workspace.onLayoutReady(() => {
       this.register(setupDOMObserver(this));
     });

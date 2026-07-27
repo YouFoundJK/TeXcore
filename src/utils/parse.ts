@@ -199,7 +199,11 @@ export const TOP_LEVEL_EQ_ENVS = new Set([
   'subequations',
   'subequations*',
   'equation',
-  'equation*'
+  'equation*',
+  'displaymath',
+  'displaymath*',
+  'math',
+  'math*'
 ]);
 
 /**

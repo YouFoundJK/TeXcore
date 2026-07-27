@@ -501,5 +501,18 @@ $$
       expect(result).toContain('\\tag{1.2}');
       expect(result).toContain('\\end{align}');
     });
+
+    it('returns null for findTopLevelEndEnvMatch when environment is unclosed', () => {
+      const incompleteMath = `\\begin{align}\na &= b \\\\\nc &= d`;
+      const endMatch = findTopLevelEndEnvMatch(incompleteMath);
+      expect(endMatch).toBeNull();
+    });
+
+    it('correctly matches top-level align endEnv even when inner bmatrix exists', () => {
+      const mathWithMatrix = `\\begin{align}\nA &= \\begin{bmatrix} 1 & 0 \\\\ 0 & 1 \\end{bmatrix}\n\\end{align}`;
+      const endMatch = findTopLevelEndEnvMatch(mathWithMatrix);
+      expect(endMatch).not.toBeNull();
+      expect(endMatch?.matchText).toBe('\\end{align}');
+    });
   });
 });

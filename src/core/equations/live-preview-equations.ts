@@ -7,8 +7,10 @@ import {
   CALLOUT_PREFIX_REGEX,
   findDisplayMathBlocks,
   splitMathIntoTopLevelRows,
-  findTopLevelEndEnvMatch
+  findTopLevelEndEnvMatch,
+  TOP_LEVEL_EQ_ENVS
 } from 'utils/parse';
+import { logDebug, logWarn } from 'utils/logger';
 
 /**
  * The in-memory state for the TagManager. It holds only the information
@@ -77,9 +79,20 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
 
   for (const block of mathBlocks) {
     const blockText = state.doc.sliceString(block.from, block.to);
+    let id: string | null = null;
+
     const idMatch = blockText.match(/% id: (eq-[\w.-]+)/);
     if (idMatch) {
-      const id = idMatch[1];
+      id = idMatch[1];
+    } else {
+      const textAfter = text.substring(block.to, Math.min(text.length, block.to + 100));
+      const nextLineMatch = textAfter.match(/^\s*\n\s*\^(eq-[\w.-]+)/);
+      if (nextLineMatch) {
+        id = nextLineMatch[1];
+      }
+    }
+
+    if (id) {
       const eq = processedEquations.get(id);
       equationInfos.push({
         from: block.from,
@@ -127,7 +140,7 @@ function createTagManagerPlugin(
       }
       scheduleCheck(view: EditorView) {
         if (this.timeout) window.clearTimeout(this.timeout);
-        this.timeout = window.setTimeout(() => this.runCheck(view), 300);
+        this.timeout = window.setTimeout(() => this.runCheck(view), 600);
       }
 
       // equations/live-preview.ts (inside ViewPlugin.fromClass)
@@ -171,6 +184,10 @@ function createTagManagerPlugin(
           );
           if (isNearOrInside) {
             blockedChanges++;
+            logDebug(
+              'TagManager',
+              `Blocked tag check for ${info.id}: cursor near/inside equation block`
+            );
             continue;
           }
 
@@ -182,6 +199,32 @@ function createTagManagerPlugin(
           const idCommentMatch = blockContent.match(/\s*% id: eq-[\w.-]+/);
           const idIndex = idCommentMatch ? (idCommentMatch.index ?? -1) : -1;
           const mathText = idIndex !== -1 ? blockContent.substring(0, idIndex) : blockContent;
+
+          // Environment syntax safety guard:
+          // If mathText contains a top-level equation container (\begin{align}, \begin{gather}, etc.)
+          // but no matching \end{<env>} exists, the user is actively typing an unclosed environment.
+          // Inner environments (bmatrix, pmatrix, cases, etc.) are ignored here.
+          const beginEnvMatches = mathText.match(/\\begin\{\s*([a-zA-Z*]+)\s*\}/g);
+          if (beginEnvMatches) {
+            let unclosedTopLevelEnv: string | null = null;
+            for (const m of beginEnvMatches) {
+              const envName = m.match(/\\begin\{\s*([a-zA-Z*]+)\s*\}/)?.[1];
+              if (envName && TOP_LEVEL_EQ_ENVS.has(envName)) {
+                const endEnvMatch = findTopLevelEndEnvMatch(mathText);
+                if (!endEnvMatch) {
+                  unclosedTopLevelEnv = envName;
+                  break;
+                }
+              }
+            }
+            if (unclosedTopLevelEnv) {
+              logDebug(
+                'TagManager',
+                `Skipped tag update for ${info.id}: unclosed top-level environment \\begin{${unclosedTopLevelEnv}}`
+              );
+              continue;
+            }
+          }
 
           // Mode 1: Sub-equations
           if (info.subIndices && info.subIndices.size > 0 && info.printName) {
@@ -214,6 +257,7 @@ function createTagManagerPlugin(
 
             if (needsUpdate) {
               const newMathText = newParts.join('');
+              logDebug('TagManager', `Updating sub-equation tags for ${info.id} to ${baseName}.*`);
               changes.push({
                 from: startPos,
                 to: startPos + mathText.length,
@@ -228,15 +272,16 @@ function createTagManagerPlugin(
           const existingTagMatch = mathText.match(/\\tag\{([^{}]+)\}/);
 
           if (!requiredTagContent) {
-            if (existingTagMatch && existingTagMatch.index !== undefined) {
-              const tagStart = startPos + existingTagMatch.index;
-              const tagEnd = tagStart + existingTagMatch[0].length;
-              changes.push({ from: tagStart, to: tagEnd, insert: '' });
-            }
+            // Do NOT strip existing tags automatically during live editing!
             continue;
           }
 
           const expectedTagStr = `\\tag{${requiredTagContent}}`;
+
+          if (blockContent.includes(expectedTagStr)) {
+            // Tag already exists in the block - DO NOTHING
+            continue;
+          }
 
           if (existingTagMatch && existingTagMatch.index !== undefined) {
             if (existingTagMatch[1] === requiredTagContent) {
@@ -244,17 +289,20 @@ function createTagManagerPlugin(
               continue;
             }
             // Replace ONLY the tag string
+            logDebug('TagManager', `Updating tag for ${info.id} to ${expectedTagStr}`);
             const tagStart = startPos + existingTagMatch.index;
             const tagEnd = tagStart + existingTagMatch[0].length;
             changes.push({ from: tagStart, to: tagEnd, insert: expectedTagStr });
             continue;
           }
 
-          // No tag exists - insert expectedTagStr right before endEnv or before % id: / end of mathText
+          // No tag exists - insert expectedTagStr right after endEnv or at math end
           const endEnvMatch = findTopLevelEndEnvMatch(mathText);
           if (endEnvMatch && endEnvMatch.index !== undefined) {
-            const insertPos = startPos + endEnvMatch.index;
-            changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr} ` });
+            logDebug('TagManager', `Inserting tag for ${info.id} after \\end: ${expectedTagStr}`);
+            const envEndOffset = endEnvMatch.index + endEnvMatch.matchText.length;
+            const insertPos = startPos + envEndOffset;
+            changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr}` });
             continue;
           }
 
@@ -265,12 +313,14 @@ function createTagManagerPlugin(
           ) {
             insertPos--;
           }
+          logDebug('TagManager', `Inserting tag for ${info.id} at math end: ${expectedTagStr}`);
           changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr}` });
         }
 
         this.blockedBySelection = blockedChanges > 0;
 
         if (changes.length > 0) {
+          logDebug('TagManager', `Dispatching ${changes.length} tag change(s)`);
           view.dispatch({
             changes,
             annotations: [tagManagerAnnotation.of(true), Transaction.addToHistory.of(false)]
