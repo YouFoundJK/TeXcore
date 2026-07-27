@@ -1,13 +1,50 @@
-import { TFile } from 'obsidian';
+import { TFile, MarkdownView } from 'obsidian';
 import { CONVERTER } from '../../utils/format';
 import { parsePositionalObsitexConfigs } from '../../utils/obsitex';
 import { EquationBlock } from '../../types';
 import LatexReferencer from '../../main';
 import { ActiveNoteEquationProvider } from './provider-equation';
+import { getSyncFileContent } from '../../utils/obsidian';
 
 interface ReferenceInfo {
   totalCount: number;
   subIndices: Set<number>;
+}
+
+function getReferencingContents(plugin: LatexReferencer, file: TFile): string {
+  const parts: string[] = [];
+  const app = plugin.app;
+
+  // 1. Check current active view
+  const activeView =
+    typeof app.workspace?.getActiveViewOfType === 'function'
+      ? app.workspace.getActiveViewOfType(MarkdownView)
+      : null;
+  if (activeView && activeView.file && activeView.file.path !== file.path) {
+    if (typeof activeView.getViewData === 'function') {
+      parts.push(activeView.getViewData());
+    }
+  }
+
+  // 2. Check metadataCache resolvedLinks
+  const resolvedLinks = app.metadataCache?.resolvedLinks || {};
+  const checkedPaths = new Set<string>();
+  if (activeView?.file) checkedPaths.add(activeView.file.path);
+
+  for (const [sourcePath, links] of Object.entries(resolvedLinks)) {
+    if (sourcePath === file.path || checkedPaths.has(sourcePath)) continue;
+    if (links[file.path] || links[file.basename]) {
+      checkedPaths.add(sourcePath);
+      const srcFile =
+        typeof app.vault?.getFileByPath === 'function' ? app.vault.getFileByPath(sourcePath) : null;
+      if (srcFile) {
+        const srcContent = getSyncFileContent(app, srcFile);
+        if (srcContent) parts.push(srcContent);
+      }
+    }
+  }
+
+  return parts.join('\n');
 }
 
 /**
@@ -17,17 +54,20 @@ interface ReferenceInfo {
 export function processActiveNoteEquations(
   plugin: LatexReferencer,
   file: TFile,
-  content: string
+  content: string,
+  referencerContent?: string
 ): Map<string, EquationBlock> {
   const provider = new ActiveNoteEquationProvider(plugin.app);
   const equations = provider.getEquations(file, content);
   const settings = plugin.settings;
 
-  // 1. Scan the entire document once to build a map of reference counts.
+  // 1. Scan document(s) to build a map of reference counts.
   const referenceMap = new Map<string, ReferenceInfo>();
-  const linkRegex = /\[\[(?:#\^|\^)(eq-[\w.-]+)\]\]/g;
+  const linkRegex = /\[\[(?:[^\]]*?#\^|\^)(eq-[\w.-]+)\]\]/g;
+  const extraContent = referencerContent ?? getReferencingContents(plugin, file);
+  const textToScan = extraContent ? `${content}\n${extraContent}` : content;
   let match;
-  while ((match = linkRegex.exec(content)) !== null) {
+  while ((match = linkRegex.exec(textToScan)) !== null) {
     const fullId = match[1];
     const subIndexMatch = fullId.match(/-(\d+)$/);
     let baseId = fullId;
@@ -54,6 +94,8 @@ export function processActiveNoteEquations(
 
   const processedEquations = new Map<string, EquationBlock>();
   const obsitexConfigs = parsePositionalObsitexConfigs(content);
+  const shouldNumberAll =
+    !settings.numberOnlyReferencedEquations || obsitexConfigs.length > 0 || referenceMap.size > 0;
   let configIdx = 0;
   let currentPrefix = settings.eqNumberPrefix;
   let equationCount = 0;
@@ -101,7 +143,7 @@ export function processActiveNoteEquations(
 
       if (eq.$manualTag) {
         printName = `(${eq.$manualTag})`;
-      } else if (!settings.numberOnlyReferencedEquations || backlinkCount > 0) {
+      } else if (shouldNumberAll || backlinkCount > 0) {
         eq.$index = equationCount;
         const num = settings.eqNumberInit + equationCount;
         const numberStyle = settings.eqNumberStyle;

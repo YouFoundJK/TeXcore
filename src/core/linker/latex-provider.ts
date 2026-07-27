@@ -3,6 +3,8 @@ import LatexReferencer from 'main';
 import { processActiveNoteEquations } from '../equations/numbering';
 import { Provider } from './provider-link-render';
 import { parseObsitexConfig } from 'utils/obsitex';
+import { getSyncFileContent } from 'utils/obsidian';
+import { EquationBlock } from 'types';
 
 export class LatexLinkProvider extends Provider {
   app: App;
@@ -45,70 +47,106 @@ export class LatexLinkProvider extends Provider {
 
     const settings = this.plugin.settings;
 
+    let targetEquation: EquationBlock | undefined;
+    let effectiveTargetFile: TFile = targetFile;
+    let supplementAlias = '';
+    let isSupplementLink = false;
+
     if (targetFile.path === activeFile.path) {
       const equations = processActiveNoteEquations(this.plugin, activeFile, activeContent);
-      const targetEquation = equations.get(blockId);
+      targetEquation = equations.get(blockId);
 
-      if (targetEquation?.$printName) {
-        let result: string;
-        if (subIndex !== undefined) {
-          const baseName = targetEquation.$printName.slice(1, -1);
-          result = `${settings.eqRefPrefix}(${baseName}.${subIndex})${settings.eqRefSuffix}`;
-        } else {
-          result = targetEquation.$refName ?? targetEquation.$printName;
+      // Fallback: If equation blockId is not in active file, search active file's supplements!
+      if (!targetEquation) {
+        const obsitexConfig = parseObsitexConfig(activeContent);
+        const supplements = obsitexConfig.supplements;
+        if (supplements) {
+          for (const [suppKey, alias] of Object.entries(supplements)) {
+            const suppFile = this.app.metadataCache.getFirstLinkpathDest(suppKey, activeFile.path);
+            if (!suppFile) continue;
+            const suppContent = getSyncFileContent(this.app, suppFile);
+            if (!suppContent) continue;
+            const suppEquations = processActiveNoteEquations(
+              this.plugin,
+              suppFile,
+              suppContent,
+              activeContent
+            );
+            const foundEq = suppEquations.get(blockId);
+            if (foundEq) {
+              targetEquation = foundEq;
+              effectiveTargetFile = suppFile;
+              supplementAlias = alias || '';
+              isSupplementLink = true;
+              break;
+            }
+          }
         }
-
-        if (settings.noteTitleInEquationLink && parsedLinktext.path) {
-          result = `${targetFile.basename} > ${result}`;
-        }
-        return result;
       }
     } else {
-      // Check if targetFile is in active note's supplements
+      // Cross-note targetFile passed
       const obsitexConfig = parseObsitexConfig(activeContent);
       const supplements = obsitexConfig.supplements;
-      if (!supplements) return null;
-
-      let supplementAlias: string | null = null;
-      for (const [suppKey, alias] of Object.entries(supplements)) {
-        const suppFile = this.app.metadataCache.getFirstLinkpathDest(suppKey, activeFile.path);
-        if (
-          (suppFile && suppFile.path === targetFile.path) ||
-          suppKey === targetFile.basename ||
-          suppKey === targetFile.path
-        ) {
-          supplementAlias = alias;
-          break;
+      if (supplements) {
+        for (const [suppKey, alias] of Object.entries(supplements)) {
+          const suppFile = this.app.metadataCache.getFirstLinkpathDest(suppKey, activeFile.path);
+          if (
+            (suppFile && suppFile.path === targetFile.path) ||
+            suppKey === targetFile.basename ||
+            suppKey === targetFile.path
+          ) {
+            isSupplementLink = true;
+            supplementAlias = alias || '';
+            break;
+          }
         }
       }
 
-      if (!supplementAlias) return null;
+      if (!isSupplementLink) return null;
 
-      const targetContent =
-        (
-          this.app.vault as unknown as { cachedReadSync?: (file: TFile) => string }
-        ).cachedReadSync?.(targetFile) ?? null;
+      const targetContent = getSyncFileContent(this.app, targetFile);
 
-      if (!targetContent) return null;
+      if (!targetContent) {
+        return null;
+      }
 
-      const targetEquations = processActiveNoteEquations(this.plugin, targetFile, targetContent);
-      const targetEquation = targetEquations.get(blockId);
+      const targetEquations = processActiveNoteEquations(
+        this.plugin,
+        targetFile,
+        targetContent,
+        activeContent
+      );
+      targetEquation = targetEquations.get(blockId);
+    }
 
-      if (targetEquation?.$printName) {
-        const rawEqNo = targetEquation.$printName.replace(/^\((.*)\)$/, '$1');
-        let printName: string;
+    if (targetEquation?.$printName) {
+      const rawEqNo = targetEquation.$printName.replace(/^\((.*)\)$/, '$1');
+      let printName: string;
+
+      if (isSupplementLink) {
         if (subIndex !== undefined) {
-          printName = `(${supplementAlias}-${rawEqNo}.${subIndex})`;
+          printName = supplementAlias
+            ? `(${supplementAlias}-${rawEqNo}.${subIndex})`
+            : `(${rawEqNo}.${subIndex})`;
         } else {
-          printName = `(${supplementAlias}-${rawEqNo})`;
+          printName = supplementAlias
+            ? `(${supplementAlias}-${rawEqNo})`
+            : targetEquation.$printName;
         }
-
-        let result = settings.eqRefPrefix + printName + settings.eqRefSuffix;
-        if (settings.noteTitleInEquationLink && parsedLinktext.path) {
-          result = `${targetFile.basename} > ${result}`;
+      } else {
+        if (subIndex !== undefined) {
+          const baseName = targetEquation.$printName.slice(1, -1);
+          printName = `(${baseName}.${subIndex})`;
+        } else {
+          printName = targetEquation.$printName;
         }
-        return result;
       }
+
+      let result = settings.eqRefPrefix + printName + settings.eqRefSuffix;
+      if (settings.noteTitleInEquationLink && parsedLinktext.path) {
+        result = `${effectiveTargetFile.basename} > ${result}`;
+      }
+      return result;
     }
 
     return null;

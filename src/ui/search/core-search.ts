@@ -12,7 +12,7 @@ import {
   renderMath,
   sortSearchResults
 } from 'obsidian';
-import { showNotice } from 'utils/obsidian';
+import { showNotice, getSyncFileContent } from 'utils/obsidian';
 import LatexReferencer from 'main';
 import { EquationBlock } from 'types';
 import { LEAF_OPTION_TO_ARGS } from '../../settings/settings';
@@ -93,9 +93,7 @@ export class ActiveNoteSearchCore {
         const suppFile = this.app.metadataCache.getFirstLinkpathDest(suppKey, file.path);
         if (suppFile) {
           const suppContent =
-            (
-              this.app.vault as unknown as { cachedReadSync?: (f: TFile) => string }
-            ).cachedReadSync?.(suppFile) ?? (await this.app.vault.read(suppFile));
+            getSyncFileContent(this.app, suppFile) ?? (await this.app.vault.read(suppFile));
 
           if (suppContent) {
             const eqMap = processActiveNoteEquations(this.plugin, suppFile, suppContent);
@@ -103,9 +101,9 @@ export class ActiveNoteSearchCore {
               const rawEqNo = eq.$printName ? eq.$printName.replace(/^\((.*)\)$/, '$1') : '';
               const clone: EquationBlock = {
                 ...eq,
-                $supplementAlias: alias,
+                $supplementAlias: alias || undefined,
                 $isSupplement: true,
-                $printName: rawEqNo ? `(${alias}-${rawEqNo})` : null
+                $printName: alias && rawEqNo ? `(${alias}-${rawEqNo})` : eq.$printName
               };
               suppBlocks.push(clone);
             }
@@ -128,6 +126,7 @@ export class ActiveNoteSearchCore {
       const obsitexConfig = parseObsitexConfig(editor.getValue());
       if (obsitexConfig.supplements) {
         for (const alias of Object.values(obsitexConfig.supplements)) {
+          if (!alias) continue;
           const aliasLower = alias.toLowerCase();
           const qLower = searchPattern.toLowerCase();
           if (qLower === aliasLower) {

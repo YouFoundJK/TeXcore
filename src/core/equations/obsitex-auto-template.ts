@@ -2,7 +2,10 @@ import { Extension, Annotation } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 
 export const DEFAULT_OBSITEX_TEMPLATE = `eq-prefix: A          # Prefix added to equation numbers (e.g., 'A' for (A1), (A2))
-eq-continuity: false  # 'false' resets numbering to 1; 'true' continues counting`;
+eq-continuity: false  # 'false' resets numbering to 1; 'true' continues counting
+# supplements:        # Cross-reference target files
+#  - [[NoteName]]: S1 # Option 1: Cross-reference with prefix alias (e.g., (S1-A1))
+#  - [[NoteName]]     # Option 2: Cross-reference without prefix alias (e.g., (A1))`;
 
 const obsitexTemplateAnnotation = Annotation.define<boolean>();
 

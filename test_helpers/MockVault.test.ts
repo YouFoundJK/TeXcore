@@ -180,8 +180,8 @@ describe('MockVault API tests', () => {
 
     // MockCache stubs
     const file = vault.getFileByPath('test.md')!;
-    expect(() => cache.getFirstLinkpathDest('link', 'source')).toThrow('Method not implemented.');
-    expect(() => cache.fileToLinktext(file, 'source')).toThrow('Method not implemented.');
+    expect(cache.getFirstLinkpathDest('test.md', 'source')).toBe(file);
+    expect(cache.fileToLinktext(file, 'source')).toBe('test');
     expect(() => cache.on('changed', () => {})).toThrow('Method not implemented.');
     expect(() => cache.off('changed', () => {})).toThrow('Method not implemented.');
     expect(() => cache.offref({})).toThrow('Method not implemented.');

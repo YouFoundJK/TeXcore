@@ -1,6 +1,7 @@
 import { parseObsitexConfig, getObsitexConfigAtPosition } from '../src/utils/obsitex';
 import { getEqNumberPrefix } from '../src/utils/format';
 import { processActiveNoteEquations } from '../src/core/equations/numbering';
+import { LatexLinkProvider } from '../src/core/linker/latex-provider';
 import { MockAppBuilder } from './AppBuilder';
 import { FileBuilder } from './FileBuilder';
 import { App, TFile } from 'obsidian';
@@ -61,6 +62,18 @@ eq-continuity: true
     const config = parseObsitexConfig(content);
     expect(config.eqPrefix).toBeUndefined();
     expect(config.eqContinuity).toBeUndefined();
+  });
+
+  it('strips inline comments starting with # in eq-prefix and eq-continuity', () => {
+    const content = `
+\`\`\`obsitex
+eq-prefix: A          # Prefix added to equation numbers (e.g., 'A' for (A1), (A2))
+eq-continuity: false  # 'false' resets numbering to 1; 'true' continues counting
+\`\`\`
+`;
+    const config = parseObsitexConfig(content);
+    expect(config.eqPrefix).toBe('A');
+    expect(config.eqContinuity).toBe(false);
   });
 
   it('resolves config positionally with getObsitexConfigAtPosition', () => {
@@ -274,5 +287,179 @@ $$
         end: { line: 12, col: 2, offset: eq2End }
       }
     });
+  });
+
+  it('parses supplements in YAML list format without explicit alias (exact user case)', () => {
+    const content = `\`\`\`obsitex
+eq-prefix: C
+eq-continuity: false
+supplements:
+ - [[Blum-1978-Solution-Of-The-Mean-Spherical-Approximation-For-Hard-Ions-And-Dipoles-Of-Arbitrary-Size]]
+\`\`\``;
+    const config = parseObsitexConfig(content);
+    expect(config.eqPrefix).toBe('C');
+    expect(config.eqContinuity).toBe(false);
+    expect(config.supplements).toBeDefined();
+    expect(
+      config.supplements![
+        'Blum-1978-Solution-Of-The-Mean-Spherical-Approximation-For-Hard-Ions-And-Dipoles-Of-Arbitrary-Size'
+      ]
+    ).toBe('');
+  });
+
+  it('parses supplements in YAML list format with explicit alias', () => {
+    const content = `\`\`\`obsitex
+supplements:
+ - [[SuppNote]]: S1
+\`\`\``;
+    const config = parseObsitexConfig(content);
+    expect(config.supplements).toBeDefined();
+    expect(config.supplements!['SuppNote']).toBe('S1');
+  });
+
+  it('LatexLinkProvider resolves cross-note equation links for un-aliased supplements', () => {
+    const mainContent = `\`\`\`obsitex
+eq-prefix: A
+supplements:
+ - [[Blum-1978-Solution]]
+\`\`\`
+
+Cross ref to [[Blum-1978-Solution#^eq-hard-ions]]
+`;
+
+    const suppContent = `\`\`\`obsitex
+eq-prefix: C
+eq-continuity: false
+\`\`\`
+
+$$
+E = mc^2
+% id: eq-hard-ions
+$$
+`;
+
+    const mockApp = MockAppBuilder.make()
+      .file('Main.md', new FileBuilder().text(mainContent))
+      .file('Blum-1978-Solution.md', new FileBuilder().text(suppContent))
+      .done();
+
+    const mainFile = mockApp.vault.getFileByPath('Main.md')!;
+    const suppFile = mockApp.vault.getFileByPath('Blum-1978-Solution.md')!;
+
+    const suppCache = mockApp.metadataCache.getFileCache(suppFile)!;
+    const eqStart = suppContent.indexOf('$$');
+    const eqEnd = suppContent.indexOf('$$', eqStart + 2) + 2;
+    suppCache.sections = [
+      {
+        type: 'math',
+        position: {
+          start: { line: 5, col: 0, offset: eqStart },
+          end: { line: 8, col: 2, offset: eqEnd }
+        }
+      }
+    ];
+
+    mockApp.workspace.getActiveViewOfType = (() => ({
+      file: mainFile,
+      getViewData: () => mainContent
+    })) as unknown as typeof mockApp.workspace.getActiveViewOfType;
+
+    const testSettings: Required<PluginSettings> = {
+      numberOnlyReferencedEquations: false,
+      eqNumberPrefix: '',
+      eqNumberSuffix: '',
+      eqNumberInit: 1,
+      eqNumberStyle: 'arabic',
+      eqRefPrefix: '',
+      eqRefSuffix: '',
+      defaultCalloutType: 'note',
+      showNoteTitleInLink: false
+    };
+
+    const mockPlugin = {
+      app: mockApp,
+      settings: testSettings
+    } as unknown as LatexReferencer;
+
+    const provider = new LatexLinkProvider(mockPlugin);
+    const linkText = provider.provide(
+      { path: 'Blum-1978-Solution', subpath: '#^eq-hard-ions' },
+      suppFile,
+      null
+    );
+
+    expect(linkText).toBe('(C1)');
+  });
+
+  it('LatexLinkProvider resolves cross-note equation links with alias for supplemented notes', () => {
+    const mainContent = `\`\`\`obsitex
+supplements:
+ - [[Blum-1978-Solution]]: S1
+\`\`\`
+
+Cross ref to [[Blum-1978-Solution#^eq-hard-ions]]
+`;
+
+    const suppContent = `\`\`\`obsitex
+eq-prefix: C
+\`\`\`
+
+$$
+E = mc^2
+% id: eq-hard-ions
+$$
+`;
+
+    const mockApp = MockAppBuilder.make()
+      .file('Main.md', new FileBuilder().text(mainContent))
+      .file('Blum-1978-Solution.md', new FileBuilder().text(suppContent))
+      .done();
+
+    const mainFile = mockApp.vault.getFileByPath('Main.md')!;
+    const suppFile = mockApp.vault.getFileByPath('Blum-1978-Solution.md')!;
+
+    const suppCache = mockApp.metadataCache.getFileCache(suppFile)!;
+    const eqStart = suppContent.indexOf('$$');
+    const eqEnd = suppContent.indexOf('$$', eqStart + 2) + 2;
+    suppCache.sections = [
+      {
+        type: 'math',
+        position: {
+          start: { line: 5, col: 0, offset: eqStart },
+          end: { line: 8, col: 2, offset: eqEnd }
+        }
+      }
+    ];
+
+    mockApp.workspace.getActiveViewOfType = (() => ({
+      file: mainFile,
+      getViewData: () => mainContent
+    })) as unknown as typeof mockApp.workspace.getActiveViewOfType;
+
+    const testSettings: Required<PluginSettings> = {
+      numberOnlyReferencedEquations: false,
+      eqNumberPrefix: '',
+      eqNumberSuffix: '',
+      eqNumberInit: 1,
+      eqNumberStyle: 'arabic',
+      eqRefPrefix: '',
+      eqRefSuffix: '',
+      defaultCalloutType: 'note',
+      showNoteTitleInLink: false
+    };
+
+    const mockPlugin = {
+      app: mockApp,
+      settings: testSettings
+    } as unknown as LatexReferencer;
+
+    const provider = new LatexLinkProvider(mockPlugin);
+    const linkText = provider.provide(
+      { path: 'Blum-1978-Solution', subpath: '#^eq-hard-ions' },
+      suppFile,
+      null
+    );
+
+    expect(linkText).toBe('(S1-C1)');
   });
 });

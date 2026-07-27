@@ -6,9 +6,10 @@ import {
 } from '../src/core/equations/obsitex-auto-template';
 
 describe('obsitex-auto-template tests', () => {
-  it('template contains eq-prefix, eq-continuity and inline hints', () => {
+  it('template contains eq-prefix, eq-continuity, supplements and inline hints', () => {
     expect(DEFAULT_OBSITEX_TEMPLATE).toContain('eq-prefix: A');
     expect(DEFAULT_OBSITEX_TEMPLATE).toContain('eq-continuity: false');
+    expect(DEFAULT_OBSITEX_TEMPLATE).toContain('supplements:');
     expect(DEFAULT_OBSITEX_TEMPLATE).toContain('#');
   });
 

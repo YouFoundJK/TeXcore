@@ -34,6 +34,7 @@ const baseName = (path: string): string => {
 
 export class MockCache implements MetadataCache {
   private cache: Map<string, CachedMetadata>;
+  app?: MockApp;
 
   constructor(cache: Map<string, CachedMetadata>) {
     this.cache = cache;
@@ -47,13 +48,27 @@ export class MockCache implements MetadataCache {
     return this.getCache(file.path);
   }
 
-  // Below here is not implemented.
-
   getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null {
-    throw new Error('Method not implemented.');
+    if (!this.app) return null;
+    const cleanLink = linkpath.replace(/\.md$/i, '');
+    const files = this.app.vault.getMarkdownFiles();
+    for (const file of files) {
+      if (
+        file.basename === cleanLink ||
+        file.name === linkpath ||
+        file.path === linkpath ||
+        file.path === linkpath + '.md' ||
+        file.path === '/' + linkpath ||
+        file.path === '/' + linkpath + '.md'
+      ) {
+        return file;
+      }
+    }
+    return null;
   }
+
   fileToLinktext(file: TFile, sourcePath: string, omitMdExtension?: boolean): string {
-    throw new Error('Method not implemented.');
+    return file.basename;
   }
   resolvedLinks: Record<string, Record<string, number>> = {};
   unresolvedLinks: Record<string, Record<string, number>> = {};
@@ -113,6 +128,7 @@ export class MockApp implements App {
   constructor(vault: MockVault, cache: MockCache) {
     this.vault = vault;
     this.metadataCache = cache;
+    cache.app = this;
   }
 }
 

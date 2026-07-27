@@ -69,3 +69,36 @@ export function setCssProps(el: HTMLElement, props: Record<string, string>) {
     el.style.setProperty(key, value);
   }
 }
+
+export function getSyncFileContent(app: App, file: TFile): string | null {
+  if (!file) return null;
+  try {
+    const vaultAny = app.vault as unknown as Record<string, unknown>;
+    if (typeof vaultAny.cachedReadSync === 'function') {
+      const content = (vaultAny.cachedReadSync as (f: TFile) => string)(file);
+      if (typeof content === 'string') return content;
+    }
+    if (typeof vaultAny.readSync === 'function') {
+      const content = (vaultAny.readSync as (f: TFile) => string)(file);
+      if (typeof content === 'string') return content;
+    }
+    const adapterAny = app.vault.adapter as unknown as Record<string, unknown>;
+    if (typeof adapterAny?.readSync === 'function') {
+      const content = (adapterAny.readSync as (p: string) => string)(file.path);
+      if (typeof content === 'string') return content;
+    }
+    if (
+      typeof adapterAny?.getFullPath === 'function' &&
+      adapterAny?.fs &&
+      typeof (adapterAny.fs as Record<string, unknown>).readFileSync === 'function'
+    ) {
+      const fullPath = (adapterAny.getFullPath as (p: string) => string)(file.path);
+      const fsAny = adapterAny.fs as { readFileSync: (p: string, enc: string) => string };
+      const content = fsAny.readFileSync(fullPath, 'utf8');
+      if (typeof content === 'string') return content;
+    }
+  } catch (err) {
+    console.warn('[ObsiTeX] Sync read error for file:', file.path, err);
+  }
+  return null;
+}

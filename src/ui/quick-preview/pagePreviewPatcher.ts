@@ -3,10 +3,12 @@ import { around } from 'monkey-around';
 import LatexReferencer from '../../main';
 import { processActiveNoteEquations } from '../../core/equations/numbering';
 import { EquationBlock } from '../../types';
+import { getSyncFileContent } from '../../utils/obsidian';
+import { parseObsitexConfig } from '../../utils/obsitex';
 
 /**
  * Patch Obsidian's core page-preview plugin to support equation reference links (#^eq-...)
- * across both active notes and external notes cleanly without throwing DOM block resolution errors.
+ * across both active notes and external/supplement notes cleanly without throwing DOM block resolution errors.
  */
 export function setupPagePreviewPatcher(plugin: LatexReferencer): void {
   const pagePreviewPlugin = plugin.app.internalPlugins.getPluginById('page-preview') as unknown as {
@@ -56,59 +58,72 @@ export function setupPagePreviewPatcher(plugin: LatexReferencer): void {
             blockId = subpathText.substring(0, subIndexMatch.index);
           }
 
+          const sourceFile = app.vault.getFileByPath(sourcePath) ?? app.workspace.getActiveFile();
+
           const targetFile = path
             ? app.metadataCache.getFirstLinkpathDest(path, sourcePath)
-            : (app.metadataCache.getFirstLinkpathDest(sourcePath, sourcePath) ??
-              app.vault.getFileByPath(sourcePath));
+            : sourceFile;
+
+          const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+          const activeContent =
+            typeof activeView?.getViewData === 'function' ? activeView.getViewData() : null;
+
+          const processAndGetEquation = (f: TFile, content: string): EquationBlock | undefined => {
+            const equations = processActiveNoteEquations(
+              plugin,
+              f,
+              content,
+              activeContent ?? undefined
+            );
+            return equations.get(blockId);
+          };
+
+          let targetEquation: EquationBlock | undefined = undefined;
+          let effectiveTargetFile: TFile | null = targetFile instanceof TFile ? targetFile : null;
 
           if (targetFile instanceof TFile) {
-            const activeView = app.workspace.getActiveViewOfType(MarkdownView);
-            let targetContent: string | null = null;
-
-            if (
-              activeView &&
-              activeView.file?.path === targetFile.path &&
-              typeof activeView.getViewData === 'function'
-            ) {
-              targetContent = activeView.getViewData();
-            }
-
-            const processAndGetEquation = (content: string): EquationBlock | undefined => {
-              const equations = processActiveNoteEquations(plugin, targetFile, content);
-              return equations.get(blockId);
-            };
-
-            let targetEquation: EquationBlock | undefined = undefined;
-
-            if (targetContent !== null) {
-              targetEquation = processAndGetEquation(targetContent);
+            if (activeView && activeView.file?.path === targetFile.path && activeContent !== null) {
+              targetEquation = processAndGetEquation(targetFile, activeContent);
             } else {
-              const cachedContent = (
-                app.vault as unknown as { cachedReadSync?: (file: TFile) => string }
-              ).cachedReadSync?.(targetFile);
-
+              const cachedContent = getSyncFileContent(app, targetFile);
               if (cachedContent) {
-                targetEquation = processAndGetEquation(cachedContent);
-              } else {
-                void app.vault.read(targetFile).then(content => {
-                  processActiveNoteEquations(plugin, targetFile, content);
-                });
+                targetEquation = processAndGetEquation(targetFile, cachedContent);
               }
             }
 
-            if (targetEquation) {
-              const line = targetEquation.$position.start;
-              const newState = { ...state, scroll: line };
-              const effectiveLinktext = targetFile.path;
-              return oldFunc.call(
-                this,
-                hoverParent,
-                targetEl,
-                effectiveLinktext,
-                sourcePath,
-                newState
-              );
+            // Fallback: If blockId is not found in targetFile (e.g. local link [[#^eq-...]]), search active note's supplements!
+            if (!targetEquation && activeContent) {
+              const obsitexConfig = parseObsitexConfig(activeContent);
+              if (obsitexConfig.supplements) {
+                for (const suppKey of Object.keys(obsitexConfig.supplements)) {
+                  const suppFile = app.metadataCache.getFirstLinkpathDest(suppKey, sourcePath);
+                  if (!suppFile) continue;
+                  const suppContent = getSyncFileContent(app, suppFile);
+                  if (!suppContent) continue;
+                  const foundEq = processAndGetEquation(suppFile, suppContent);
+                  if (foundEq) {
+                    targetEquation = foundEq;
+                    effectiveTargetFile = suppFile;
+                    break;
+                  }
+                }
+              }
             }
+          }
+
+          if (targetEquation && effectiveTargetFile) {
+            const line = targetEquation.$position.start;
+            const newState = { ...state, scroll: line };
+            const effectiveLinktext = effectiveTargetFile.path;
+
+            return oldFunc.call(
+              this,
+              hoverParent,
+              targetEl,
+              effectiveLinktext,
+              sourcePath,
+              newState
+            );
           }
         }
 

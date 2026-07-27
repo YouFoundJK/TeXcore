@@ -1,7 +1,7 @@
 {
   "id": "texcore",
   "name": "TeXcore",
-  "version": "0.0.3.3",
+  "version": "0.0.3.4",
   "minAppVersion": "1.5.7",
   "description": "Automatic equation numbering, Tex Diagrams rendering, and more to transforms your vault into a rich ecosystem for scientific drafting and study.",
   "author": "Jovi Koikkara",

@@ -2,8 +2,7 @@ import { Extension, StateField, EditorState, Annotation } from '@codemirror/stat
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import LatexReferencer from 'main';
-import { CONVERTER } from 'utils/format';
-import { parsePositionalObsitexConfigs } from 'utils/obsitex';
+import { processActiveNoteEquations } from './numbering';
 import {
   CALLOUT_PREFIX_REGEX,
   getCalloutPrefix,
@@ -71,84 +70,29 @@ const mathBlockPositionsField = StateField.define<readonly { from: number; to: n
  */
 function parseEquationInfo(state: EditorState, plugin: LatexReferencer): EquationState {
   const text = state.doc.toString();
-  const settings = plugin.settings;
   const file = state.field(editorInfoField).file;
   if (!file) return [];
 
-  // 1. Scan for all references, including sub-equation links
-  const referenceMap = new Map<string, { totalCount: number; subIndices: Set<number> }>();
-  const linkRegex = /\[\[#\^eq-[\w.-]+\]\]/g;
-  let match;
-  while ((match = linkRegex.exec(text)) !== null) {
-    const linkText = match[0].slice(4, -2); // eq-id or eq-id-2
-    const subIndexMatch = linkText.match(/-(\d+)$/);
-    let baseId = linkText;
-    let subIndexStr: string | undefined = undefined;
-
-    if (subIndexMatch) {
-      subIndexStr = subIndexMatch[1];
-      baseId = linkText.substring(0, subIndexMatch.index);
-    }
-
-    if (!referenceMap.has(baseId)) {
-      referenceMap.set(baseId, { totalCount: 0, subIndices: new Set() });
-    }
-    const refInfo = referenceMap.get(baseId);
-    if (!refInfo) continue;
-    refInfo.totalCount++;
-    if (subIndexStr) {
-      const subIndex = parseInt(subIndexStr);
-      if (!isNaN(subIndex)) {
-        refInfo.subIndices.add(subIndex);
-      }
-    }
-  }
-
+  const processedEquations = processActiveNoteEquations(plugin, file, text);
   const mathBlocks = state.field(mathBlockPositionsField);
-  const equationInfos: (EquationInfo & { refCount: number })[] = [];
+  const equationInfos: EquationInfo[] = [];
+
   for (const block of mathBlocks) {
     const blockText = state.doc.sliceString(block.from, block.to);
     const idMatch = blockText.match(/% id: (eq-[\w.-]+)/);
     if (idMatch) {
       const id = idMatch[1];
-      const refInfo = referenceMap.get(id);
+      const eq = processedEquations.get(id);
       equationInfos.push({
         from: block.from,
         to: block.to,
         id: id,
-        refCount: refInfo?.totalCount ?? 0,
-        printName: null,
-        subIndices: refInfo?.subIndices
+        printName: eq?.$printName ?? null,
+        subIndices: eq?.$subIndices
       });
     }
   }
 
-  const obsitexConfigs = parsePositionalObsitexConfigs(text);
-  let configIdx = 0;
-  let currentPrefix = settings.eqNumberPrefix;
-  let equationCount = 0;
-  const eqSuffix = settings.eqNumberSuffix;
-
-  for (const info of equationInfos) {
-    while (configIdx < obsitexConfigs.length && obsitexConfigs[configIdx].from < info.from) {
-      const cfg = obsitexConfigs[configIdx].config;
-      if (cfg.eqPrefix !== undefined) {
-        currentPrefix = cfg.eqPrefix;
-      }
-      if (cfg.eqContinuity === false) {
-        equationCount = 0;
-      }
-      configIdx++;
-    }
-
-    if (!settings.numberOnlyReferencedEquations || info.refCount > 0) {
-      const num = settings.eqNumberInit + equationCount;
-      const numberStyle = settings.eqNumberStyle;
-      const convertedNum = CONVERTER[numberStyle](num);
-      info.printName = `(${currentPrefix}${convertedNum}${eqSuffix})`;
-      equationCount++;
-    }
-  }
   return equationInfos;
 }
 
@@ -171,11 +115,10 @@ function createTagManagerPlugin(
         this.scheduleCheck(view);
       }
       update(update: ViewUpdate) {
-        if (
-          update.docChanged &&
-          !update.transactions.some(tr => tr.annotation(tagManagerAnnotation))
-        ) {
-          this.scheduleCheck(update.view);
+        if (!update.transactions.some(tr => tr.annotation(tagManagerAnnotation))) {
+          if (update.docChanged || update.viewportChanged || update.focusChanged) {
+            this.scheduleCheck(update.view);
+          }
         }
 
         // If a previous run detected pending edits but skipped due to active selection
@@ -350,7 +293,6 @@ function getEquationField(): StateField<EquationState> {
         return parseEquationInfo(state, activePlugin);
       },
       update(value, tr) {
-        if (!tr.docChanged) return value;
         if (!activePlugin) return [];
         return parseEquationInfo(tr.state, activePlugin);
       }

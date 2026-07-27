@@ -12,19 +12,24 @@ export class ActiveNoteEquationProvider {
 
   getEquations(file: TFile, content: string): EquationBlock[] {
     const cache: CachedMetadata | null = this.app.metadataCache.getFileCache(file);
-    if (!cache?.sections) {
-      return [];
-    }
-
     const equations: EquationBlock[] = [];
+
+    const lines = content.split('\n');
+    const getLineOffset = (line: number): number => {
+      let offset = 0;
+      for (let i = 0; i < Math.min(line, lines.length); i++) {
+        offset += lines[i].length + 1;
+      }
+      return offset;
+    };
 
     const processMathBlock = (
       mathText: string,
-      position: { start: { line: number; offset: number }; end: { line: number; offset: number } }
+      position: {
+        start: { line: number; col?: number; offset: number };
+        end: { line: number; col?: number; offset: number };
+      }
     ) => {
-      // Fix: trimMathText expects $$...$$, but mathText might be already stripped (from callout regex) or not.
-      // If it doesn't start with $$, trimMathText returns empty string.
-      // Check if it has $$ wrappers; if not, just trim whitespace.
       let trimmedMathText = mathText.trim();
       if (trimmedMathText.startsWith('$$')) {
         trimmedMathText = trimMathText(trimmedMathText);
@@ -39,7 +44,7 @@ export class ActiveNoteEquationProvider {
 
       const tagMatch = trimmedMathText.match(/\\tag\{(.*?[^\s])\}/);
       let manualTag: string | null = null;
-      if (tagMatch) {
+      if (tagMatch && !internalIdMatch) {
         manualTag = tagMatch[1].split('.')[0];
       }
 
@@ -54,11 +59,24 @@ export class ActiveNoteEquationProvider {
         }
       }
 
+      const fullPos: Pos = {
+        start: {
+          line: position.start.line,
+          col: position.start.col ?? 0,
+          offset: position.start.offset
+        },
+        end: {
+          line: position.end.line,
+          col: position.end.col ?? 0,
+          offset: position.end.offset
+        }
+      };
+
       return {
         $file: file.path,
         $type: 'equation' as const,
         $blockId: blockId,
-        $pos: position as unknown as Pos,
+        $pos: fullPos,
         $position: { start: position.start.line, end: position.end.line },
         $mathText: trimmedMathText,
         $manualTag: manualTag,
@@ -69,64 +87,81 @@ export class ActiveNoteEquationProvider {
       };
     };
 
-    for (let i = 0; i < cache.sections.length; i++) {
-      const section = cache.sections[i];
+    if (cache?.sections && cache.sections.length > 0) {
+      for (let i = 0; i < cache.sections.length; i++) {
+        const section = cache.sections[i];
 
-      if (section.type === 'math') {
-        const text = content.slice(section.position.start.offset, section.position.end.offset);
-        const eq = processMathBlock(text, section.position);
+        if (section.type === 'math') {
+          const text = content.slice(section.position.start.offset, section.position.end.offset);
+          const eq = processMathBlock(text, section.position);
 
-        // Legacy ID Check
-        if (!eq.$blockId) {
-          eq.$blockId = section.id;
-          const nextLineIndex = section.position.end.line + 1;
-          const lines = content.split('\n');
-          if (nextLineIndex < lines.length) {
-            const nextLine = lines[nextLineIndex].trim();
-            const legacyIdMatch = nextLine.match(/^\^([a-zA-Z0-9\-_]+)$/);
-            if (legacyIdMatch) {
-              eq.$blockId = legacyIdMatch[1];
+          // Legacy ID Check
+          if (!eq.$blockId) {
+            eq.$blockId = section.id;
+            const nextLineIndex = section.position.end.line + 1;
+            if (nextLineIndex < lines.length) {
+              const nextLine = lines[nextLineIndex].trim();
+              const legacyIdMatch = nextLine.match(/^\^([a-zA-Z0-9\-_]+)$/);
+              if (legacyIdMatch) {
+                eq.$blockId = legacyIdMatch[1];
+              }
+            }
+          }
+          equations.push(eq);
+        } else if (
+          section.type === 'callout' ||
+          section.type === 'blockquote' ||
+          section.type === 'list'
+        ) {
+          const text = content.slice(section.position.start.offset, section.position.end.offset);
+
+          let processedText = text;
+          if (section.type === 'callout' || section.type === 'blockquote') {
+            const splitLines = text.split(/\r?\n/);
+            const cleanLines = splitLines.map(l => l.replace(/^\s*>\s?/, ''));
+            processedText = cleanLines.join('\n');
+          }
+
+          const mathBlocks = findDisplayMathBlocks(processedText);
+
+          for (const block of mathBlocks) {
+            const mathContent = processedText.substring(block.from + 2, block.to - 2);
+            const prefix = processedText.substring(0, block.from);
+            const startLineOffset = (prefix.match(/\n/g) || []).length;
+            const blockText = processedText.substring(block.from, block.to);
+            const contentLineCount = (blockText.match(/\n/g) || []).length;
+
+            const absStartLine = section.position.start.line + startLineOffset;
+            const absEndLine = section.position.start.line + startLineOffset + contentLineCount;
+
+            const eq = processMathBlock(mathContent, {
+              start: { line: absStartLine, offset: getLineOffset(absStartLine) },
+              end: { line: absEndLine, offset: getLineOffset(absEndLine) }
+            });
+
+            if (eq) {
+              equations.push(eq);
             }
           }
         }
+      }
+    } else {
+      // Fallback: If cache.sections is not available, extract display math directly from content
+      const mathBlocks = findDisplayMathBlocks(content);
+      for (const block of mathBlocks) {
+        const mathContent = content.substring(block.from, block.to);
+        const prefix = content.substring(0, block.from);
+        const startLine = (prefix.match(/\n/g) || []).length;
+        const blockText = content.substring(block.from, block.to);
+        const lineCount = (blockText.match(/\n/g) || []).length;
+        const endLine = startLine + lineCount;
+
+        const eq = processMathBlock(mathContent, {
+          start: { line: startLine, offset: block.from },
+          end: { line: endLine, offset: block.to }
+        });
+
         equations.push(eq);
-      } else if (
-        section.type === 'callout' ||
-        section.type === 'blockquote' ||
-        section.type === 'list'
-      ) {
-        const text = content.slice(section.position.start.offset, section.position.end.offset);
-
-        let processedText = text;
-        // For callouts/blockquote, strip blockquote markers
-        if (section.type === 'callout' || section.type === 'blockquote') {
-          const lines = text.split(/\r?\n/);
-          const cleanLines = lines.map(l => l.replace(/^\s*>\s?/, ''));
-          processedText = cleanLines.join('\n');
-        }
-
-        const mathBlocks = findDisplayMathBlocks(processedText);
-
-        for (const block of mathBlocks) {
-          const mathContent = processedText.substring(block.from + 2, block.to - 2);
-          const prefix = processedText.substring(0, block.from);
-          const startLineOffset = (prefix.match(/\n/g) || []).length;
-          const blockText = processedText.substring(block.from, block.to);
-          const contentLineCount = (blockText.match(/\n/g) || []).length;
-
-          const absStartLine = section.position.start.line + startLineOffset;
-          const absEndLine = section.position.start.line + startLineOffset + contentLineCount;
-
-          const eq = processMathBlock(mathContent, {
-            start: { line: absStartLine, offset: 0 },
-            end: { line: absEndLine, offset: 0 }
-          });
-
-          if (eq) {
-            // @ts-ignore
-            equations.push(eq);
-          }
-        }
       }
     }
 

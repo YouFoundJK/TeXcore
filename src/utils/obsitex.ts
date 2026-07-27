@@ -30,7 +30,9 @@ export function parsePositionalObsitexConfigs(content: string): PositionalObsite
 
     const config: ObsitexConfig = {};
     try {
-      const parsed = parseYaml(rawYaml) as unknown;
+      // Preprocess WikiLinks [[Note]] -> "Note" so parseYaml receives valid scalar strings instead of collection keys
+      const preprocessedYaml = rawYaml.replace(/\[\[([^\]]+)\]\]/g, '"$1"');
+      const parsed = parseYaml(preprocessedYaml) as unknown;
       extractConfigFromParsedYaml(parsed, config);
     } catch {
       // If YAML parsing fails, ignore silently
@@ -79,14 +81,73 @@ export function parseObsitexConfig(content: string, position?: number): ObsitexC
   return getObsitexConfigAtPosition(content, position);
 }
 
+function cleanYamlVal(rawVal: string): string {
+  if (!rawVal) return '';
+  let cleaned = rawVal.split('\n')[0].split('#')[0].trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+  }
+  return cleaned;
+}
+
 function cleanNoteLink(raw: string): string {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith('[[')) cleaned = cleaned.substring(2);
-  if (cleaned.endsWith(']]')) cleaned = cleaned.substring(0, cleaned.length - 2);
+  let cleaned = cleanYamlVal(raw);
+  while (cleaned.startsWith('[')) cleaned = cleaned.substring(1).trim();
+  while (cleaned.endsWith(']')) cleaned = cleaned.substring(0, cleaned.length - 1).trim();
   if (cleaned.includes('|')) {
-    cleaned = cleaned.split('|')[0];
+    cleaned = cleaned.split('|')[0].trim();
   }
   return cleaned.trim();
+}
+
+function parseSupplementItem(itemStr: string, config: ObsitexConfig): void {
+  const trimmed = itemStr.trim();
+  if (!trimmed) return;
+  const colonIdx = trimmed.indexOf(':');
+  let rawKey = trimmed;
+  let alias = '';
+  if (colonIdx !== -1) {
+    rawKey = trimmed.substring(0, colonIdx);
+    alias = cleanYamlVal(trimmed.substring(colonIdx + 1));
+  }
+  const noteKey = cleanNoteLink(rawKey);
+  if (noteKey) {
+    config.supplements = config.supplements || {};
+    config.supplements[noteKey] = alias;
+  }
+}
+
+function processSupplementYamlValue(val: unknown, config: ObsitexConfig): void {
+  if (!val) return;
+
+  if (Array.isArray(val)) {
+    for (const item of val) {
+      processSupplementYamlValue(item, config);
+    }
+  } else if (typeof val === 'string') {
+    parseSupplementItem(val, config);
+  } else if (typeof val === 'object') {
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      const noteKey = cleanNoteLink(k);
+      if (noteKey) {
+        config.supplements = config.supplements || {};
+        let aliasVal = '';
+        if (typeof v === 'string') {
+          aliasVal = cleanYamlVal(v);
+        } else if (typeof v === 'number') {
+          aliasVal = String(v);
+        } else if (v && typeof v === 'object') {
+          // If v is object or nested array, extract if non-empty
+          processSupplementYamlValue(v, config);
+          continue;
+        }
+        config.supplements[noteKey] = aliasVal;
+      }
+    }
+  }
 }
 
 function extractConfigFromParsedYaml(parsed: unknown, config: ObsitexConfig): void {
@@ -101,7 +162,7 @@ function extractConfigFromParsedYaml(parsed: unknown, config: ObsitexConfig): vo
 
     const prefixVal = record['eq-prefix'] ?? record['eqPrefix'] ?? record['prefix'];
     if (typeof prefixVal === 'string' || typeof prefixVal === 'number') {
-      const cleanStr = String(prefixVal).split('\n')[0].trim();
+      const cleanStr = cleanYamlVal(String(prefixVal));
       if (cleanStr) {
         config.eqPrefix = cleanStr;
       }
@@ -117,8 +178,8 @@ function extractConfigFromParsedYaml(parsed: unknown, config: ObsitexConfig): vo
 
     if (typeof contVal === 'boolean') {
       config.eqContinuity = contVal;
-    } else if (typeof contVal === 'string') {
-      const lower = contVal.trim().toLowerCase();
+    } else if (typeof contVal === 'string' || typeof contVal === 'number') {
+      const lower = cleanYamlVal(String(contVal)).toLowerCase();
       if (lower === 'false' || lower === 'no' || lower === '0') {
         config.eqContinuity = false;
       } else if (lower === 'true' || lower === 'yes' || lower === '1') {
@@ -127,27 +188,8 @@ function extractConfigFromParsedYaml(parsed: unknown, config: ObsitexConfig): vo
     }
 
     const suppVal = record['supplements'];
-    if (suppVal && typeof suppVal === 'object') {
-      config.supplements = config.supplements || {};
-      if (Array.isArray(suppVal)) {
-        for (const item of suppVal) {
-          if (typeof item === 'object' && item !== null) {
-            for (const [k, v] of Object.entries(item as Record<string, unknown>)) {
-              const noteKey = cleanNoteLink(k);
-              if (noteKey && typeof v === 'string') {
-                config.supplements[noteKey] = v.trim();
-              }
-            }
-          }
-        }
-      } else {
-        for (const [k, v] of Object.entries(suppVal as Record<string, unknown>)) {
-          const noteKey = cleanNoteLink(k);
-          if (noteKey && typeof v === 'string') {
-            config.supplements[noteKey] = v.trim();
-          }
-        }
-      }
+    if (suppVal !== undefined && suppVal !== null) {
+      processSupplementYamlValue(suppVal, config);
     }
   }
 }
@@ -157,14 +199,29 @@ function parseYamlLines(rawYaml: string, config: ObsitexConfig): void {
   for (const line of lines) {
     const trimmed = line.trim().replace(/^[-*]\s*/, '');
     if (!trimmed || trimmed.startsWith('#')) continue;
+
+    // Direct match for [[note]]: alias or [[note]]
+    const wikiMatch = line.match(
+      /\s*(?:[-*]\s*)?\[\[([^\]|]+)(?:\|[^\]]+)?\]\](?:\s*:\s*([\w.-]+))?/
+    );
+    if (wikiMatch && wikiMatch[1]) {
+      const notePath = wikiMatch[1].trim();
+      const alias = wikiMatch[2] ? cleanYamlVal(wikiMatch[2]) : '';
+      if (notePath) {
+        config.supplements = config.supplements || {};
+        config.supplements[notePath] = alias;
+      }
+    }
+
     const colonIdx = trimmed.indexOf(':');
     if (colonIdx === -1) continue;
 
     const key = trimmed.substring(0, colonIdx).trim().toLowerCase();
     const rawVal = trimmed.substring(colonIdx + 1).trim();
+    const cleanedVal = cleanYamlVal(rawVal);
 
     if (key === 'eq-prefix' || key === 'eqprefix' || key === 'prefix') {
-      if (rawVal) config.eqPrefix = rawVal;
+      if (cleanedVal) config.eqPrefix = cleanedVal;
     } else if (
       key === 'eq-continuity' ||
       key === 'eq-continuous' ||
@@ -173,22 +230,11 @@ function parseYamlLines(rawYaml: string, config: ObsitexConfig): void {
       key === 'continuity' ||
       key === 'continuous'
     ) {
-      const lower = rawVal.toLowerCase();
+      const lower = cleanedVal.toLowerCase();
       if (lower === 'false' || lower === 'no' || lower === '0') {
         config.eqContinuity = false;
       } else if (lower === 'true' || lower === 'yes' || lower === '1') {
         config.eqContinuity = true;
-      }
-    }
-
-    // Direct match for [[note]]: alias
-    const wikiMatch = line.match(/\s*(?:[-*]\s*)?\[\[([^\]|]+)(?:\|[^\]]+)?\]\]\s*:\s*([\w.-]+)/);
-    if (wikiMatch) {
-      const notePath = wikiMatch[1].trim();
-      const alias = wikiMatch[2].trim();
-      if (notePath && alias) {
-        config.supplements = config.supplements || {};
-        config.supplements[notePath] = alias;
       }
     }
   }

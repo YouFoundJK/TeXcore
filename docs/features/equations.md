@@ -67,36 +67,40 @@ Configure the layout of your math indices globally via the [Settings Panel](conf
 
 ## Section & Document Equation Formatting (`obsitex`)
 
-You can specify section-level equation prefixes (e.g. `A` for Appendix equations like `(A1)`, `(A2)`, or `S` for supplementary sections) and control numbering continuity using an `obsitex` YAML codeblock:
+You can specify section-level equation prefixes (e.g. `A` for Appendix equations like `(A1)`, `(A2)`, or `S` for supplementary sections), control numbering continuity, and declare supplemented notes for cross-referencing using an `obsitex` YAML codeblock:
 
 ```obsitex
-- eq-prefix: A
-- eq-continuity: false
+eq-prefix: A          # Prefix added to equation numbers (e.g., 'A' for (A1), (A2))
+eq-continuity: false  # 'false' resets numbering to 1; 'true' continues counting
+supplements:          # Declare supplemented notes for cross-referencing
+ - [[NoteName]]: S1   # Option 1: Cross-reference with prefix alias (e.g., (S1-A1))
+ - [[NoteName]]       # Option 2: Cross-reference without prefix alias (e.g., (A1))
 ```
 
-Or key-value format:
+### Configuration Keys
 
-```obsitex
-eq-prefix: A
-eq-continuity: false
-```
+| Key | Description | Example |
+| :--- | :--- | :--- |
+| `eq-prefix` | Prefix string appended to equation numbers in the section/note. | `eq-prefix: A` -> `(A1)` |
+| `eq-continuity` | Resets equation counter to 1 when `false`; continues counting when `true`. | `eq-continuity: false` |
+| `supplements` | List of target notes to cross-reference with optional prefix aliases. | `- [[Appendix B]]: B0` |
 
 ### Features & Behavior
 - **Position Scoped**: `obsitex` properties only apply to equations located **after** the codeblock's position in the document. Equations prior to the codeblock retain standard numbering or previous section settings.
 - **Continuity Control (`eq-continuity`)**:
   - `eq-continuity: false` (or `eq-continuous: false`): Resets the equation counter back to 1 (or `eqNumberInit`) starting from this codeblock location.
   - `eq-continuity: true` (or omitted): Keeps continuous counting across section transitions (e.g. equation 1 becomes tag `(1)`, and next section equation with prefix `A` becomes `(A2)`).
-- **Auto-Templating**: Typing an empty ```` ```obsitex ```` block immediately pre-fills it with default keys, values, and inline hints (strictly leaving non-empty blocks untouched).
+- **Cross-Note Supplement Referencing (`supplements`)**:
+  - Links to target equations in supplemented files (e.g. `[[Appendix B#^eq-id]]` or local `[[#^eq-id]]`) automatically resolve using the target file's prefix and optional supplement alias.
+  - If a supplement alias (e.g. `B0`) is defined, references display as `(B0-A1)`. If no alias is specified, references display using the target equation's tag directly `(A1)`.
+- **Auto-Templating**: Typing an empty ```` ```obsitex ```` codeblock immediately populates it with default keys (`eq-prefix`, `eq-continuity`) and commented-out `supplements` syntax examples for quick copy-paste editing.
 - **Command Palette Integration**: Includes an `ObsiTeX: Insert configuration block` command to insert pre-filled blocks at cursor.
 - **Hidden Rendering**: The `obsitex` codeblock is invisible in Live Preview, Reading View, and PDF exports.
-- **Tag Prefixing**: Injected as a prefix into rendered equation tags (e.g. `(A1)`, `(S3.2.1)`).
-- **ID Generation**: Auto-generated equation IDs use the active section prefix (e.g. `% id: eq-A-xxxx`).
-- **Backwards Compatible**: Unprefixed block IDs (`% id: eq-einstein`) continue working seamlessly.
 
 ### Architectural Engine Details
-- **Positional YAML Parsing**: `parsePositionalObsitexConfigs(content)` parses `obsitex` blocks alongside character offsets using Obsidian's `parseYaml` API and line fallback parsing.
-- **Sequential Pipeline**: `processActiveNoteEquations` (Reading View) and `parseEquationInfo` (Live Preview) enumerate equations top-to-bottom, dynamically updating active prefix state and evaluating continuity resets as equations are encountered.
-- **DOM Hiding**: `registerMarkdownCodeBlockProcessor('obsitex', ...)` and `.block-language-obsitex { display: none !important; }` prevent DOM artifacts across editor views and PDF export pipelines.
+- **Positional YAML & Comment Preprocessing**: `parsePositionalObsitexConfigs(content)` pre-processes WikiLinks `[[Note]]` into scalar strings to prevent standard YAML parser warnings, strips inline `#` comments cleanly, and parses character offsets using Obsidian's `parseYaml` API.
+- **Unified Equation & Tag Manager Engine**: `processActiveNoteEquations` enumerates equations top-to-bottom and dynamically assigns equation tags based on position, `obsitex` config, and workspace backlinks. In Live Preview, `createTagManagerPlugin` delegates directly to `processActiveNoteEquations`, managing LaTeX `\tag{...}` tags across views on doc, viewport, and focus events.
+- **Subpath Link & Preview Resolution**: `LatexLinkProvider` and `setupPagePreviewPatcher` resolve cross-note equation links and Ctrl+Hover page previews efficiently in `O(1)` time using Obsidian's internal `metadataCache.resolvedLinks` without full-vault disk scanning.
 
 ---
 

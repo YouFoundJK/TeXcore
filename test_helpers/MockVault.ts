@@ -110,6 +110,11 @@ export class MockVault implements Vault {
     return this.read(file);
   }
 
+  cachedReadSync(file: TFile): string {
+    const p = joinPath('/', file.path);
+    return this.contents.get(p) ?? '';
+  }
+
   getFiles(): TFile[] {
     return this.getAllLoadedFiles().flatMap(f => (f instanceof TFile ? f : []));
   }

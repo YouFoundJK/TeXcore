@@ -262,6 +262,20 @@ export default class LatexReferencer extends Plugin {
       })
     );
 
+    this.registerEvent(
+      this.app.workspace.on('file-open', (file: TFile | null) => {
+        if (!file) return;
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (
+          activeView &&
+          activeView.file?.path === file.path &&
+          typeof activeView.getViewData === 'function'
+        ) {
+          processActiveNoteEquations(this, file, activeView.getViewData());
+        }
+      })
+    );
+
     this.app.workspace.onLayoutReady(() => {
       this.register(setupDOMObserver(this));
     });
