@@ -1,4 +1,6 @@
 import type { Editor, EditorPosition, EditorSelection } from 'obsidian';
+import { formatMathBlock } from '../math-formatter/formatter';
+import { replaceMathBlocksInDocument } from '../math-formatter/parser';
 
 export interface TextTransformSnippet {
   id: string;
@@ -135,6 +137,21 @@ export const BUILTIN_TEXT_TRANSFORM_SNIPPETS: TextTransformSnippet[] = [
     description: 'Replace inline $$ with $ while keeping block $$',
     keywords: ['dollar', 'latex', 'equation', 'inline', 'cleanup'],
     transform: cleanInlineDoubleDollarSymbols
+  },
+  {
+    id: 'compact-display-math',
+    name: 'Compact Display Math',
+    description: 'Compact selected $$ ... $$ block(s) — select one block or the entire document',
+    keywords: ['latex', 'math', 'compact', 'format', 'equation', 'display', 'tidy'],
+    transform: (input: string): string => {
+      // If input looks like a standalone $$ block, format it directly
+      const trimmed = input.trim();
+      if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+        return formatMathBlock(trimmed);
+      }
+      // Otherwise treat as document fragment and format all $$ blocks inside
+      return replaceMathBlocksInDocument(input, formatMathBlock);
+    }
   }
 ];
 

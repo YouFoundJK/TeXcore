@@ -13,6 +13,7 @@ The following matrix provides a side-by-side view of all available modules, how 
 | **Equation Numbering** | Automatic indexing and tag insertion for LaTeX math blocks. | [Read Guide :octicons-arrow-right-16:](equations.md) | [Number Style & Prefix](configuration/settings.md#equation-numbering-referencing) |
 | **PDF Export** | Advanced PDF renderer featuring live preview pane and snippets. | [Read Guide :octicons-arrow-right-16:](pdf-export.md) | [Templates & Margins](configuration/settings.md#pdf-export) |
 | **LaTeX Snippets** | Custom LaTeX macros map to shortcut commands for fast editing. | [Read Guide :octicons-arrow-right-16:](snippets.md) | [Manage Snippets](configuration/settings.md#snippets) |
+| **Display Math Formatter** | Compacts fragmented `$$` blocks into clean, readable form. | [Read Guide :octicons-arrow-right-16:](math-formatter.md) | — |
 | **Equation Search** | Vault-wide fuzzy search index modal to locate and insert links. | [Read Guide :octicons-arrow-right-16:](search.md) | [Autocomplete & Search](configuration/settings.md#autocomplete-search) |
 | **Quick Preview** | Real-time preview popups and link resolution on hover. | [Read Guide :octicons-arrow-right-16:](quick-preview.md) | [Render Math in Suggestions](configuration/settings.md#render-math-in-suggestions) |
 | **TikZ Diagrams** | Render vector graphics using native TikZ scripts and component packages. | [Read Guide :octicons-arrow-right-16:](tikz.md) | [Component Library](configuration/settings.md#snippets) |
@@ -37,5 +38,9 @@ To help you decide which features fit your academic drafting workflow, explore t
 - :material-draw-pen: **[TikZ & SVG Vector Rendering](tikz.md)**
   
     Write vector scripts using LaTeX packages (e.g., `circuitikz`, `pgfplots`) and see them compiled dynamically. Features an interactive sidebar library for drag-and-drop circuit components.
+
+- :material-format-align-left: **[Display Math Formatter](math-formatter.md)**
+  
+    Collapses over-fragmented `$$ ... $$` blocks (from OCR, Pandoc, or copy-paste) into compact, source-readable form. Handles arbitrary nesting depth — `\boxed{\begin{aligned}...}`, deeply-nested matrices, `\left/\right` pairs — via a single token-stream pass with no environment-specific special cases.
 
 </div>

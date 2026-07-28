@@ -116,6 +116,7 @@ nav:
       - Equation Numbering: features/equations.md
       - PDF Export: features/pdf-export.md
       - LaTeX Snippets: features/snippets.md
+      - Display Math Formatter: features/math-formatter.md
       - Equation Search: features/search.md
       - Quick Preview: features/quick-preview.md
       - TikZ Diagrams: features/tikz.md

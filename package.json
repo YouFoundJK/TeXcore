@@ -22,7 +22,7 @@
     "test-dev": "jest --watch --passWithNoTests",
     "coverage": "jest --coverage --passWithNoTests",
     "fl": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\"",
-    "ra": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\" && pnpm run compile && eslint \"src/**/*.{ts,js}\" \"test_helpers/**/*.ts\" \"__mocks__/**/*.ts\" -o lint_report.txt --no-color && eslint -c eslint.css.config.mjs \"src/**/*.css\" -o css_report.txt --no-color && jest --ci --silent=true --passWithNoTests",
+    "ra": "prettier --config .prettierrc.json --write \"src/**/*.{ts,js}\" && pnpm run compile && jest --ci --silent=true --passWithNoTests && eslint \"src/**/*.{ts,js}\" \"test_helpers/**/*.ts\" \"__mocks__/**/*.ts\" -o lint_report.txt --no-color && eslint -c eslint.css.config.mjs \"src/**/*.css\" -o css_report.txt --no-color",
     "prod:release": "pnpm run prod && node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const outputDir=path.join(root,'release-artifacts');fs.rmSync(outputDir,{recursive:true,force:true});fs.mkdirSync(outputDir,{recursive:true});for(const fileName of ['main.js','styles.css']){if(fs.existsSync(path.join(root,fileName))){fs.copyFileSync(path.join(root,fileName),path.join(outputDir,fileName));}}if(fs.existsSync(path.join(root,'manifest.json'))){fs.copyFileSync(path.join(root,'manifest.json'),path.join(outputDir,'manifest.json'));}\""
   },
   "keywords": [],
