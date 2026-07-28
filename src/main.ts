@@ -36,6 +36,7 @@ import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { setupPagePreviewPatcher } from 'ui/quick-preview/pagePreviewPatcher';
 import { processActiveNoteEquations, clearEquationCache } from './core/equations/numbering';
 import { checkAndFixCalloutMath } from 'utils/fixer';
+import { setupEquationScrollFix } from 'core/equations/equation-scroll-fix';
 import { showNotice, setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
 import { CustomNoteManager } from 'features/custom-notes/manager';
@@ -57,6 +58,7 @@ export default class LatexReferencer extends Plugin {
   customNoteManager!: CustomNoteManager;
   tikzRenderer!: TikzRenderer;
   isTikzEditorOpen = false;
+  private cleanupEquationScrollFix?: () => void;
 
   async onload() {
     await this.loadSettings();
@@ -273,6 +275,7 @@ export default class LatexReferencer extends Plugin {
 
     this.app.workspace.onLayoutReady(() => {
       this.register(setupDOMObserver(this));
+      this.cleanupEquationScrollFix = setupEquationScrollFix(this);
     });
   }
 
@@ -280,6 +283,7 @@ export default class LatexReferencer extends Plugin {
     if (this.tikzRenderer) {
       this.tikzRenderer.onUnload();
     }
+    this.cleanupEquationScrollFix?.();
   }
 
   async loadSettings() {
