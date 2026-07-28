@@ -87,7 +87,7 @@ export function findDisplayMathBlocks(text: string): MathBlockRange[] {
         const prevChar = pos > 0 ? text[pos - 1] : '';
         const nextChar = pos + dCount < text.length ? text[pos + dCount] : '';
         const isSandwiched =
-          prevChar && !/\s|\$/.test(prevChar) && nextChar && !/\s|\$/.test(nextChar);
+          prevChar && !/\s|\$|>|\|/.test(prevChar) && nextChar && !/\s|\$|<|\|/.test(nextChar);
 
         if (isSandwiched) {
           // Adjacent inline math delimiters like $a$$b$ or $[a]$$^2$
@@ -115,8 +115,23 @@ export function findDisplayMathBlocks(text: string): MathBlockRange[] {
       if (text[pos] === '\n' && text[pos + 1] === '\n') {
         state = 'OUTSIDE';
         pos += 2;
-      } else if (dCount >= 1) {
-        // Check if valid inline math end: prev char is non-whitespace
+      } else if (dCount >= 2) {
+        const prevChar = pos > 0 ? text[pos - 1] : '';
+        const nextChar = pos + dCount < text.length ? text[pos + dCount] : '';
+        const isSandwiched =
+          prevChar && !/\s|\$|>|\|/.test(prevChar) && nextChar && !/\s|\$|<|\|/.test(nextChar);
+
+        if (isSandwiched) {
+          // Adjacent inline math like ]$$^
+          state = 'INLINE';
+          pos += 1;
+        } else {
+          // Real display math $$
+          state = 'DISPLAY';
+          displayStartPos = pos;
+          pos += 2;
+        }
+      } else if (dCount === 1) {
         const prevChar = text[pos - 1];
         if (prevChar && !/\s/.test(prevChar)) {
           state = 'OUTSIDE';

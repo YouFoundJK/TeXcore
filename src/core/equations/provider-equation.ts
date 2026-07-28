@@ -111,7 +111,8 @@ export class ActiveNoteEquationProvider {
         } else if (
           section.type === 'callout' ||
           section.type === 'blockquote' ||
-          section.type === 'list'
+          section.type === 'list' ||
+          section.type === 'table'
         ) {
           const text = content.slice(section.position.start.offset, section.position.end.offset);
 
