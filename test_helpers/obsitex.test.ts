@@ -201,6 +201,38 @@ $$
     expect(eq2?.$printName).toBe('(A1)');
   });
 
+  it('processActiveNoteEquations parses \\label{eq-id} equations as valid IDs', () => {
+    const content = `$$
+E = mc^2
+\\label{eq-einstein}
+$$`;
+
+    const mockApp = MockAppBuilder.make()
+      .file('label_doc.md', new FileBuilder().text(content))
+      .done();
+
+    const file = mockApp.vault.getFileByPath('label_doc.md')!;
+    const cache = mockApp.metadataCache.getFileCache(file)!;
+
+    cache.sections = [
+      {
+        type: 'math',
+        position: {
+          start: { line: 0, col: 0, offset: 0 },
+          end: { line: 3, col: 2, offset: content.length }
+        }
+      }
+    ];
+
+    const dummyPlugin = {
+      app: mockApp,
+      settings: { eqNumberPrefix: '', eqContinuity: true, eqNumberStyle: 'arabic', eqNumberInit: 1 }
+    } as unknown as LatexReferencer;
+
+    const eqMap = processActiveNoteEquations(dummyPlugin, file, content);
+    expect(eqMap.get('eq-einstein')?.$blockId).toBe('eq-einstein');
+  });
+
   it('processActiveNoteEquations maintains continuity when eq-continuity is omitted or true', () => {
     const content = `$$
 \\eta_j = \\Gamma_1 M_j

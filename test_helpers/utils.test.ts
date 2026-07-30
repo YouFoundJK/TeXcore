@@ -18,6 +18,7 @@ import {
 } from '../src/utils/parse';
 
 import { splitIntoLines, insertAt } from '../src/utils/general';
+import { cleanMathBrTags } from '../src/utils/fixer';
 import { App, TFile } from 'obsidian';
 
 describe('format.ts tests', () => {
@@ -88,6 +89,14 @@ $$`;
     expect(matchedText).toContain('% id: eq-robp7m93');
     expect(matchedText.startsWith('$$')).toBe(true);
     expect(matchedText.endsWith('$$')).toBe(true);
+  });
+
+  it('findDisplayMathBlocks extracts multiple table cell math blocks with <br>% id: ...<br>$$', () => {
+    const tableText = '| cell 1,<br>$$<br>a=b<br>% id: eq-1<br>$$ | cell 2,<br>$$<br>c=d<br>% id: eq-2<br>$$ |';
+    const blocks = findDisplayMathBlocks(tableText);
+    expect(blocks.length).toBe(2);
+    expect(tableText.substring(blocks[0].from, blocks[0].to)).toBe('$$<br>a=b<br>% id: eq-1<br>$$');
+    expect(tableText.substring(blocks[1].from, blocks[1].to)).toBe('$$<br>c=d<br>% id: eq-2<br>$$');
   });
 
   it('findDisplayMathBlocks ignores math in code blocks', () => {
@@ -182,4 +191,46 @@ S_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\
     expect(match?.matchText).toBe('\\end{align}');
   });
 });
+
+import { parseEquationId, stripEquationId, formatEquationIdLine } from '../src/utils/equation-id';
+import { hoistLabelInEnvironment } from '../src/utils/fixer';
+
+describe('equation-id.ts tests', () => {
+  it('parseEquationId correctly parses % id:, \\label{}, and HTML comment IDs', () => {
+    expect(parseEquationId('$$ E = mc^2 % id: eq-einstein $$')).toBe('eq-einstein');
+    expect(parseEquationId('$$ \\label{eq-relativity} E = mc^2 $$')).toBe('eq-relativity');
+    expect(parseEquationId('$$ <!-- id: eq-html --> E = mc^2 $$')).toBe('eq-html');
+    expect(parseEquationId('$$ no id here $$')).toBeNull();
+  });
+
+  it('stripEquationId removes all ID annotations from math blocks', () => {
+    expect(stripEquationId('E = mc^2 % id: eq-1')).toBe('E = mc^2');
+    expect(stripEquationId('E = mc^2 \\label{eq-2}')).toBe('E = mc^2');
+  });
+
+  it('formatEquationIdLine defaults to % id: format', () => {
+    expect(formatEquationIdLine('eq-123')).toBe('% id: eq-123\n');
+    expect(formatEquationIdLine('eq-123', '> ')).toBe('> % id: eq-123\n');
+  });
+});
+
+describe('fixer.ts tests', () => {
+  it('cleanMathBrTags replaces <br> with newlines so % comment lines do not swallow closing $$', () => {
+    const input = '$$<br>\\begin{align}<br>u_{ij}(12) &= u^{000}_{ij}(r)<br>\\end{align}<br>% id: eq-P1-4a8b2c0d<br>$$';
+    const cleaned = cleanMathBrTags(input);
+    expect(cleaned).toContain('% id: eq-P1-4a8b2c0d\n$$');
+  });
+
+  it('cleanMathBrTags hoists \\label{eq-id} to before \\end{align} so MathJax does not throw TeX errors', () => {
+    const input = '\\begin{align}\nu_{in}(12) &= u^{000}_{in}(r)\n\\end{align}\n\\label{eq-P1-7f3e1a9b}';
+    const cleaned = cleanMathBrTags(input);
+    expect(cleaned).toBe('\\begin{align}\nu_{in}(12) &= u^{000}_{in}(r) \\label{eq-P1-7f3e1a9b}\n\\end{align}');
+  });
+
+  it('hoistLabelInEnvironment hoists misplaced labels cleanly', () => {
+    const input = '\\begin{equation}\nx=y\n\\end{equation}\n\\label{eq-test}';
+    expect(hoistLabelInEnvironment(input)).toBe('\\begin{equation}\nx=y \\label{eq-test}\n\\end{equation}');
+  });
+});
+
 

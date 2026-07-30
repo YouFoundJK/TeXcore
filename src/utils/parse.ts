@@ -80,6 +80,18 @@ export function findDisplayMathBlocks(text: string): MathBlockRange[] {
       continue;
     }
 
+    // If we encounter an unescaped TeX comment %, consume until the next newline or <br> tag
+    if (text[pos] === '%' && !isEscaped(pos)) {
+      const sub = text.substring(pos);
+      const match = sub.match(/\r?\n|<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;/i);
+      if (match && match.index !== undefined) {
+        pos += match.index + match[0].length;
+      } else {
+        pos = text.length;
+      }
+      continue;
+    }
+
     const dCount = getUnescapedDollarCount(pos);
 
     if (state === 'OUTSIDE') {

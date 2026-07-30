@@ -6,6 +6,8 @@ import {
   parseYamlLike,
   findDisplayMathBlocks
 } from 'utils/parse';
+import { parseEquationId } from 'utils/equation-id';
+import { logDebug } from 'utils/logger';
 
 export class ActiveNoteEquationProvider {
   constructor(public app: App) {}
@@ -13,6 +15,11 @@ export class ActiveNoteEquationProvider {
   getEquations(file: TFile, content: string): EquationBlock[] {
     const cache: CachedMetadata | null = this.app.metadataCache.getFileCache(file);
     const equations: EquationBlock[] = [];
+
+    logDebug(
+      'EquationProvider',
+      `getEquations called for "${file.path}". Cache sections: ${cache?.sections?.length ?? 0}`
+    );
 
     const lines = content.split('\n');
     const lineOffsets = new Int32Array(lines.length + 1);
@@ -33,16 +40,11 @@ export class ActiveNoteEquationProvider {
         trimmedMathText = trimMathText(trimmedMathText);
       }
 
-      let blockId: string | undefined;
-
-      const internalIdMatch = trimmedMathText.match(/% id: (eq-[\w.-]+)/);
-      if (internalIdMatch) {
-        blockId = internalIdMatch[1];
-      }
+      const blockId: string | undefined = parseEquationId(trimmedMathText) ?? undefined;
 
       const tagMatch = trimmedMathText.match(/\\tag\{(.*?[^\s])\}/);
       let manualTag: string | null = null;
-      if (tagMatch && !internalIdMatch) {
+      if (tagMatch && !blockId) {
         manualTag = tagMatch[1].split('.')[0];
       }
 
@@ -70,7 +72,7 @@ export class ActiveNoteEquationProvider {
         }
       };
 
-      return {
+      const eq: EquationBlock = {
         $file: file.path,
         $type: 'equation' as const,
         $blockId: blockId,
@@ -83,6 +85,13 @@ export class ActiveNoteEquationProvider {
         $printName: null,
         $refName: null
       };
+
+      logDebug(
+        'EquationProvider',
+        `Processed math block line ${position.start.line}: ID="${blockId ?? 'NONE'}", mathSnippet="${trimmedMathText.substring(0, 60).replace(/\n/g, '\\n')}"`
+      );
+
+      return eq;
     };
 
     if (cache?.sections && cache.sections.length > 0) {
@@ -113,6 +122,10 @@ export class ActiveNoteEquationProvider {
           section.type === 'table'
         ) {
           const text = content.slice(section.position.start.offset, section.position.end.offset);
+          logDebug(
+            'EquationProvider',
+            `Scanning composite section type="${section.type}" lines ${section.position.start.line}-${section.position.end.line}`
+          );
 
           let processedText = text;
           if (section.type === 'callout' || section.type === 'blockquote') {
@@ -122,6 +135,10 @@ export class ActiveNoteEquationProvider {
           }
 
           const mathBlocks = findDisplayMathBlocks(processedText);
+          logDebug(
+            'EquationProvider',
+            `  Found ${mathBlocks.length} display math block(s) inside ${section.type}`
+          );
 
           for (const block of mathBlocks) {
             const mathContent = processedText.substring(block.from + 2, block.to - 2);
@@ -146,6 +163,10 @@ export class ActiveNoteEquationProvider {
       }
     } else {
       // Fallback: If cache.sections is not available, extract display math directly from content
+      logDebug(
+        'EquationProvider',
+        'Fallback: cache.sections not available, scanning content directly'
+      );
       const mathBlocks = findDisplayMathBlocks(content);
       for (const block of mathBlocks) {
         const mathContent = content.substring(block.from, block.to);
@@ -164,6 +185,10 @@ export class ActiveNoteEquationProvider {
       }
     }
 
+    logDebug(
+      'EquationProvider',
+      `getEquations total extracted for "${file.path}": ${equations.length}`
+    );
     return equations;
   }
 }

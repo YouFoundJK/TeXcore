@@ -11,6 +11,7 @@ import {
   TOP_LEVEL_EQ_ENVS
 } from 'utils/parse';
 import { logDebug } from 'utils/logger';
+import { parseEquationId, stripEquationId } from 'utils/equation-id';
 
 /**
  * The in-memory state for the TagManager. It holds only the information
@@ -84,12 +85,8 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
 
   for (const block of mathBlocks) {
     const blockText = state.doc.sliceString(block.from, block.to);
-    let id: string | null = null;
-
-    const idMatch = blockText.match(/% id: (eq-[\w.-]+)/);
-    if (idMatch) {
-      id = idMatch[1];
-    } else {
+    let id: string | null = parseEquationId(blockText);
+    if (!id) {
       const textAfter = text.substring(block.to, Math.min(text.length, block.to + 100));
       const nextLineMatch = textAfter.match(/^\s*\n\s*\^(eq-[\w.-]+)/);
       if (nextLineMatch) {
@@ -237,9 +234,7 @@ function createTagManagerPlugin(
           if (startPos >= endPos) continue;
 
           const blockContent = view.state.doc.sliceString(startPos, endPos);
-          const idCommentMatch = blockContent.match(/\s*% id: eq-[\w.-]+/);
-          const idIndex = idCommentMatch ? (idCommentMatch.index ?? -1) : -1;
-          const mathText = idIndex !== -1 ? blockContent.substring(0, idIndex) : blockContent;
+          const mathText = stripEquationId(blockContent);
 
           const beginEnvMatches = mathText.match(/\\begin\{\s*([a-zA-Z*]+)\s*\}/g);
           if (beginEnvMatches) {

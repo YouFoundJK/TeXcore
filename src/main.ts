@@ -35,7 +35,7 @@ import { EquationBlock } from 'types';
 import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { setupPagePreviewPatcher } from 'ui/quick-preview/pagePreviewPatcher';
 import { processActiveNoteEquations, clearEquationCache } from './core/equations/numbering';
-import { checkAndFixCalloutMath } from 'utils/fixer';
+import { checkAndFixCalloutMath, fixTableMath } from 'utils/fixer';
 import { setupEquationScrollFix } from 'core/equations/equation-scroll-fix';
 import { showNotice, setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
@@ -101,13 +101,17 @@ export default class LatexReferencer extends Plugin {
 
     this.addCommand({
       id: 'fix-callout-equations',
-      name: 'Fix callout equations in active note',
+      name: 'Fix callout & table equations in active note',
       editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
-        const content = editor.getValue();
-        const fixed = checkAndFixCalloutMath(content);
-        if (fixed) {
-          editor.setValue(fixed);
-          showNotice('Fixed callout equations.');
+        let content = editor.getValue();
+        const fixedCallout = checkAndFixCalloutMath(content);
+        if (fixedCallout) content = fixedCallout;
+        const fixedTable = fixTableMath(content);
+        if (fixedTable) content = fixedTable;
+
+        if (fixedCallout || fixedTable) {
+          editor.setValue(content);
+          showNotice('Fixed equations in note.');
         } else {
           showNotice('No issues found or no changes needed.');
         }

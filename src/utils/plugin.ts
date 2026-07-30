@@ -1,10 +1,11 @@
 import LatexReferencer from '../main';
 import { Editor, TFile, CachedMetadata } from 'obsidian';
 import { getIO } from './file-io';
-import { getCalloutPrefix, isStructuralCalloutLine } from './parse';
+import { getCalloutPrefix, isStructuralCalloutLine, findTopLevelEndEnvMatch } from './parse';
 import { EquationBlock } from 'types';
 import { generateEqId, showNotice } from './obsidian';
 import { parseObsitexConfig } from './obsitex';
+import { formatEquationIdLine } from './equation-id';
 
 export function insertDisplayMath(editor: Editor) {
   const cursorPos = editor.getCursor();
@@ -49,57 +50,54 @@ export async function insertBlockIdIfNotExist(
   const originalText = await io.getRange(block.$pos);
 
   // Detect prefix from the opening line (e.g. "> ", "   > ")
-  // We only care if it has blockquotes, as indentation alone usually works fine.
   const prefix = getCalloutPrefix(originalText);
 
-  // Find the position to insert the ID comment. This should be just before the closing '$$'.
-  const insertOffsetInBlock = originalText.lastIndexOf('$$');
-  if (insertOffsetInBlock === -1) {
-    // This should not be reached if the block is a valid math block.
-    showNotice(`${plugin.manifest.name}: Could not find closing $$ in the math block.`);
-    return;
-  }
+  // Default tag mechanism uses `% id: <id>` as specified
+  const idLine = formatEquationIdLine(id, prefix);
 
-  // Determine where to slice the string to remove any "dirty" existing closing prefix
-  // (e.g. if the user wrote "\n > $$", we want to replace the " > " part if we are overriding it)
-  let startSlice = insertOffsetInBlock;
+  // Check if math block has an \end{...} environment (like align or equation)
+  const endEnvMatch = findTopLevelEndEnvMatch(originalText);
+  let newText: string;
 
-  if (prefix) {
-    const lastNewline = originalText.lastIndexOf('\n', insertOffsetInBlock - 1);
-    const currentClosingPrefix =
-      lastNewline === -1
-        ? originalText.slice(0, insertOffsetInBlock)
-        : originalText.slice(lastNewline + 1, insertOffsetInBlock);
-
-    // If the current closing prefix looks like a block quote line, consume it
-    // so we can insert our own clean prefixed version.
-    if (currentClosingPrefix.trim() !== '' && isStructuralCalloutLine(currentClosingPrefix)) {
-      startSlice = lastNewline === -1 ? 0 : lastNewline + 1;
+  if (endEnvMatch && endEnvMatch.index !== undefined) {
+    const envPos = endEnvMatch.index;
+    const preText = originalText.slice(0, envPos);
+    const needsNewline = preText.length > 0 && !preText.endsWith('\n');
+    const postText = originalText.slice(envPos);
+    newText = preText + (needsNewline ? '\n' : '') + idLine + postText;
+  } else {
+    // Find position to insert the ID comment, just before the closing '$$'
+    const insertOffsetInBlock = originalText.lastIndexOf('$$');
+    if (insertOffsetInBlock === -1) {
+      showNotice(`${plugin.manifest.name}: Could not find closing $$ in the math block.`);
+      return;
     }
+
+    let startSlice = insertOffsetInBlock;
+
+    if (prefix) {
+      const lastNewline = originalText.lastIndexOf('\n', insertOffsetInBlock - 1);
+      const currentClosingPrefix =
+        lastNewline === -1
+          ? originalText.slice(0, insertOffsetInBlock)
+          : originalText.slice(lastNewline + 1, insertOffsetInBlock);
+
+      if (currentClosingPrefix.trim() !== '' && isStructuralCalloutLine(currentClosingPrefix)) {
+        startSlice = lastNewline === -1 ? 0 : lastNewline + 1;
+      }
+    }
+
+    const preText = originalText.slice(0, startSlice);
+    const needsNewline = preText.length > 0 && !preText.endsWith('\n');
+    const closingTag = `${prefix}$$`;
+    const suffix = originalText.slice(insertOffsetInBlock + 2);
+
+    newText = preText + (needsNewline ? '\n' : '') + idLine + closingTag + suffix;
   }
-
-  // Prepare New Content
-  const preText = originalText.slice(0, startSlice);
-  // Ensure we start with a newline if we are appending to content
-  const needsNewline = preText.length > 0 && !preText.endsWith('\n');
-
-  // Construct the parts
-  const idComment = `${prefix}% id: ${id}\n`;
-  const closingTag = `${prefix}$$`;
-
-  // originalText.slice(insertOffsetInBlock + 2) preserves anything after the $$ (like newlines)
-  const suffix = originalText.slice(insertOffsetInBlock + 2);
-
-  const newText = preText + (needsNewline ? '\n' : '') + idComment + closingTag + suffix;
 
   // Use the File IO interface to replace the old block content with the new content.
   await io.setRange(block.$pos, newText);
 
-  // Calculate lines added strictly by counting newlines in the *inserted* portion relative to *removed* portion?
-  // The previous logic just counted newlines in `textToInsert`.
-  // Here we might have removed a line (the old closing prefix) and added others.
-  // However, `lineAdded` usually serves to offset subsequent operations.
-  // A simple approximation is (newLines - oldLines).
   const oldLines = (originalText.match(/\n/g) || []).length;
   const newLinesCount = (newText.match(/\n/g) || []).length;
   const lineAdded = Math.max(0, newLinesCount - oldLines);
