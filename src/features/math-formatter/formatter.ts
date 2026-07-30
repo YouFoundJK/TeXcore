@@ -28,17 +28,6 @@
 // Helpers — character-level scanner
 // ---------------------------------------------------------------------------
 
-/** Returns true if character at pos in s is preceded by an odd number of backslashes. */
-function isEscaped(s: string, pos: number): boolean {
-  let n = 0;
-  let k = pos - 1;
-  while (k >= 0 && s[k] === '\\') {
-    n++;
-    k--;
-  }
-  return (n & 1) === 1;
-}
-
 // ---------------------------------------------------------------------------
 // Token type tags — for structural decisions
 // ---------------------------------------------------------------------------
@@ -225,8 +214,8 @@ function normaliseSpaces(s: string): string {
  * last content token, separated by a single space).
  */
 function hoistTag(s: string): string {
-  // Match \tag{...} potentially on its own line at the end
-  const tagRe = /\n?\s*(\\tag\{[^}]*\})\s*$/;
+  // Match \tag{...} potentially on its own line at the end, supporting 1 level of nested braces
+  const tagRe = /\n?\s*(\\tag\{((?:[^{}]|\{[^{}]*\})*)\})\s*$/;
   const m = s.match(tagRe);
   if (!m) return s;
   const tag = m[1];

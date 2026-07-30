@@ -340,10 +340,20 @@ export function createWebview(scale = 1.25) {
 function waitForDomChange(target: HTMLElement, timeout = 1000, interval = 150): Promise<boolean> {
   return new Promise(resolve => {
     let timer: number | null = null;
+    let initialTimer: number | null = null;
+    let fallbackTimer: number | null = null;
+
+    const cleanup = () => {
+      if (timer) window.clearTimeout(timer);
+      if (initialTimer) window.clearTimeout(initialTimer);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+      observer.disconnect();
+    };
+
     const observer = new MutationObserver(() => {
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        observer.disconnect();
+        cleanup();
         resolve(true);
       }, interval);
     });
@@ -355,18 +365,15 @@ function waitForDomChange(target: HTMLElement, timeout = 1000, interval = 150): 
       characterData: true
     });
 
-    // Short settlement check: if no mutations happen within 300ms, assume DOM has settled
-    const initialTimer = window.setTimeout(() => {
+    initialTimer = window.setTimeout(() => {
       if (!timer) {
-        observer.disconnect();
+        cleanup();
         resolve(true);
       }
     }, 300);
 
-    window.setTimeout(() => {
-      window.clearTimeout(initialTimer);
-      if (timer) window.clearTimeout(timer);
-      observer.disconnect();
+    fallbackTimer = window.setTimeout(() => {
+      cleanup();
       resolve(true);
     }, timeout);
   });

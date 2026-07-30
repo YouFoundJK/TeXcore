@@ -135,8 +135,7 @@ export class LatexLinkProvider extends Provider {
         }
       } else {
         if (subIndex !== undefined) {
-          const baseName = targetEquation.$printName.slice(1, -1);
-          printName = `(${baseName}.${subIndex})`;
+          printName = `(${rawEqNo}.${subIndex})`;
         } else {
           printName = targetEquation.$printName;
         }

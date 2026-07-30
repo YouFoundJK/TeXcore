@@ -37,6 +37,10 @@ export function createObsitexAutoTemplatePlugin(): Extension {
         this.timeout = window.setTimeout(() => this.runCheck(view), 200);
       }
 
+      destroy() {
+        if (this.timeout) window.clearTimeout(this.timeout);
+      }
+
       runCheck(view: EditorView) {
         if (view.hasFocus === false && view.dom.ownerDocument?.hasFocus?.()) return;
         const text = view.state.doc.toString();

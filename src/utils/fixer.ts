@@ -12,7 +12,7 @@ export function checkAndFixCalloutMath(content: string): string | null {
   const blocks = findDisplayMathBlocks(content);
   if (blocks.length === 0) return null;
 
-  const lines = content.split(/\r?\n/);
+  const lines = content.split('\n');
   const lineOffsets: number[] = [0];
   for (let i = 0; i < lines.length; i++) {
     lineOffsets.push(lineOffsets[i] + lines[i].length + 1); // +1 for \n

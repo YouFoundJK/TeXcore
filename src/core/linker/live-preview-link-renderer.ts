@@ -34,21 +34,26 @@ function selectionAndRangeOverlap(
  */
 function setMathLink(source: string, mathLinkEl: HTMLElement) {
   mathLinkEl.replaceChildren();
-  const mathPattern = /\$(.*?[^\s])\$/g;
+  const mathPattern = /\$(?!\s)(.*?)(?<!\s)\$/g;
   let textFrom = 0;
   let result;
   while ((result = mathPattern.exec(source)) !== null) {
     const mathString = result[1];
     const textTo = result.index;
-    if (textTo > textFrom) mathLinkEl.createSpan().replaceWith(source.slice(textFrom, textTo));
+    if (textTo > textFrom) {
+      mathLinkEl.appendChild(activeDocument.createTextNode(source.slice(textFrom, textTo)));
+    }
 
     const mathEl = renderMath(mathString, false);
-    mathLinkEl.createSpan({ cls: ['math', 'math-inline', 'is-loaded'] }).replaceWith(mathEl);
+    const mathSpan = mathLinkEl.createSpan({ cls: ['math', 'math-inline', 'is-loaded'] });
+    mathSpan.appendChild(mathEl);
 
     textFrom = mathPattern.lastIndex;
   }
 
-  if (textFrom < source.length) mathLinkEl.createSpan().replaceWith(source.slice(textFrom));
+  if (textFrom < source.length) {
+    mathLinkEl.appendChild(activeDocument.createTextNode(source.slice(textFrom)));
+  }
 }
 
 /** Given a LatexReferencer plugin instance, create a CodeMirror6 view plugin that renders equation links. */
@@ -190,15 +195,15 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
                   startNode?.name.includes('formatting-link-start') &&
                   endNode?.name.includes('formatting-link-end')
                 ) {
+                  if (selectionAndRangeOverlap(state.selection, linkNode.from, linkNode.to)) {
+                    return;
+                  }
                   const linkText = state.sliceDoc(linkNode.from, linkNode.to);
 
                   if (linkText.includes('#^eq-')) {
                     const outLinkMathLink = getMathLink(plugin, linkText, sourcePath);
 
-                    if (
-                      outLinkMathLink &&
-                      !selectionAndRangeOverlap(state.selection, linkNode.from, linkNode.to)
-                    ) {
+                    if (outLinkMathLink) {
                       builder.add(
                         linkNode.from,
                         linkNode.to,

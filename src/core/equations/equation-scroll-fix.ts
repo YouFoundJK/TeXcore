@@ -22,11 +22,17 @@ export function setupEquationScrollFix(plugin: LatexReferencer): () => void {
     );
     if (!mathBlock) return;
 
-    // Only scroll horizontally if the container actually overflows
+    // Only scroll horizontally if the container actually overflows and has room in scroll direction
     if (mathBlock.scrollWidth > mathBlock.clientWidth) {
-      mathBlock.scrollLeft += ev.deltaY;
-      ev.preventDefault();
-      ev.stopPropagation();
+      const atLeft = mathBlock.scrollLeft <= 0;
+      const atRight =
+        Math.abs(mathBlock.scrollWidth - mathBlock.clientWidth - mathBlock.scrollLeft) <= 1;
+
+      if ((ev.deltaY < 0 && !atLeft) || (ev.deltaY > 0 && !atRight)) {
+        mathBlock.scrollLeft += ev.deltaY;
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
     }
   }
 

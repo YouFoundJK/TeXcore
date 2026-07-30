@@ -130,16 +130,16 @@ export function processActiveNoteEquations(
   const eqSuffix = settings.eqNumberSuffix;
 
   const lines = content.split('\n');
+  const lineOffsets = new Int32Array(lines.length + 1);
+  for (let i = 0; i < lines.length; i++) {
+    lineOffsets[i + 1] = lineOffsets[i] + lines[i].length + 1;
+  }
   const getEqOffset = (eq: EquationBlock): number => {
     if (eq.$pos?.start?.offset && eq.$pos.start.offset > 0) {
       return eq.$pos.start.offset;
     }
     const line = eq.$pos?.start?.line ?? 0;
-    let offset = 0;
-    for (let i = 0; i < Math.min(line, lines.length); i++) {
-      offset += lines[i].length + 1;
-    }
-    return offset;
+    return lineOffsets[Math.min(line, lines.length)];
   };
 
   // 2. Process each equation using the pre-computed reference map.

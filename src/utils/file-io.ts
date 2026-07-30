@@ -80,18 +80,16 @@ export class NonActiveNoteIO extends FileIO {
   async setLine(lineNumber: number, text: string): Promise<void> {
     await this.plugin.app.vault.process(this.file, (data: string): string => {
       const lines = splitIntoLines(data);
-      lines[lineNumber] = text;
+      if (lineNumber >= 0 && lineNumber < lines.length) {
+        lines[lineNumber] = text;
+      }
       return lines.join('\n');
     });
   }
 
   async setRange(position: Pos, text: string): Promise<void> {
     await this.plugin.app.vault.process(this.file, (data: string): string => {
-      return (
-        data.slice(0, position.start.offset) +
-        text +
-        data.slice(position.end.offset + 1, data.length)
-      );
+      return data.slice(0, position.start.offset) + text + data.slice(position.end.offset);
     });
   }
 

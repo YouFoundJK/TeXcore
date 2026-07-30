@@ -93,38 +93,57 @@ function scanExistingCallouts(plugin: LatexReferencer): void {
  * @returns A cleanup function that disconnects the observer
  */
 export function setupDOMObserver(plugin: LatexReferencer): () => void {
-  const observer = new MutationObserver(mutations => {
-    const nodesToFix: HTMLElement[] = [];
-    for (const mutation of mutations) {
-      if (mutation.type === 'childList') {
-        for (const node of mutation.addedNodes) {
-          if (node.instanceOf(HTMLElement)) {
-            processEquationLinksInElement(node, plugin);
-            nodesToFix.push(node);
+  let initialScanTimeout: number | null = null;
+  const observers: MutationObserver[] = [];
+
+  const createObserverForDoc = (doc: Document) => {
+    const observer = new MutationObserver(mutations => {
+      const nodesToFix: HTMLElement[] = [];
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes) {
+            if (node.instanceOf(HTMLElement)) {
+              processEquationLinksInElement(node, plugin);
+              nodesToFix.push(node);
+            }
           }
         }
       }
-    }
-    if (nodesToFix.length > 0) {
-      window.requestAnimationFrame(() => {
-        for (const node of nodesToFix) {
-          if (node.isConnected) {
-            fixMathBrInContainer(node);
+      if (nodesToFix.length > 0) {
+        window.requestAnimationFrame(() => {
+          for (const node of nodesToFix) {
+            if (node.isConnected) {
+              fixMathBrInContainer(node);
+            }
           }
-        }
-      });
-    }
-  });
+        });
+      }
+    });
 
-  observer.observe(activeDocument.body, { childList: true, subtree: true });
+    observer.observe(doc.body, { childList: true, subtree: true });
+    observers.push(observer);
+  };
+
+  // Observe main document
+  createObserverForDoc(activeDocument);
+
+  // Observe popout windows
+  plugin.registerEvent(
+    plugin.app.workspace.on('window-open', (win, window) => {
+      createObserverForDoc(window.document);
+    })
+  );
 
   // Initial scan: process callouts that were rendered before the observer
-  // started or before the equation cache was ready. We use onLayoutReady
-  // to ensure the DOM is fully initialized, plus a small delay to ensure
-  // the equation cache has been built.
+  // started or before the equation cache was ready.
   plugin.app.workspace.onLayoutReady(() => {
-    window.setTimeout(() => scanExistingCallouts(plugin), 1000);
+    initialScanTimeout = window.setTimeout(() => scanExistingCallouts(plugin), 1000);
   });
 
-  return () => observer.disconnect();
+  return () => {
+    if (initialScanTimeout) window.clearTimeout(initialScanTimeout);
+    for (const obs of observers) {
+      obs.disconnect();
+    }
+  };
 }

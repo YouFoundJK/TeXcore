@@ -26,26 +26,26 @@ export function logDebug(component: string, message: string, data?: unknown): vo
   if (!isDebugEnabled()) return;
   const timestamp = new Date().toISOString().substring(11, 23);
   if (data !== undefined) {
-    console.log(`[ObsiTeX ${timestamp}] [${component}] ${message}`, data);
+    window.console.log(`[ObsiTeX ${timestamp}] [${component}] ${message}`, data);
   } else {
-    console.log(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
+    window.console.log(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
   }
 }
 
 export function logWarn(component: string, message: string, data?: unknown): void {
   const timestamp = new Date().toISOString().substring(11, 23);
   if (data !== undefined) {
-    console.warn(`[ObsiTeX ${timestamp}] [${component}] ${message}`, data);
+    window.console.warn(`[ObsiTeX ${timestamp}] [${component}] ${message}`, data);
   } else {
-    console.warn(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
+    window.console.warn(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
   }
 }
 
 export function logError(component: string, message: string, error?: unknown): void {
   const timestamp = new Date().toISOString().substring(11, 23);
   if (error !== undefined) {
-    console.error(`[ObsiTeX ${timestamp}] [${component}] ${message}`, error);
+    window.console.error(`[ObsiTeX ${timestamp}] [${component}] ${message}`, error);
   } else {
-    console.error(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
+    window.console.error(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
   }
 }

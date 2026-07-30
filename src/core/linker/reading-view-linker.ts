@@ -14,23 +14,28 @@ import LatexReferencer from 'main';
  * A helper function to render a string with inline math.
  * e.g., "eq $(1.1)$" will be rendered as "eq" and a MathJax element for "(1.1)".
  */
-function setMathLink(source: string, mathLinkEl: HTMLElement) {
+export function setMathLink(source: string, mathLinkEl: HTMLElement) {
   mathLinkEl.replaceChildren();
-  const mathPattern = /\$(.*?[^\s])\$/g;
+  const mathPattern = /\$(?!\s)(.*?)(?<!\s)\$/g;
   let textFrom = 0;
   let result;
   while ((result = mathPattern.exec(source)) !== null) {
     const mathString = result[1];
     const textTo = result.index;
-    if (textTo > textFrom) mathLinkEl.createSpan().replaceWith(source.slice(textFrom, textTo));
+    if (textTo > textFrom) {
+      mathLinkEl.appendChild(activeDocument.createTextNode(source.slice(textFrom, textTo)));
+    }
 
     const mathEl = renderMath(mathString, false);
-    mathLinkEl.createSpan({ cls: ['math', 'math-inline', 'is-loaded'] }).replaceWith(mathEl);
+    const mathSpan = mathLinkEl.createSpan({ cls: ['math', 'math-inline', 'is-loaded'] });
+    mathSpan.appendChild(mathEl);
 
     textFrom = mathPattern.lastIndex;
   }
 
-  if (textFrom < source.length) mathLinkEl.createSpan().replaceWith(source.slice(textFrom));
+  if (textFrom < source.length) {
+    mathLinkEl.appendChild(activeDocument.createTextNode(source.slice(textFrom)));
+  }
 }
 
 export class LatexRenderChild extends MarkdownRenderChild {
@@ -66,8 +71,7 @@ export class LatexRenderChild extends MarkdownRenderChild {
 }
 
 /**
- * Manually process a single internal link element, creating a LatexRenderChild
- * and calling onload() to render the equation number. Used by the DOM observer
+ * Manually process a single internal link element. Used by the DOM observer
  * to handle links inside dynamically rendered callouts.
  */
 export const processInternalLink = (
@@ -79,8 +83,11 @@ export const processInternalLink = (
   const dataHref = link.getAttribute('data-href');
   if (dataHref && dataHref.includes('#^eq-')) {
     link.classList.add('math-link-processed');
-    const child = new LatexRenderChild(link, plugin, sourcePath, dataHref);
-    child.onload();
+    const mathLink = getMathLink(plugin, dataHref, sourcePath);
+    if (mathLink) {
+      setMathLink(mathLink, link);
+      void finishRenderMath();
+    }
   }
 };
 

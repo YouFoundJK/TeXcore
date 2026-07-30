@@ -449,9 +449,7 @@ export const createRowLayoutProcessor = (plugin: LatexReferencer): MarkdownPostP
         };
 
         refresh();
-        window.setTimeout(refresh, 50);
-        window.setTimeout(refresh, 150);
-        window.setTimeout(refresh, 500);
+        window.setTimeout(refresh, 100);
 
         // Replace start element and remove all old intermediate DOM nodes
         if (topBlock.parentElement) {
@@ -561,9 +559,7 @@ class RowLayoutWidget extends WidgetType {
     };
 
     refresh();
-    window.setTimeout(refresh, 50);
-    window.setTimeout(refresh, 150);
-    window.setTimeout(refresh, 500);
+    window.setTimeout(refresh, 100);
 
     // Resolve editing flow: move selection inside the block when clicked
     rowEl.onclick = (evt: MouseEvent) => {

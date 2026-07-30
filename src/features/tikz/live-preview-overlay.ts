@@ -170,22 +170,27 @@ class TikzLivePreviewOverlay {
         this.destroy();
 
         void (async () => {
-          const { TikzEditorModal } = await import('../tikz-editor/tikz-editor-modal');
-          new TikzEditorModal(
-            this.plugin.app,
-            this.plugin,
-            blockRange.source,
-            (newSource: string) => {
-              this.view.dispatch({
-                changes: {
-                  from: blockRange.from,
-                  to: blockRange.to,
-                  insert: newSource
-                }
-              });
-              showNotice('TikZ block updated.');
-            }
-          ).open();
+          try {
+            const { TikzEditorModal } = await import('../tikz-editor/tikz-editor-modal');
+            new TikzEditorModal(
+              this.plugin.app,
+              this.plugin,
+              blockRange.source,
+              (newSource: string) => {
+                this.view.dispatch({
+                  changes: {
+                    from: blockRange.from,
+                    to: blockRange.to,
+                    insert: newSource
+                  }
+                });
+                showNotice('TikZ block updated.');
+              }
+            ).open();
+          } catch (err) {
+            showNotice('Failed to open TikZ editor.');
+            console.error(err);
+          }
         })();
       } else {
         showNotice('Please place your cursor inside a tikz block to edit.');
@@ -337,7 +342,7 @@ class TikzLivePreviewOverlay {
     downloadLink.click();
     doc.body.removeChild(downloadLink);
 
-    URL.revokeObjectURL(svgUrl);
+    window.setTimeout(() => URL.revokeObjectURL(svgUrl), 1000);
 
     showNotice('TikZ diagram exported as svg successfully.');
   }

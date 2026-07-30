@@ -48,7 +48,14 @@ export class TikzRenderer {
 
   public async render(source: string): Promise<SVGElement> {
     const code = this.tidyTikzSource(source);
-    this.renderCache.delete(code);
+
+    const cachedSvg = this.renderCache.get(code);
+    if (cachedSvg) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(cachedSvg, 'image/svg+xml');
+      const svgEl = doc.querySelector('svg');
+      if (svgEl) return svgEl;
+    }
 
     // Lazy-load tikzjax.css if not loaded yet
     if (!this.tikzjaxCss) {

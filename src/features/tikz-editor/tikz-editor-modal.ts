@@ -49,6 +49,8 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   private isPanning = false;
   private panStartMouse = { x: 0, y: 0 };
   private panStartPan = { x: 0, y: 0 };
+  private activePanMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private activePanUpHandler: (() => void) | null = null;
 
   // Sidebar / library state
   private searchQuery = '';
@@ -836,9 +838,17 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     this.plugin.isTikzEditorOpen = false;
     this.plugin.updateEditorExtensions();
 
-    // Clean up key listeners
+    // Clean up key listeners and pan listeners
     activeDocument.removeEventListener('keydown', this.handleKeyDown);
     activeDocument.removeEventListener('keyup', this.handleKeyUp);
+    if (this.activePanMoveHandler) {
+      activeDocument.removeEventListener('mousemove', this.activePanMoveHandler);
+      this.activePanMoveHandler = null;
+    }
+    if (this.activePanUpHandler) {
+      activeDocument.removeEventListener('mouseup', this.activePanUpHandler);
+      this.activePanUpHandler = null;
+    }
   }
 
   // DOM Builders
@@ -990,8 +1000,12 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
             }
             activeDocument.removeEventListener('mousemove', onMouseMove);
             activeDocument.removeEventListener('mouseup', onMouseUp);
+            this.activePanMoveHandler = null;
+            this.activePanUpHandler = null;
           };
 
+          this.activePanMoveHandler = onMouseMove;
+          this.activePanUpHandler = onMouseUp;
           activeDocument.addEventListener('mousemove', onMouseMove);
           activeDocument.addEventListener('mouseup', onMouseUp);
         }
