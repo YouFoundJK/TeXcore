@@ -1,10 +1,10 @@
 import { Command, Editor } from 'obsidian';
 import type LatexReferencer from '../../main';
 import { CustomCallout } from '../../settings/settings';
+import { logDebug, logError } from '../../utils/logger';
 
 export class CustomCalloutManager {
   private registeredCommandIds: string[] = [];
-  private styleEl: HTMLStyleElement | null = null;
 
   constructor(private plugin: LatexReferencer) {}
 
@@ -20,63 +20,40 @@ export class CustomCalloutManager {
 
   updateStyles() {
     const callouts = this.plugin.settings.customCallouts || [];
-    console.log('[ObsiTeXcore Custom Callouts] Updating callout styles for:', callouts);
-    let cssText = '';
+    logDebug('CustomCallouts', 'Updating callout styles for:', callouts);
+
+    const doc = activeDocument;
+    if (!doc || !doc.body) return;
 
     for (const callout of callouts) {
       const type = callout.type ? callout.type.trim().toLowerCase() : '';
       if (!type) continue;
 
-      const props: string[] = [];
-
       if (callout.color && callout.color.trim()) {
         const formattedColor = formatColorToRgb(callout.color);
-        props.push(`\t--callout-color: ${formattedColor};`);
-        props.push(`\tbackground-color: rgba(${formattedColor}, 0.1);`);
-        props.push(`\tborder: 1px solid rgba(${formattedColor}, 0.25);`);
+        doc.body.style.setProperty(`--callout-color-${type}`, formattedColor);
       }
-
       if (callout.icon && callout.icon.trim()) {
-        const iconName = callout.icon.trim();
-        props.push(`\t--callout-icon: ${iconName};`);
-      }
-
-      if (props.length > 0) {
-        const baseSelector = `body .callout[data-callout="${type}"],\n.markdown-rendered .callout[data-callout="${type}"],\n.cm-embed-block .callout[data-callout="${type}"]`;
-        cssText += `${baseSelector} {\n${props.join('\n')}\n}\n`;
-
-        if (callout.color && callout.color.trim()) {
-          const formattedColor = formatColorToRgb(callout.color);
-          const titleSelector = `body .callout[data-callout="${type}"] > .callout-title,\n.markdown-rendered .callout[data-callout="${type}"] > .callout-title`;
-          const iconSelector = `body .callout[data-callout="${type}"] > .callout-title > .callout-icon,\n.markdown-rendered .callout[data-callout="${type}"] > .callout-title > .callout-icon`;
-          cssText += `${titleSelector} {\n\tcolor: rgb(${formattedColor});\n}\n`;
-          cssText += `${iconSelector} {\n\tcolor: rgb(${formattedColor});\n}\n`;
-        }
-        cssText += '\n';
+        doc.body.style.setProperty(`--callout-icon-${type}`, callout.icon.trim());
       }
     }
-
-    console.log('[ObsiTeXcore Custom Callouts] Generated CSS:\n' + cssText);
-
-    if (!this.styleEl) {
-      this.styleEl = document.createElement('style');
-      this.styleEl.id = 'obsitex-custom-callouts';
-      document.head.appendChild(this.styleEl);
-      console.log(
-        '[ObsiTeXcore Custom Callouts] Created new <style id="obsitex-custom-callouts"> in document.head'
-      );
-    }
-
-    this.styleEl.textContent = cssText;
-    console.log('[ObsiTeXcore Custom Callouts] Applied style element textContent successfully.');
   }
 
   removeStyles() {
-    if (this.styleEl) {
-      this.styleEl.remove();
-      this.styleEl = null;
-      console.log('[ObsiTeXcore Custom Callouts] Removed style element from DOM.');
+    const doc = activeDocument;
+    if (!doc || !doc.body) return;
+
+    const callouts = this.plugin.settings.customCallouts || [];
+    for (const callout of callouts) {
+      const type = callout.type ? callout.type.trim().toLowerCase() : '';
+      if (!type) continue;
+      doc.body.style.removeProperty(`--callout-color-${type}`);
+      doc.body.style.removeProperty(`--callout-icon-${type}`);
     }
+    logDebug(
+      'CustomCallouts',
+      'Removed custom callout style properties from active document body.'
+    );
   }
 
   unregisterCommands() {
@@ -86,7 +63,7 @@ export class CustomCalloutManager {
         try {
           appCommands.removeCommand(cmdId);
         } catch (e) {
-          console.error('[ObsiTeXcore Custom Callouts] Failed to remove command', cmdId, e);
+          logError('CustomCallouts', `Failed to remove command ${cmdId}`, e);
         }
       }
     }
@@ -126,11 +103,11 @@ export class CustomCalloutManager {
       this.plugin.addCommand(commandConfig);
       this.registeredCommandIds.push(fullCommandId);
     }
-    console.log('[ObsiTeXcore Custom Callouts] Registered commands:', this.registeredCommandIds);
+    logDebug('CustomCallouts', 'Registered commands:', this.registeredCommandIds);
   }
 
   insertCallout(editor: Editor, item: CustomCallout) {
-    console.log('[ObsiTeXcore Custom Callouts] Inserting callout:', item);
+    logDebug('CustomCallouts', 'Inserting callout:', item);
     const type = item.type ? item.type.trim().toLowerCase() : 'note';
     const title = item.title?.trim() || '';
     const headerLine = title ? `> [!${type}] ${title}` : `> [!${type}]`;

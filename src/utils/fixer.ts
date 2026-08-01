@@ -82,8 +82,9 @@ export function fixTableMath(content: string): string | null {
     !content ||
     !content.includes('|') ||
     (!content.includes('% id:') && !content.includes('<br>'))
-  )
+  ) {
     return null;
+  }
 
   logDebug(
     'Fixer',

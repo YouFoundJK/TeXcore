@@ -1,6 +1,45 @@
 import { loadMathJax } from 'obsidian';
 import { logDebug, logWarn } from './logger';
 
+interface MathJaxTags {
+  labels?: Record<string, unknown>;
+  allLabels?: Record<string, unknown>;
+  addLabel?: MathJaxAddLabelFn;
+}
+
+interface MathJaxAddLabelFn {
+  (this: MathJaxTags, labelName: string, num: string, tag: string): unknown;
+  _obsitexPatched?: boolean;
+}
+
+interface MathJaxParseOptions {
+  tags?: MathJaxTags;
+}
+
+interface MathJaxInputJax {
+  parseOptions?: MathJaxParseOptions;
+}
+
+interface MathJaxModuleTag {
+  AbstractTags?: { prototype?: MathJaxTags };
+  AmsTags?: { prototype?: MathJaxTags };
+  AllTags?: { prototype?: MathJaxTags };
+}
+
+interface MathJaxConverterFn {
+  (this: unknown, math: string, options?: unknown): unknown;
+  _obsitexPatched?: boolean;
+}
+
+interface MathJaxGlobal {
+  _?: Record<string, MathJaxModuleTag>;
+  startup?: Record<string, { inputJax?: MathJaxInputJax[] }>;
+  tex2chtml?: MathJaxConverterFn;
+  tex2svg?: MathJaxConverterFn;
+  tex2chtmlPromise?: MathJaxConverterFn;
+  tex2svgPromise?: MathJaxConverterFn;
+}
+
 /**
  * Strips all HTML `<br>`, `< br >`, and `&lt;br&gt;` tags from math text before MathJax compiles it.
  */
@@ -36,28 +75,34 @@ export function cleanBrFromMathText(text: string): string {
  * and never renders illegal `<br>` tags inside equations.
  */
 export function setupMathJaxPatcher(): void {
-  const clearLabel = (tagsObj: any, labelName: string) => {
+  const clearLabel = (tagsObj: MathJaxTags | undefined, labelName: string): void => {
     if (!tagsObj) return;
-    if (tagsObj.labels && tagsObj.labels[labelName]) {
+    if (tagsObj.labels && Object.prototype.hasOwnProperty.call(tagsObj.labels, labelName)) {
       logDebug('MathJaxPatcher', `Cleared label "${labelName}" from tags.labels`);
       delete tagsObj.labels[labelName];
     }
-    if (tagsObj.allLabels && tagsObj.allLabels[labelName]) {
+    if (tagsObj.allLabels && Object.prototype.hasOwnProperty.call(tagsObj.allLabels, labelName)) {
       delete tagsObj.allLabels[labelName];
     }
   };
 
-  const patchPrototype = (proto: any, name: string) => {
-    if (!proto || typeof proto.addLabel !== 'function' || proto.addLabel._obsitexPatched)
+  const patchPrototype = (proto: MathJaxTags | undefined, name: string): boolean => {
+    if (!proto || typeof proto.addLabel !== 'function' || proto.addLabel._obsitexPatched) {
       return false;
+    }
 
     const originalAddLabel = proto.addLabel;
-    proto.addLabel = function (labelName: string, num: string, tag: string) {
+    const patchedAddLabel: MathJaxAddLabelFn = function (
+      this: MathJaxTags,
+      labelName: string,
+      num: string,
+      tag: string
+    ): unknown {
       clearLabel(this, labelName);
       try {
         return originalAddLabel.call(this, labelName, num, tag);
-      } catch (err: any) {
-        const msg = String(err?.message || err);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('multiply defined')) {
           logDebug(
             'MathJaxPatcher',
@@ -71,55 +116,65 @@ export function setupMathJaxPatcher(): void {
         throw err;
       }
     };
-    proto.addLabel._obsitexPatched = true;
+    patchedAddLabel._obsitexPatched = true;
+    proto.addLabel = patchedAddLabel;
     logDebug('MathJaxPatcher', `Successfully patched ${name}.prototype.addLabel!`);
     return true;
   };
 
   const patch = () => {
     if (typeof window === 'undefined') return;
-    const MathJax = (window as unknown as { MathJax?: any }).MathJax;
+    const MathJax = (window as unknown as { MathJax?: MathJaxGlobal }).MathJax;
     if (!MathJax) return;
 
     try {
       // 1. Patch MathJax 3 Module Registry prototypes (_ object)
       const modules = MathJax._;
       if (modules) {
-        if (modules['input/tex/Tags']?.AbstractTags?.prototype) {
-          patchPrototype(modules['input/tex/Tags'].AbstractTags.prototype, 'AbstractTags');
+        const tagsMod = modules['input/tex/Tags']?.AbstractTags?.prototype;
+        if (tagsMod) {
+          patchPrototype(tagsMod, 'AbstractTags');
         }
-        if (modules['input/tex/ams/AmsTags']?.AmsTags?.prototype) {
-          patchPrototype(modules['input/tex/ams/AmsTags'].AmsTags.prototype, 'AmsTags');
+        const amsMod = modules['input/tex/ams/AmsTags']?.AmsTags?.prototype;
+        if (amsMod) {
+          patchPrototype(amsMod, 'AmsTags');
         }
-        if (modules['input/tex/all/AllTags']?.AllTags?.prototype) {
-          patchPrototype(modules['input/tex/all/AllTags'].AllTags.prototype, 'AllTags');
+        const allMod = modules['input/tex/all/AllTags']?.AllTags?.prototype;
+        if (allMod) {
+          patchPrototype(allMod, 'AllTags');
         }
       }
 
       // 2. Patch active InputJax instances and parseOptions
-      const inputJax = MathJax.startup?.document?.inputJax;
+      const inputJax = MathJax.startup?.['document']?.inputJax;
       if (Array.isArray(inputJax)) {
         for (const jax of inputJax) {
           const tags = jax.parseOptions?.tags;
           if (tags) {
-            patchPrototype(Object.getPrototypeOf(tags), 'InputJaxTagsProto');
+            patchPrototype(Object.getPrototypeOf(tags) as MathJaxTags, 'InputJaxTagsProto');
             patchPrototype(tags, 'InputJaxTagsInstance');
           }
         }
       }
 
       // 3. Patch tex2chtml and tex2svg to auto-clear label and clean <br> tags before conversion
-      const patchConverter = (methodName: string) => {
-        if (typeof MathJax[methodName] === 'function' && !MathJax[methodName]._obsitexPatched) {
-          const originalConverter = MathJax[methodName];
-          MathJax[methodName] = function (math: string, options: any) {
-            if (typeof math === 'string') {
-              math = cleanBrFromMathText(math);
+      const patchConverter = (methodName: keyof MathJaxGlobal) => {
+        const targetFn = MathJax[methodName] as MathJaxConverterFn | undefined;
+        if (typeof targetFn === 'function' && !targetFn._obsitexPatched) {
+          const originalConverter = targetFn;
+          const patchedConverter: MathJaxConverterFn = function (
+            this: unknown,
+            math: string,
+            options?: unknown
+          ): unknown {
+            let processedMath = math;
+            if (typeof processedMath === 'string') {
+              processedMath = cleanBrFromMathText(processedMath);
             }
             try {
-              if (typeof math === 'string' && math.includes('\\label{')) {
-                const matches = math.matchAll(/\\label\{([^{}]+)\}/g);
-                const inputJaxList = MathJax.startup?.document?.inputJax;
+              if (typeof processedMath === 'string' && processedMath.includes('\\label{')) {
+                const matches = processedMath.matchAll(/\\label\{([^{}]+)\}/g);
+                const inputJaxList = MathJax.startup?.['document']?.inputJax;
                 if (Array.isArray(inputJaxList)) {
                   for (const jax of inputJaxList) {
                     const tags = jax.parseOptions?.tags;
@@ -134,9 +189,10 @@ export function setupMathJaxPatcher(): void {
             } catch {
               // Best effort cleanup
             }
-            return originalConverter.call(this, math, options);
+            return originalConverter.call(this, processedMath, options);
           };
-          MathJax[methodName]._obsitexPatched = true;
+          patchedConverter._obsitexPatched = true;
+          (MathJax as unknown as Record<string, MathJaxConverterFn>)[methodName] = patchedConverter;
           logDebug('MathJaxPatcher', `Successfully patched MathJax.${methodName}`);
         }
       };

@@ -144,13 +144,7 @@ export function fixMathBrInContainer(container: HTMLElement): void {
     if (!mathEl.querySelector('mjx-container')) {
       if (brRegex.test(innerHTML) || (hasComment && innerHTML.includes('%'))) {
         const cleanedHTML = cleanMathBrTags(innerHTML);
-        // Use createRange/createContextualFragment to avoid unsafe innerHTML write.
-        // Content is sourced from mathEl.innerHTML itself and processed only by our
-        // own cleanMathBrTags — no user input reaches this path.
-        const range = mathEl.ownerDocument.createRange();
-        range.selectNodeContents(mathEl);
-        range.deleteContents();
-        mathEl.appendChild(range.createContextualFragment(cleanedHTML));
+        mathEl.textContent = cleanedHTML;
       } else if (brRegex.test(textContent) || (hasComment && textContent.includes('%'))) {
         const cleanedText = cleanMathBrTags(textContent);
         mathEl.textContent = cleanedText;
