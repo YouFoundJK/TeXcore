@@ -1,7 +1,7 @@
 import { Command, Editor } from 'obsidian';
 import type LatexReferencer from '../../main';
 import { CustomCallout } from '../../settings/settings';
-import { logDebug, logError } from '../../utils/logger';
+import { logDebug, logWarn, logError } from '../../utils/logger';
 
 export class CustomCalloutManager {
   private registeredCommandIds: string[] = [];
@@ -11,6 +11,21 @@ export class CustomCalloutManager {
   onLoad() {
     this.updateStyles();
     this.registerCommands();
+
+    if (this.plugin?.app?.workspace) {
+      this.plugin.registerEvent(
+        this.plugin.app.workspace.on('layout-change', () => {
+          logDebug('CustomCallouts', 'Workspace layout change detected, updating callout styles.');
+          this.updateStyles();
+        })
+      );
+      this.plugin.registerEvent(
+        this.plugin.app.workspace.on('active-leaf-change', () => {
+          logDebug('CustomCallouts', 'Active leaf change detected, updating callout styles.');
+          this.updateStyles();
+        })
+      );
+    }
   }
 
   onUnload() {
@@ -18,42 +33,153 @@ export class CustomCalloutManager {
     this.unregisterCommands();
   }
 
+  private getDocuments(): Document[] {
+    const docs: Document[] = [];
+    if (typeof activeDocument !== 'undefined' && activeDocument) {
+      docs.push(activeDocument);
+    }
+    if (typeof document !== 'undefined' && !docs.includes(document)) {
+      docs.push(document);
+    }
+    if (this.plugin?.app?.workspace) {
+      try {
+        this.plugin.app.workspace.iterateAllLeaves(leaf => {
+          const doc = leaf.view?.containerEl?.ownerDocument;
+          if (doc && !docs.includes(doc)) {
+            docs.push(doc);
+          }
+        });
+      } catch (e) {
+        logWarn('CustomCallouts', 'Error iterating workspace leaves for document contexts:', e);
+      }
+    }
+    return docs;
+  }
+
   updateStyles() {
     const callouts = this.plugin.settings.customCallouts || [];
-    logDebug('CustomCallouts', 'Updating callout styles for:', callouts);
+    const docs = this.getDocuments();
 
-    const doc = activeDocument;
-    if (!doc || !doc.body) return;
+    logDebug('CustomCallouts', `Updating callout styles across ${docs.length} document context(s).`, {
+      calloutsCount: callouts.length,
+      callouts: callouts.map(c => ({
+        id: c.id,
+        type: c.type,
+        rawColor: c.color,
+        formattedColor: formatColorToRgb(c.color),
+        icon: c.icon
+      }))
+    });
 
+    if (docs.length === 0) {
+      logWarn('CustomCallouts', 'No valid document context found to apply custom callout styles.');
+      return;
+    }
+
+    // Build the dynamic CSS content
+    let css = '';
     for (const callout of callouts) {
       const type = callout.type ? callout.type.trim().toLowerCase() : '';
       if (!type) continue;
 
-      if (callout.color && callout.color.trim()) {
-        const formattedColor = formatColorToRgb(callout.color);
-        doc.body.style.setProperty(`--callout-color-${type}`, formattedColor);
+      const formattedColor = callout.color ? formatColorToRgb(callout.color) : '';
+      const icon = callout.icon ? callout.icon.trim() : '';
+
+      const declarations: string[] = [];
+      if (formattedColor) {
+        declarations.push(`  --callout-color: ${formattedColor};`);
+        declarations.push(`  border: 1px solid rgba(${formattedColor}, 0.35);`);
+        declarations.push(`  background-color: rgba(${formattedColor}, 0.08);`);
       }
-      if (callout.icon && callout.icon.trim()) {
-        doc.body.style.setProperty(`--callout-icon-${type}`, callout.icon.trim());
+      if (icon) {
+        declarations.push(`  --callout-icon: ${icon};`);
+      }
+
+      if (declarations.length > 0) {
+        const selectors = [
+          `body .callout[data-callout="${type}"]`,
+          `.markdown-rendered .callout[data-callout="${type}"]`,
+          `.cm-callout[data-callout="${type}"]`,
+          `.cm-embed-block .callout[data-callout="${type}"]`,
+          `.callout[data-callout="${type}"]`
+        ];
+        css += `${selectors.join(',\n')} {\n${declarations.join('\n')}\n}\n\n`;
+
+        if (formattedColor) {
+          const titleSelectors = [
+            `body .callout[data-callout="${type}"] .callout-title`,
+            `.markdown-rendered .callout[data-callout="${type}"] .callout-title`,
+            `.cm-callout[data-callout="${type}"] .callout-title`,
+            `.callout[data-callout="${type}"] .callout-title`,
+            `body .callout[data-callout="${type}"] .callout-icon`,
+            `.markdown-rendered .callout[data-callout="${type}"] .callout-icon`,
+            `.cm-callout[data-callout="${type}"] .callout-icon`,
+            `.callout[data-callout="${type}"] .callout-icon`
+          ];
+          css += `${titleSelectors.join(',\n')} {\n  color: rgb(${formattedColor});\n}\n\n`;
+        }
       }
     }
+
+    const styleId = 'obsitexcore-custom-callouts';
+
+    for (const doc of docs) {
+      if (doc.body) {
+        for (const callout of callouts) {
+          const type = callout.type ? callout.type.trim().toLowerCase() : '';
+          if (!type) continue;
+
+          if (callout.color && callout.color.trim()) {
+            const formattedColor = formatColorToRgb(callout.color);
+            doc.body.style.setProperty(`--callout-color-${type}`, formattedColor);
+          }
+          if (callout.icon && callout.icon.trim()) {
+            doc.body.style.setProperty(`--callout-icon-${type}`, callout.icon.trim());
+          }
+        }
+      }
+
+      if (!doc.head) {
+        logWarn('CustomCallouts', 'Document head is missing in target document context.');
+        continue;
+      }
+
+      let styleEl = doc.getElementById(styleId) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.id = styleId;
+        doc.head.appendChild(styleEl);
+        logDebug('CustomCallouts', `Created <style id="${styleId}"> element in document head.`);
+      }
+
+      styleEl.textContent = css;
+    }
+
+    logDebug('CustomCallouts', `Successfully applied CSS rules into <style id="${styleId}">`, { css });
   }
 
   removeStyles() {
-    const doc = activeDocument;
-    if (!doc || !doc.body) return;
+    const docs = this.getDocuments();
+    const styleId = 'obsitexcore-custom-callouts';
 
-    const callouts = this.plugin.settings.customCallouts || [];
-    for (const callout of callouts) {
-      const type = callout.type ? callout.type.trim().toLowerCase() : '';
-      if (!type) continue;
-      doc.body.style.removeProperty(`--callout-color-${type}`);
-      doc.body.style.removeProperty(`--callout-icon-${type}`);
+    for (const doc of docs) {
+      if (doc.body) {
+        const callouts = this.plugin.settings.customCallouts || [];
+        for (const callout of callouts) {
+          const type = callout.type ? callout.type.trim().toLowerCase() : '';
+          if (!type) continue;
+          doc.body.style.removeProperty(`--callout-color-${type}`);
+          doc.body.style.removeProperty(`--callout-icon-${type}`);
+        }
+      }
+
+      const styleEl = doc.getElementById(styleId);
+      if (styleEl) {
+        styleEl.remove();
+      }
     }
-    logDebug(
-      'CustomCallouts',
-      'Removed custom callout style properties from active document body.'
-    );
+
+    logDebug('CustomCallouts', `Removed custom callout style properties from ${docs.length} document context(s).`);
   }
 
   unregisterCommands() {
@@ -134,9 +260,15 @@ export class CustomCalloutManager {
   }
 }
 
-function formatColorToRgb(colorStr: string): string {
+export function formatColorToRgb(colorStr: string): string {
   colorStr = colorStr.trim();
   if (!colorStr) return '';
+
+  const rgbMatch = colorStr.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgbMatch) {
+    return `${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]}`;
+  }
+
   if (colorStr.startsWith('#')) {
     let hex = colorStr.slice(1);
     if (hex.length === 3) {
@@ -154,5 +286,6 @@ function formatColorToRgb(colorStr: string): string {
       }
     }
   }
+
   return colorStr;
 }
