@@ -193,7 +193,7 @@ S_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\
 });
 
 import { parseEquationId, stripEquationId, formatEquationIdLine } from '../src/utils/equation-id';
-import { hoistLabelInEnvironment } from '../src/utils/fixer';
+import { hoistLabelInEnvironment, cleanMathBrTags, fixTableMath } from '../src/utils/fixer';
 
 describe('equation-id.ts tests', () => {
   it('parseEquationId correctly parses % id:, \\label{}, and HTML comment IDs', () => {
@@ -215,10 +215,11 @@ describe('equation-id.ts tests', () => {
 });
 
 describe('fixer.ts tests', () => {
-  it('cleanMathBrTags replaces <br> with newlines so % comment lines do not swallow closing $$', () => {
-    const input = '$$<br>\\begin{align}<br>u_{ij}(12) &= u^{000}_{ij}(r)<br>\\end{align}<br>% id: eq-P1-4a8b2c0d<br>$$';
+  it('cleanMathBrTags replaces <br> with newlines so % comment lines do not swallow closing $$ in multiline math', () => {
+    const input = '$$\n<br>\\begin{align}\n<br>u_{ij}(12) &= u^{000}_{ij}(r)\n<br>\\end{align}\n<br>% id: eq-P1-4a8b2c0d\n<br>$$';
     const cleaned = cleanMathBrTags(input);
-    expect(cleaned).toContain('% id: eq-P1-4a8b2c0d\n$$');
+    expect(cleaned).toContain('% id: eq-P1-4a8b2c0d');
+    expect(cleaned).not.toContain('<br>');
   });
 
   it('cleanMathBrTags hoists \\label{eq-id} to before \\end{align} so MathJax does not throw TeX errors', () => {
@@ -230,6 +231,24 @@ describe('fixer.ts tests', () => {
   it('hoistLabelInEnvironment hoists misplaced labels cleanly', () => {
     const input = '\\begin{equation}\nx=y\n\\end{equation}\n\\label{eq-test}';
     expect(hoistLabelInEnvironment(input)).toBe('\\begin{equation}\nx=y \\label{eq-test}\n\\end{equation}');
+  });
+
+  it('cleanMathBrTags cleans <br> in single-line table context without creating raw newlines', () => {
+    const input = '$$<br>g_{ij}(12) = g^{000}_{ij}(r)<br>\\label{eq-3a7c5d8e}<br>$$';
+    const cleaned = cleanMathBrTags(input, true);
+    expect(cleaned).not.toContain('<br>');
+    expect(cleaned).not.toContain('\n');
+    expect(cleaned).toContain('$$ g_{ij}(12)');
+  });
+
+  it('fixTableMath fixes <br> and % id: inside single-line table cells', () => {
+    const tableLine = '| **Ion-ion**,<br>$$<br>g_{ij}(12) = g^{000}_{ij}(r)<br>% id: eq-3a7c5d8e<br>$$ | cell 2 |';
+    const fixed = fixTableMath(tableLine);
+    expect(fixed).not.toBeNull();
+    expect(fixed).not.toContain('<br>$$');
+    expect(fixed).not.toContain('% id:');
+    expect(fixed).toContain('\\label{eq-3a7c5d8e}');
+    expect(fixed?.split('\n').length).toBe(1);
   });
 });
 

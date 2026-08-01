@@ -1,4 +1,5 @@
 import { getCalloutPrefix, findDisplayMathBlocks, findTopLevelEndEnvMatch } from './parse';
+import { logDebug } from './logger';
 
 /**
  * Checks and fixes broken math blocks inside callouts.
@@ -73,17 +74,34 @@ export function checkAndFixCalloutMath(content: string): string | null {
 /**
  * Converts legacy `% id: eq-name` inside single-line Markdown table cells
  * to standard `\label{eq-name}` so that TeX comment `%` does not swallow closing `$$`.
+ * Also cleans illegal `<br>` tags inside `$$ ... $$` math in table rows to prevent MathJax
+ * from rendering literal `br >` glyphs.
  */
 export function fixTableMath(content: string): string | null {
-  if (!content || !content.includes('|') || !content.includes('% id:')) return null;
+  if (!content || !content.includes('|') || (!content.includes('% id:') && !content.includes('<br>'))) return null;
 
+  logDebug('Fixer', `fixTableMath called on content (${content.length} chars). Scanning for table rows with math...`);
   const lines = content.split(/\r?\n/);
   let changed = false;
 
-  const newLines = lines.map(line => {
-    if (line.includes('|') && line.includes('$$') && line.includes('% id:')) {
-      const fixedLine = line.replace(/% id:\s*(eq-[\w.-]+)/g, '\\label{$1}');
+  const brBeforeMathRegex = /(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*(\$\$)/gi;
+  const brAfterMathRegex = /(\$\$)\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi;
+
+  const newLines = lines.map((line, idx) => {
+    if (line.includes('|') && line.includes('$$')) {
+      let fixedLine = line;
+      if (line.includes('% id:')) {
+        fixedLine = fixedLine.replace(/% id:\s*(eq-[\w.-]+)/g, '\\label{$1}');
+      }
+      if (fixedLine.includes('<br>')) {
+        fixedLine = fixedLine.replace(brBeforeMathRegex, ' $1');
+        fixedLine = fixedLine.replace(brAfterMathRegex, '$1 ');
+        fixedLine = fixedLine.replace(/(\$\$[\s\S]*?\$\$)/g, mathBlock => {
+          return cleanMathBrTags(mathBlock, true);
+        });
+      }
       if (fixedLine !== line) {
+        logDebug('Fixer', `fixTableMath modified line ${idx + 1}:\n  BEFORE: ${line}\n  AFTER:  ${fixedLine}`);
         changed = true;
         return fixedLine;
       }
@@ -91,7 +109,10 @@ export function fixTableMath(content: string): string | null {
     return line;
   });
 
-  if (!changed) return null;
+  if (!changed) {
+    logDebug('Fixer', 'fixTableMath: No changes needed.');
+    return null;
+  }
   return newLines.join('\n');
 }
 
@@ -115,7 +136,13 @@ export function hoistLabelInEnvironment(mathText: string): string {
       const newEndEnvMatch = findTopLevelEndEnvMatch(cleaned);
       if (newEndEnvMatch && newEndEnvMatch.index !== undefined) {
         const envPos = newEndEnvMatch.index;
-        return `${cleaned.slice(0, envPos).trimEnd()} ${labelStr}\n${cleaned.slice(envPos)}`;
+        const separator = mathText.includes('\n') ? '\n' : ' ';
+        const result = `${cleaned.slice(0, envPos).trimEnd()} ${labelStr}${separator}${cleaned.slice(envPos)}`;
+        logDebug(
+          'Fixer',
+          `hoistLabelInEnvironment hoisted "${labelStr}" before ${newEndEnvMatch.matchText}:\n  INPUT:  "${mathText}"\n  OUTPUT: "${result}"`
+        );
+        return result;
       }
     }
   }
@@ -125,8 +152,9 @@ export function hoistLabelInEnvironment(mathText: string): string {
 
 /**
  * Cleans illegal HTML <br> tags and fixes comment truncation inside math expressions.
+ * @param isSingleLineContext If true, <br> inside math is converted to spaces/LaTeX breaks rather than raw newlines \n.
  */
-export function cleanMathBrTags(mathText: string): string {
+export function cleanMathBrTags(mathText: string, isSingleLineContext = false): string {
   if (!mathText) return mathText;
 
   const brRegex = /<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;/gi;
@@ -138,37 +166,62 @@ export function cleanMathBrTags(mathText: string): string {
     return mathText;
   }
 
-  // 1. Replace <br> and &lt;br&gt; with actual newlines \n
-  let cleaned = mathText.replace(brRegex, '\n');
+  logDebug(
+    'Fixer',
+    `cleanMathBrTags called (isSingleLineContext=${isSingleLineContext}).\n  INPUT: "${mathText}"`
+  );
 
-  // 2. Ensure TeX comment lines starting with % terminate with \n and do not swallow closing $$
-  const lines = cleaned.split('\n');
-  const fixedLines: string[] = [];
+  const isTableOrSingleLine = isSingleLineContext || !mathText.includes('\n');
 
-  for (const line of lines) {
-    const commentIdx = line.indexOf('%');
-    if (commentIdx !== -1 && (commentIdx === 0 || line[commentIdx - 1] !== '\\')) {
-      const before = line.substring(0, commentIdx).trimEnd();
-      let comment = line.substring(commentIdx).trimEnd();
-
-      // If comment line contains closing $$, pull $$ onto a new line after comment
-      const closingDollarIdx = comment.lastIndexOf('$$');
-      if (closingDollarIdx > 0) {
-        const commentBody = comment.substring(0, closingDollarIdx).trimEnd();
-        comment = `${commentBody}\n$$`;
-      }
-
-      if (before.length > 0) {
-        fixedLines.push(before);
-      }
-      fixedLines.push(comment);
-    } else {
-      fixedLines.push(line);
-    }
+  // 1. Replace <br> and &lt;br&gt; with appropriate line breaks or spaces
+  let cleaned: string;
+  if (isTableOrSingleLine) {
+    // In single-line table cells, clean leading/trailing <br> inside $$ ... $$ to space,
+    // and internal <br> to LaTeX newline \\ or space.
+    cleaned = mathText.replace(/^(\$\$)\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi, '$1 ');
+    cleaned = cleaned.replace(/(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*(\$\$)$/gi, ' $1');
+    cleaned = cleaned.replace(/\\begin\{([a-zA-Z*]+)\}\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi, '\\begin{$1} ');
+    cleaned = cleaned.replace(/(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*\\end\{([a-zA-Z*]+)\}/gi, ' \\end{$1}');
+    cleaned = cleaned.replace(brRegex, ' ');
+  } else {
+    cleaned = mathText.replace(brRegex, '\n');
   }
 
-  cleaned = fixedLines.join('\n').replace(/[ \t]{2,}/g, ' ');
+  // 2. Ensure TeX comment lines starting with % terminate with \n and do not swallow closing $$
+  if (!isTableOrSingleLine) {
+    const lines = cleaned.split('\n');
+    const fixedLines: string[] = [];
+
+    for (const line of lines) {
+      const commentIdx = line.indexOf('%');
+      if (commentIdx !== -1 && (commentIdx === 0 || line[commentIdx - 1] !== '\\')) {
+        const before = line.substring(0, commentIdx).trimEnd();
+        let comment = line.substring(commentIdx).trimEnd();
+
+        // If comment line contains closing $$, pull $$ onto a new line after comment
+        const closingDollarIdx = comment.lastIndexOf('$$');
+        if (closingDollarIdx > 0) {
+          const commentBody = comment.substring(0, closingDollarIdx).trimEnd();
+          comment = `${commentBody}\n$$`;
+        }
+
+        if (before.length > 0) {
+          fixedLines.push(before);
+        }
+        fixedLines.push(comment);
+      } else {
+        fixedLines.push(line);
+      }
+    }
+
+    cleaned = fixedLines.join('\n');
+  }
+
+  cleaned = cleaned.replace(/[ \t]{2,}/g, ' ');
 
   // 3. Hoist \label{eq-...} if inside environment
-  return hoistLabelInEnvironment(cleaned);
+  const finalResult = hoistLabelInEnvironment(cleaned);
+  logDebug('Fixer', `cleanMathBrTags final result:\n  OUTPUT: "${finalResult}"`);
+  return finalResult;
 }
+

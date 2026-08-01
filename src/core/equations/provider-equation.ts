@@ -135,13 +135,31 @@ export class ActiveNoteEquationProvider {
           }
 
           const mathBlocks = findDisplayMathBlocks(processedText);
+          if (section.type === 'table') {
+            // Also scan for single-dollar math blocks `$ ... $` inside table cells that contain equation IDs
+            const inlineMathRegex = /(?<!\$)\$([^\$\n]+?\b(?:\\label\{eq-|% id:\s*eq-)[^\$\n]+?)\$(?!\$)/g;
+            let m: RegExpExecArray | null;
+            while ((m = inlineMathRegex.exec(processedText)) !== null) {
+              const startPos = m.index;
+              const endPos = m.index + m[0].length;
+              const overlaps = mathBlocks.some(b => startPos >= b.from && endPos <= b.to);
+              if (!overlaps) {
+                mathBlocks.push({ from: startPos, to: endPos });
+              }
+            }
+          }
+
           logDebug(
             'EquationProvider',
-            `  Found ${mathBlocks.length} display math block(s) inside ${section.type}`
+            `  Found ${mathBlocks.length} math block(s) inside ${section.type}`
           );
 
           for (const block of mathBlocks) {
-            const mathContent = processedText.substring(block.from + 2, block.to - 2);
+            const isDisplay = processedText.substring(block.from, block.from + 2) === '$$';
+            const mathContent = isDisplay
+              ? processedText.substring(block.from + 2, block.to - 2)
+              : processedText.substring(block.from + 1, block.to - 1);
+
             const prefix = processedText.substring(0, block.from);
             const startLineOffset = (prefix.match(/\n/g) || []).length;
             const blockText = processedText.substring(block.from, block.to);

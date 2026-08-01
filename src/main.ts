@@ -50,6 +50,8 @@ import { createTikzLivePreviewPlugin } from './features/tikz/live-preview-overla
 declare const process: { env: { NODE_ENV?: string } };
 const isDev = process.env.NODE_ENV === 'development';
 
+import { setupMathJaxPatcher } from 'utils/mathjax-patcher';
+
 export default class LatexReferencer extends Plugin {
   declare settings: PluginSettings;
   editorExtensions!: Extension[];
@@ -62,6 +64,7 @@ export default class LatexReferencer extends Plugin {
 
   async onload() {
     await this.loadSettings();
+    setupMathJaxPatcher();
 
     // Check version and show What's New modal if upgraded/first install
     const releaseVersion = this.manifest.version;

@@ -180,6 +180,16 @@ function createTagManagerPlugin(
           return;
         }
 
+        // Safety Guard: Skip TagManager operations if user is focused inside an Obsidian native table widget
+        const activeEl = view.dom.ownerDocument?.activeElement as HTMLElement | null;
+        if (activeEl && activeEl.closest('.cm-table-widget, .obsidian-table, table, td, th')) {
+          logDebug(
+            'TagManager',
+            'runCheck skipped: User is currently focused/editing inside an Obsidian native table cell.'
+          );
+          return;
+        }
+
         const equationInfos = view.state.field(equationField);
         if (!equationInfos || equationInfos.length === 0) {
           logDebug('TagManager', 'runCheck: no managed equationInfos in field.');
@@ -213,6 +223,16 @@ function createTagManagerPlugin(
             logDebug(
               'TagManager',
               `Safety bounds skip for ${info.id}: [${info.from}-${info.to}], doc length ${view.state.doc.length}`
+            );
+            continue;
+          }
+
+          // Table Row Exemption: Do not alter raw document text inside single-line Markdown table rows
+          const lineText = view.state.doc.lineAt(info.from).text;
+          if (lineText.includes('|')) {
+            logDebug(
+              'TagManager',
+              `Skipped tag document edit for ${info.id}: math block is inside a Markdown table row.`
             );
             continue;
           }
@@ -350,16 +370,18 @@ function createTagManagerPlugin(
           }
 
           // No tag exists - insert expectedTagStr right BEFORE endEnv or at math end
+          const isMultiLineBlock = view.state.doc.sliceString(info.from, info.to).includes('\n');
           const endEnvMatch = findTopLevelEndEnvMatch(mathText);
           if (endEnvMatch && endEnvMatch.index !== undefined) {
             const insertPos = startPos + endEnvMatch.index;
             const beforeChar = view.state.doc.sliceString(insertPos - 1, insertPos);
             const pad = /\s/.test(beforeChar) ? '' : ' ';
+            const tagInsert = isMultiLineBlock ? `${pad}${expectedTagStr}\n` : `${pad}${expectedTagStr} `;
             logDebug(
               'TagManager',
               `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`
             );
-            changes.push({ from: insertPos, to: insertPos, insert: `${pad}${expectedTagStr}\n` });
+            changes.push({ from: insertPos, to: insertPos, insert: tagInsert });
             continue;
           }
 

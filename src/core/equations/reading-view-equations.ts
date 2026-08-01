@@ -17,10 +17,41 @@ import { logDebug } from '../../utils/logger';
 export function fixMathBrInContainer(container: HTMLElement): void {
   if (!container) return;
 
+  // Safety Guard: NEVER mutate DOM nodes inside Live Preview / CodeMirror editor widgets.
+  // Mutating DOM nodes inside Live Preview table widgets ejects user cursor focus and breaks rendering.
+  if (
+    container.closest?.(
+      '.cm-editor, .cm-content, .cm-embed-block, .cm-table-widget, .markdown-source-view'
+    )
+  ) {
+    logDebug(
+      'ReadingView',
+      `fixMathBrInContainer skipped: container <${container.tagName.toLowerCase()}> class="${container.className}" is inside Live Preview / CodeMirror editor.`
+    );
+    return;
+  }
+
   logDebug(
     'ReadingView',
     `fixMathBrInContainer called on container <${container.tagName.toLowerCase()}> class="${container.className}"`
   );
+
+  // Inspect any MathJax errors inside container
+  const mathErrors = container.querySelectorAll(
+    '.cm-math-error, .math-error, [data-mjx-error], mjx-merr, [title*="MathJax"], [title*="TeX"]'
+  );
+  if (mathErrors.length > 0) {
+    mathErrors.forEach(errEl => {
+      const mathAttr = errEl.getAttribute('data-math') || errEl.closest('[data-math]')?.getAttribute('data-math') || errEl.textContent;
+      const errTitle = errEl.getAttribute('title') || errEl.getAttribute('data-mjx-error') || errEl.innerHTML;
+      window.console.error(
+        `[ObsiTeX MathJaxError] Math rendering error inside container:`,
+        `\n  Raw Math: "${mathAttr}"`,
+        `\n  Error: "${errTitle}"`,
+        `\n  Element:`, errEl
+      );
+    });
+  }
 
   // 1. Clear MathJax cells/rows whose entire content is <br>
   const cells = container.querySelectorAll('mjx-mtd, mjx-mtr');

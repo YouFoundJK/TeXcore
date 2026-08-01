@@ -112,7 +112,27 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
       if (nodesToFix.length > 0) {
         window.requestAnimationFrame(() => {
           for (const node of nodesToFix) {
-            if (node.isConnected) {
+            // Inspect any MathJax errors in the DOM tree and log them explicitly to console
+            const mathErrors = node.querySelectorAll?.(
+              '.cm-math-error, .math-error, [data-mjx-error], mjx-merr, [title*="MathJax"], [title*="TeX"]'
+            );
+            if (mathErrors && mathErrors.length > 0) {
+              mathErrors.forEach(errEl => {
+                const mathAttr = errEl.getAttribute('data-math') || errEl.closest('[data-math]')?.getAttribute('data-math') || errEl.textContent;
+                const errTitle = errEl.getAttribute('title') || errEl.getAttribute('data-mjx-error') || errEl.innerHTML;
+                window.console.error(
+                  `[ObsiTeX MathJaxError] Math rendering failed!`,
+                  `\n  Raw Math: "${mathAttr}"`,
+                  `\n  Error Details: "${errTitle}"`,
+                  `\n  Element:`, errEl
+                );
+              });
+            }
+
+            if (
+              node.isConnected &&
+              !node.closest?.('.cm-editor, .cm-content, .cm-embed-block, .cm-table-widget, .markdown-source-view')
+            ) {
               fixMathBrInContainer(node);
             }
           }
