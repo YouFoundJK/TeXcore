@@ -40,6 +40,7 @@ import { setupEquationScrollFix } from 'core/equations/equation-scroll-fix';
 import { showNotice, setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
 import { CustomNoteManager } from 'features/custom-notes/manager';
+import { CustomCalloutManager } from 'features/custom-callouts/manager';
 import type { TikzRenderer } from './features/tikz/renderer';
 import {
   createRowLayoutProcessor,
@@ -56,6 +57,7 @@ export default class LatexReferencer extends Plugin {
   internalProviders: Provider[] = [];
   snippetManager!: SnippetManager;
   customNoteManager!: CustomNoteManager;
+  customCalloutManager!: CustomCalloutManager;
   tikzRenderer!: TikzRenderer;
   isTikzEditorOpen = false;
   private cleanupEquationScrollFix?: () => void;
@@ -86,6 +88,10 @@ export default class LatexReferencer extends Plugin {
     // Custom Notes
     this.customNoteManager = new CustomNoteManager(this);
     this.customNoteManager.onLoad();
+
+    // Custom Callouts
+    this.customCalloutManager = new CustomCalloutManager(this);
+    this.customCalloutManager.onLoad();
 
     // TikZJax Rendering
     this.app.workspace.onLayoutReady(async () => {
@@ -280,6 +286,7 @@ export default class LatexReferencer extends Plugin {
   }
 
   onunload() {
+    this.customCalloutManager?.onUnload();
     if (this.tikzRenderer) {
       this.tikzRenderer.onUnload();
     }

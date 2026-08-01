@@ -74,6 +74,9 @@ export interface PluginSettings {
   // Custom Note Hotkeys
   customNoteHotkeys: CustomNoteHotkey[];
 
+  // Custom Callouts
+  customCallouts: CustomCallout[];
+
   // TikZJax Settings
   enableTikzjax: boolean;
   invertColorsInDarkMode: boolean;
@@ -91,6 +94,57 @@ export interface CustomNoteHotkey {
   hotkeyModifiers: Modifier[];
   hotkeyKey: string;
 }
+
+export interface CustomCallout {
+  id: string;
+  type: string;
+  title?: string;
+  color: string;
+  icon?: string;
+  registerCommand: boolean;
+  hotkeyModifiers?: Modifier[];
+  hotkeyKey?: string;
+}
+
+export const DEFAULT_CUSTOM_CALLOUTS: CustomCallout[] = [
+  {
+    id: 'preset-cite',
+    type: 'cite',
+    title: 'Citation',
+    color: '235, 219, 178',
+    registerCommand: true
+  },
+  {
+    id: 'preset-authors',
+    type: 'authors',
+    title: 'Authors',
+    color: '251, 73, 52',
+    registerCommand: true
+  },
+  {
+    id: 'preset-abstract',
+    type: 'abstract',
+    title: 'Abstract',
+    color: '152, 151, 26',
+    registerCommand: true
+  },
+  {
+    id: 'preset-definition',
+    type: 'definition',
+    title: 'Definition',
+    color: '219, 51, 96',
+    icon: 'lucide-bookmark',
+    registerCommand: true
+  },
+  {
+    id: 'preset-significance',
+    type: 'significance',
+    title: 'Significance',
+    color: '142, 192, 124',
+    icon: 'lucide-brain-circuit',
+    registerCommand: true
+  }
+];
 
 export const DEFAULT_SETTINGS: Required<PluginSettings> = {
   currentVersion: null,
@@ -154,6 +208,9 @@ export const DEFAULT_SETTINGS: Required<PluginSettings> = {
 
   // Custom Note Hotkeys
   customNoteHotkeys: [],
+
+  // Custom Callouts
+  customCallouts: DEFAULT_CUSTOM_CALLOUTS,
 
   // TikZJax Settings
   enableTikzjax: true,
