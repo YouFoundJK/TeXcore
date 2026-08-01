@@ -376,7 +376,9 @@ function createTagManagerPlugin(
             const insertPos = startPos + endEnvMatch.index;
             const beforeChar = view.state.doc.sliceString(insertPos - 1, insertPos);
             const pad = /\s/.test(beforeChar) ? '' : ' ';
-            const tagInsert = isMultiLineBlock ? `${pad}${expectedTagStr}\n` : `${pad}${expectedTagStr} `;
+            const tagInsert = isMultiLineBlock
+              ? `${pad}${expectedTagStr}\n`
+              : `${pad}${expectedTagStr} `;
             logDebug(
               'TagManager',
               `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`

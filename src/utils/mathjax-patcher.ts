@@ -10,10 +10,22 @@ export function cleanBrFromMathText(text: string): string {
   if (!brRegex.test(text)) return text;
 
   let cleaned = text;
-  cleaned = cleaned.replace(/^(\s*(?:\$\$|\$)?)\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi, '$1 ');
-  cleaned = cleaned.replace(/(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*((?:\$\$|\$)?\s*)$/gi, ' $1');
-  cleaned = cleaned.replace(/\\begin\{([a-zA-Z*]+)\}\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi, '\\begin{$1} ');
-  cleaned = cleaned.replace(/(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*\\end\{([a-zA-Z*]+)\}/gi, ' \\end{$1}');
+  cleaned = cleaned.replace(
+    /^(\s*(?:\$\$|\$)?)\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi,
+    '$1 '
+  );
+  cleaned = cleaned.replace(
+    /(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*((?:\$\$|\$)?\s*)$/gi,
+    ' $1'
+  );
+  cleaned = cleaned.replace(
+    /\\begin\{([a-zA-Z*]+)\}\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi,
+    '\\begin{$1} '
+  );
+  cleaned = cleaned.replace(
+    /(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*\\end\{([a-zA-Z*]+)\}/gi,
+    ' \\end{$1}'
+  );
   cleaned = cleaned.replace(brRegex, ' ');
   return cleaned.replace(/[ \t]{2,}/g, ' ');
 }
@@ -36,7 +48,8 @@ export function setupMathJaxPatcher(): void {
   };
 
   const patchPrototype = (proto: any, name: string) => {
-    if (!proto || typeof proto.addLabel !== 'function' || proto.addLabel._obsitexPatched) return false;
+    if (!proto || typeof proto.addLabel !== 'function' || proto.addLabel._obsitexPatched)
+      return false;
 
     const originalAddLabel = proto.addLabel;
     proto.addLabel = function (labelName: string, num: string, tag: string) {
@@ -46,7 +59,10 @@ export function setupMathJaxPatcher(): void {
       } catch (err: any) {
         const msg = String(err?.message || err);
         if (msg.includes('multiply defined')) {
-          logDebug('MathJaxPatcher', `[${name}] Suppressed duplicate label error for "${labelName}".`);
+          logDebug(
+            'MathJaxPatcher',
+            `[${name}] Suppressed duplicate label error for "${labelName}".`
+          );
           if (this.labels) {
             this.labels[labelName] = { format: () => num, tag };
           }
@@ -129,7 +145,6 @@ export function setupMathJaxPatcher(): void {
       patchConverter('tex2svg');
       patchConverter('tex2chtmlPromise');
       patchConverter('tex2svgPromise');
-
     } catch (e) {
       logWarn('MathJaxPatcher', 'Failed to patch MathJax label handler:', e);
     }

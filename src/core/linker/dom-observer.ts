@@ -118,20 +118,29 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
             );
             if (mathErrors && mathErrors.length > 0) {
               mathErrors.forEach(errEl => {
-                const mathAttr = errEl.getAttribute('data-math') || errEl.closest('[data-math]')?.getAttribute('data-math') || errEl.textContent;
-                const errTitle = errEl.getAttribute('title') || errEl.getAttribute('data-mjx-error') || errEl.innerHTML;
+                const mathAttr =
+                  errEl.getAttribute('data-math') ||
+                  errEl.closest('[data-math]')?.getAttribute('data-math') ||
+                  errEl.textContent;
+                const errTitle =
+                  errEl.getAttribute('title') ||
+                  errEl.getAttribute('data-mjx-error') ||
+                  errEl.innerHTML;
                 window.console.error(
                   `[ObsiTeX MathJaxError] Math rendering failed!`,
                   `\n  Raw Math: "${mathAttr}"`,
                   `\n  Error Details: "${errTitle}"`,
-                  `\n  Element:`, errEl
+                  `\n  Element:`,
+                  errEl
                 );
               });
             }
 
             if (
               node.isConnected &&
-              !node.closest?.('.cm-editor, .cm-content, .cm-embed-block, .cm-table-widget, .markdown-source-view')
+              !node.closest?.(
+                '.cm-editor, .cm-content, .cm-embed-block, .cm-table-widget, .markdown-source-view'
+              )
             ) {
               fixMathBrInContainer(node);
             }

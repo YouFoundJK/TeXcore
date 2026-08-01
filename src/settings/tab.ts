@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, TextAreaComponent, setIcon } from 'obsidian';
 import LatexReferencer from 'main';
-import { NUMBER_STYLES } from './settings';
+import { NUMBER_STYLES, CustomCallout } from './settings';
 import { NoteSuggestModal } from '../ui/custom-notes/modal';
 import { setCssProps } from 'utils/obsidian';
 import { createDescWithDocs } from './docsLinks';
@@ -846,6 +846,8 @@ export class MathSettingTab extends PluginSettingTab {
       );
     });
 
+    this.renderCustomCallouts(containerEl);
+
     new Setting(containerEl).setName('Debug').setHeading();
     new Setting(containerEl)
       .setName('This is useful for troubleshooting.')
@@ -856,6 +858,215 @@ export class MathSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
+  }
+
+  private renderCustomCallouts(containerEl: HTMLElement): void {
+    new Setting(containerEl).setName('Custom callouts').setHeading();
+    containerEl.createEl('p', {
+      text: 'Configure custom callout colors and icons, and register shortcut commands to easily insert them into your notes.',
+      cls: 'setting-item-description'
+    });
+
+    new Setting(containerEl)
+      .setName('Add new custom callout')
+      .setDesc('Create a new custom callout style and shortcut command.')
+      .addButton(btn =>
+        btn.onClick(async () => {
+          if (!this.plugin.settings.customCallouts) {
+            this.plugin.settings.customCallouts = [];
+          }
+          this.plugin.settings.customCallouts.push({
+            id: Date.now().toString(),
+            type: '',
+            title: '',
+            color: '219, 51, 96',
+            icon: '',
+            registerCommand: true
+          });
+          await this.plugin.saveSettings();
+          this.plugin.customCalloutManager.onLoad();
+          this.render();
+        })
+      );
+
+    const callouts = this.plugin.settings.customCallouts || [];
+    callouts.forEach((item, index) => {
+      const calloutContainer = containerEl.createEl('div', {
+        cls: 'custom-callout-item'
+      });
+      setCssProps(calloutContainer, {
+        border: '1px solid var(--background-modifier-border)',
+        padding: '15px',
+        'margin-bottom': '15px',
+        'border-radius': '8px',
+        'background-color': 'var(--background-primary-alt)'
+      });
+
+      const titleRow = calloutContainer.createEl('div');
+      setCssProps(titleRow, {
+        display: 'flex',
+        'justify-content': 'space-between',
+        'align-items': 'center',
+        'margin-bottom': '10px'
+      });
+      const displayName = item.type ? `[!${item.type}]` : `Custom Callout #${index + 1}`;
+      titleRow.createEl('strong', { text: displayName });
+
+      const deleteBtn = titleRow.createEl('button', {
+        text: 'Delete',
+        cls: 'mod-warning'
+      });
+      setCssProps(deleteBtn, {
+        'background-color': 'var(--background-modifier-error)',
+        color: 'var(--text-on-accent)'
+      });
+      deleteBtn.addEventListener('click', () => {
+        void (async () => {
+          callouts.splice(index, 1);
+          await this.plugin.saveSettings();
+          this.plugin.customCalloutManager.onLoad();
+          this.render();
+        })();
+      });
+
+      new Setting(calloutContainer)
+        .setName('Callout type')
+        .setDesc('The identifier used in markdown, e.g. "definition" for > [!definition].')
+        .addText(text =>
+          text
+            .setPlaceholder('e.g. definition')
+            .setValue(item.type || '')
+            .onChange(async value => {
+              item.type = value;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.onLoad();
+            })
+        );
+
+      new Setting(calloutContainer)
+        .setName('Callout title')
+        .setDesc('Optional default title inserted with the callout block.')
+        .addText(text =>
+          text
+            .setPlaceholder('e.g. Definition')
+            .setValue(item.title || '')
+            .onChange(async value => {
+              item.title = value;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.registerCommands();
+            })
+        );
+
+      new Setting(calloutContainer)
+        .setName('Callout color')
+        .setDesc('Color as RGB triplet (e.g. 219, 51, 96) or Hex code (#db3360).')
+        .addText(text =>
+          text
+            .setPlaceholder('219, 51, 96 or #db3360')
+            .setValue(item.color || '')
+            .onChange(async value => {
+              item.color = value;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.updateStyles();
+            })
+        );
+
+      new Setting(calloutContainer)
+        .setName('Callout icon')
+        .setDesc('Lucide icon identifier (e.g. lucide-bookmark or lucide-brain-circuit).')
+        .addText(text =>
+          text
+            .setPlaceholder('e.g. lucide-bookmark')
+            .setValue(item.icon || '')
+            .onChange(async value => {
+              item.icon = value;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.updateStyles();
+            })
+        );
+
+      new Setting(calloutContainer)
+        .setName('Register command in palette')
+        .setDesc('Expose an Obsidian command palette action to insert this callout.')
+        .addToggle(toggle =>
+          toggle.setValue(item.registerCommand !== false).onChange(async value => {
+            item.registerCommand = value;
+            await this.plugin.saveSettings();
+            this.plugin.customCalloutManager.registerCommands();
+            this.render();
+          })
+        );
+
+      if (item.registerCommand !== false) {
+        const hotkeySetting = new Setting(calloutContainer)
+          .setName('Default hotkey')
+          .setDesc('Optional key combination for this callout insertion command.');
+
+        const mods = item.hotkeyModifiers || [];
+
+        hotkeySetting.addToggle(toggle =>
+          toggle
+            .setTooltip('Ctrl / Cmd')
+            .setValue(mods.includes('Mod'))
+            .onChange(async val => {
+              if (val && !mods.includes('Mod')) mods.push('Mod');
+              if (!val) {
+                const idx = mods.indexOf('Mod');
+                if (idx !== -1) mods.splice(idx, 1);
+              }
+              item.hotkeyModifiers = mods;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.registerCommands();
+            })
+        );
+        hotkeySetting.controlEl.createSpan({ text: 'Mod/Ctrl ' });
+
+        hotkeySetting.addToggle(toggle =>
+          toggle
+            .setTooltip('Alt / Option')
+            .setValue(mods.includes('Alt'))
+            .onChange(async val => {
+              if (val && !mods.includes('Alt')) mods.push('Alt');
+              if (!val) {
+                const idx = mods.indexOf('Alt');
+                if (idx !== -1) mods.splice(idx, 1);
+              }
+              item.hotkeyModifiers = mods;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.registerCommands();
+            })
+        );
+        hotkeySetting.controlEl.createSpan({ text: 'Alt ' });
+
+        hotkeySetting.addToggle(toggle =>
+          toggle
+            .setTooltip('Shift')
+            .setValue(mods.includes('Shift'))
+            .onChange(async val => {
+              if (val && !mods.includes('Shift')) mods.push('Shift');
+              if (!val) {
+                const idx = mods.indexOf('Shift');
+                if (idx !== -1) mods.splice(idx, 1);
+              }
+              item.hotkeyModifiers = mods;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.registerCommands();
+            })
+        );
+        hotkeySetting.controlEl.createSpan({ text: 'Shift ' });
+
+        hotkeySetting.addText(text =>
+          text
+            .setPlaceholder('Key (e.g. d, b)')
+            .setValue(item.hotkeyKey || '')
+            .onChange(async value => {
+              item.hotkeyKey = value;
+              await this.plugin.saveSettings();
+              this.plugin.customCalloutManager.registerCommands();
+            })
+        );
+      }
+    });
   }
 
   private renderChangelog(containerEl: HTMLElement): void {

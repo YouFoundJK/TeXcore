@@ -137,7 +137,8 @@ export class ActiveNoteEquationProvider {
           const mathBlocks = findDisplayMathBlocks(processedText);
           if (section.type === 'table') {
             // Also scan for single-dollar math blocks `$ ... $` inside table cells that contain equation IDs
-            const inlineMathRegex = /(?<!\$)\$([^\$\n]+?\b(?:\\label\{eq-|% id:\s*eq-)[^\$\n]+?)\$(?!\$)/g;
+            const inlineMathRegex =
+              /(?<!\$)\$([^\$\n]+?\b(?:\\label\{eq-|% id:\s*eq-)[^\$\n]+?)\$(?!\$)/g;
             let m: RegExpExecArray | null;
             while ((m = inlineMathRegex.exec(processedText)) !== null) {
               const startPos = m.index;

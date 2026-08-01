@@ -134,7 +134,7 @@ export default tseslint.config(
   {
     files: ['src/utils/eventActions.ts'],
     rules: {
-      'no-restricted-syntax': 'off'
+      'no-restricted-syntax': 'warn'
     }
   }
 );

@@ -42,13 +42,18 @@ export function fixMathBrInContainer(container: HTMLElement): void {
   );
   if (mathErrors.length > 0) {
     mathErrors.forEach(errEl => {
-      const mathAttr = errEl.getAttribute('data-math') || errEl.closest('[data-math]')?.getAttribute('data-math') || errEl.textContent;
-      const errTitle = errEl.getAttribute('title') || errEl.getAttribute('data-mjx-error') || errEl.innerHTML;
+      const mathAttr =
+        errEl.getAttribute('data-math') ||
+        errEl.closest('[data-math]')?.getAttribute('data-math') ||
+        errEl.textContent;
+      const errTitle =
+        errEl.getAttribute('title') || errEl.getAttribute('data-mjx-error') || errEl.innerHTML;
       window.console.error(
         `[ObsiTeX MathJaxError] Math rendering error inside container:`,
         `\n  Raw Math: "${mathAttr}"`,
         `\n  Error: "${errTitle}"`,
-        `\n  Element:`, errEl
+        `\n  Element:`,
+        errEl
       );
     });
   }

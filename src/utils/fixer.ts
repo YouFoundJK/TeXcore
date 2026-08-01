@@ -78,9 +78,17 @@ export function checkAndFixCalloutMath(content: string): string | null {
  * from rendering literal `br >` glyphs.
  */
 export function fixTableMath(content: string): string | null {
-  if (!content || !content.includes('|') || (!content.includes('% id:') && !content.includes('<br>'))) return null;
+  if (
+    !content ||
+    !content.includes('|') ||
+    (!content.includes('% id:') && !content.includes('<br>'))
+  )
+    return null;
 
-  logDebug('Fixer', `fixTableMath called on content (${content.length} chars). Scanning for table rows with math...`);
+  logDebug(
+    'Fixer',
+    `fixTableMath called on content (${content.length} chars). Scanning for table rows with math...`
+  );
   const lines = content.split(/\r?\n/);
   let changed = false;
 
@@ -101,7 +109,10 @@ export function fixTableMath(content: string): string | null {
         });
       }
       if (fixedLine !== line) {
-        logDebug('Fixer', `fixTableMath modified line ${idx + 1}:\n  BEFORE: ${line}\n  AFTER:  ${fixedLine}`);
+        logDebug(
+          'Fixer',
+          `fixTableMath modified line ${idx + 1}:\n  BEFORE: ${line}\n  AFTER:  ${fixedLine}`
+        );
         changed = true;
         return fixedLine;
       }
@@ -178,10 +189,22 @@ export function cleanMathBrTags(mathText: string, isSingleLineContext = false): 
   if (isTableOrSingleLine) {
     // In single-line table cells, clean leading/trailing <br> inside $$ ... $$ to space,
     // and internal <br> to LaTeX newline \\ or space.
-    cleaned = mathText.replace(/^(\$\$)\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi, '$1 ');
-    cleaned = cleaned.replace(/(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*(\$\$)$/gi, ' $1');
-    cleaned = cleaned.replace(/\\begin\{([a-zA-Z*]+)\}\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi, '\\begin{$1} ');
-    cleaned = cleaned.replace(/(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*\\end\{([a-zA-Z*]+)\}/gi, ' \\end{$1}');
+    cleaned = mathText.replace(
+      /^(\$\$)\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi,
+      '$1 '
+    );
+    cleaned = cleaned.replace(
+      /(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*(\$\$)$/gi,
+      ' $1'
+    );
+    cleaned = cleaned.replace(
+      /\\begin\{([a-zA-Z*]+)\}\s*(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+/gi,
+      '\\begin{$1} '
+    );
+    cleaned = cleaned.replace(
+      /(?:<\s*b\s*r\s*\/?\s*>|&lt;\s*b\s*r\s*\/?\s*&gt;)+\s*\\end\{([a-zA-Z*]+)\}/gi,
+      ' \\end{$1}'
+    );
     cleaned = cleaned.replace(brRegex, ' ');
   } else {
     cleaned = mathText.replace(brRegex, '\n');
@@ -224,4 +247,3 @@ export function cleanMathBrTags(mathText: string, isSingleLineContext = false): 
   logDebug('Fixer', `cleanMathBrTags final result:\n  OUTPUT: "${finalResult}"`);
   return finalResult;
 }
-
