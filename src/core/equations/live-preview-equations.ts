@@ -340,6 +340,23 @@ function createTagManagerPlugin(
 
           if (!requiredTagContent) {
             logDebug('TagManager', `Mode 2 skip for ${info.id}: requiredTagContent is null`);
+            const globalTagRegex = /\\tag\{((?:[^{}]|\{[^{}]*\})+)\}/g;
+            let m: RegExpExecArray | null;
+            while ((m = globalTagRegex.exec(mathText)) !== null) {
+              let tagStart = startPos + m.index;
+              const tagEnd = tagStart + m[0].length;
+              if (
+                tagStart > startPos &&
+                view.state.doc.sliceString(tagStart - 1, tagStart) === ' '
+              ) {
+                tagStart--;
+              }
+              logDebug(
+                'TagManager',
+                `Mode 2 REMOVE STALE TAG for ${info.id}: removing "${m[0]}" at ${tagStart}`
+              );
+              changes.push({ from: tagStart, to: tagEnd, insert: '' });
+            }
             continue;
           }
 

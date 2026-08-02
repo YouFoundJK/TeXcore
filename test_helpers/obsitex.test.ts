@@ -546,5 +546,46 @@ $$
       expect(endMatch).not.toBeNull();
       expect(endMatch?.matchText).toBe('\\end{align}');
     });
+
+    it('returns null printName for unreferenced equations when numberOnlyReferencedEquations is true', () => {
+      const content = `$$
+E = mc^2
+% id: eq-unreferenced
+$$
+
+$$
+a^2 + b^2 = c^2
+% id: eq-referenced
+$$
+
+Link to [[#^eq-referenced]]
+`;
+      const mockApp = MockAppBuilder.make()
+        .file('test.md', new FileBuilder().text(content))
+        .done();
+
+      const file = mockApp.vault.getFileByPath('test.md')!;
+      const settings: Required<PluginSettings> = {
+        numberOnlyReferencedEquations: true,
+        eqNumberPrefix: '',
+        eqNumberSuffix: '',
+        eqNumberInit: 1,
+        eqNumberStyle: 'arabic',
+        eqRefPrefix: '',
+        eqRefSuffix: '',
+        defaultCalloutType: 'note',
+        showNoteTitleInLink: true
+      };
+
+      const mockPlugin = {
+        app: mockApp,
+        settings
+      } as unknown as LatexReferencer;
+
+      const equations = processActiveNoteEquations(mockPlugin, file, content);
+      expect(equations.get('eq-unreferenced')?.$printName).toBeNull();
+      expect(equations.get('eq-referenced')?.$printName).toBe('(1)');
+    });
   });
 });
+
