@@ -426,8 +426,11 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
     ViewPlugin.fromClass(
       class {
         private previewOverlay: TikzLivePreviewOverlay | null = null;
+        private hasTikz = false;
 
-        constructor(private view: EditorView) {}
+        constructor(private view: EditorView) {
+          this.hasTikz = view.state.doc.toString().includes('```tikz');
+        }
 
         update(update: ViewUpdate) {
           const doc = update.view.dom.ownerDocument;
@@ -442,8 +445,35 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
             return;
           }
 
-          const docStr = update.state.doc.toString();
-          if (!docStr.includes('```tikz')) {
+          if (update.docChanged) {
+            let tikzMarkerChanged = false;
+            update.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+              if (tikzMarkerChanged) return;
+              const insertedStr = inserted.toString();
+              if (insertedStr.includes('```tikz') || insertedStr.includes('```')) {
+                tikzMarkerChanged = true;
+              }
+            });
+
+            if (!tikzMarkerChanged) {
+              const oldDoc = update.startState.doc;
+              update.changes.iterChanges((fromA, toA) => {
+                if (tikzMarkerChanged) return;
+                if (toA > fromA && toA - fromA < 300) {
+                  const deletedStr = oldDoc.sliceString(fromA, toA);
+                  if (deletedStr.includes('```tikz') || deletedStr.includes('```')) {
+                    tikzMarkerChanged = true;
+                  }
+                }
+              });
+            }
+
+            if (tikzMarkerChanged) {
+              this.hasTikz = update.state.doc.toString().includes('```tikz');
+            }
+          }
+
+          if (!this.hasTikz) {
             this.cleanup();
             return;
           }

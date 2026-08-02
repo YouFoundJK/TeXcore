@@ -1,6 +1,6 @@
 import { parseObsitexConfig, getObsitexConfigAtPosition } from '../src/utils/obsitex';
 import { getEqNumberPrefix } from '../src/utils/format';
-import { processActiveNoteEquations } from '../src/core/equations/numbering';
+import { processActiveNoteEquations, clearEquationCache } from '../src/core/equations/numbering';
 import { LatexLinkProvider } from '../src/core/linker/latex-provider';
 import { findTopLevelEndEnvMatch, splitMathIntoTopLevelRows } from '../src/utils/parse';
 import { MockAppBuilder } from './AppBuilder';
@@ -585,6 +585,100 @@ Link to [[#^eq-referenced]]
       const equations = processActiveNoteEquations(mockPlugin, file, content);
       expect(equations.get('eq-unreferenced')?.$printName).toBeNull();
       expect(equations.get('eq-referenced')?.$printName).toBe('(1)');
+    });
+
+    it('STRICT: maintains top-to-bottom equation order even with callouts and updates tag numbers when a top equation is referenced', () => {
+      const initialContent = `> [!note] Top Equation
+> $$
+> E = mc^2
+> % id: eq-top
+> $$
+
+$$
+a^2 + b^2 = c^2
+% id: eq-middle
+$$
+
+Link to [[#^eq-middle]]
+`;
+
+      const mockApp = MockAppBuilder.make()
+        .file('doc.md', new FileBuilder().text(initialContent))
+        .done();
+
+      const file = mockApp.vault.getFileByPath('doc.md')!;
+      const cache = mockApp.metadataCache.getFileCache(file)!;
+
+      const topStart = initialContent.indexOf('$$');
+      const topEnd = initialContent.indexOf('$$', topStart + 2) + 2;
+      const midStart = initialContent.indexOf('$$', topEnd);
+      const midEnd = initialContent.indexOf('$$', midStart + 2) + 2;
+
+      // Simulate Obsidian metadata cache sections where callout section appears
+      cache.sections = [
+        {
+          type: 'callout',
+          position: {
+            start: { line: 0, col: 0, offset: 0 },
+            end: { line: 5, col: 2, offset: topEnd }
+          }
+        },
+        {
+          type: 'math',
+          position: {
+            start: { line: 7, col: 0, offset: midStart },
+            end: { line: 10, col: 2, offset: midEnd }
+          }
+        }
+      ];
+
+      const settings: Required<PluginSettings> = {
+        numberOnlyReferencedEquations: true,
+        eqNumberPrefix: 'C',
+        eqNumberSuffix: '',
+        eqNumberInit: 1,
+        eqNumberStyle: 'arabic',
+        eqRefPrefix: '',
+        eqRefSuffix: '',
+        defaultCalloutType: 'note',
+        showNoteTitleInLink: true
+      };
+
+      const mockPlugin = {
+        app: mockApp,
+        settings
+      } as unknown as LatexReferencer;
+
+      // Initial check: only eq-middle is referenced -> receives (C1)
+      let equations = processActiveNoteEquations(mockPlugin, file, initialContent);
+      expect(equations.get('eq-top')?.$printName).toBeNull();
+      expect(equations.get('eq-middle')?.$printName).toBe('(C1)');
+
+      // Now user adds a reference to eq-top at the top of the note!
+      const updatedContent = `Ref to [[#^eq-top]]
+
+> [!note] Top Equation
+> $$
+> E = mc^2
+> % id: eq-top
+> $$
+
+$$
+a^2 + b^2 = c^2
+% id: eq-middle
+$$
+
+Link to [[#^eq-middle]]
+`;
+
+      clearEquationCache(file.path);
+      delete (cache as { sections?: unknown }).sections;
+      equations = processActiveNoteEquations(mockPlugin, file, updatedContent);
+
+      // eq-top is at line 3 -> must receive (C1)
+      // eq-middle is at line 10 -> must receive (C2)
+      expect(equations.get('eq-top')?.$printName).toBe('(C1)');
+      expect(equations.get('eq-middle')?.$printName).toBe('(C2)');
     });
   });
 });

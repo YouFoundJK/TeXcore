@@ -11,7 +11,9 @@ import {
   Extension,
   Prec,
   StateField,
-  EditorState
+  EditorState,
+  ChangeSet,
+  Text as CMText
 } from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import LatexReferencer from '../../main';
@@ -620,6 +622,31 @@ function findRowRanges(text: string, state: EditorState): { startPos: number; en
   return ranges;
 }
 
+export function hasRowLayoutRelevantChanges(changes: ChangeSet, startDoc: CMText): boolean {
+  let isRelevant = false;
+  changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+    if (isRelevant) return;
+    const insertedStr = inserted.toString();
+    if (insertedStr.includes(';;;row') || insertedStr.includes(';;;')) {
+      isRelevant = true;
+    }
+  });
+
+  if (isRelevant) return true;
+
+  changes.iterChanges((fromA, toA) => {
+    if (isRelevant) return;
+    if (toA > fromA && toA - fromA < 300) {
+      const deletedStr = startDoc.sliceString(fromA, toA);
+      if (deletedStr.includes(';;;row') || deletedStr.includes(';;;')) {
+        isRelevant = true;
+      }
+    }
+  });
+
+  return isRelevant;
+}
+
 let layoutField: StateField<DecorationSet> | null = null;
 let activePlugin: LatexReferencer | null = null;
 
@@ -647,6 +674,15 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
         const file = info?.file;
         const sourcePath = file?.path ?? '';
         if (!sourcePath) {
+          return Decoration.none;
+        }
+
+        // Fast path: if there are no active row decorations, and the edit is not related to row markup, do nothing.
+        const hasActiveRows = decorations && decorations.size > 0;
+        const isEditRelevant =
+          tr.docChanged && hasRowLayoutRelevantChanges(tr.changes, tr.startState.doc);
+
+        if (!hasActiveRows && !isEditRelevant) {
           return Decoration.none;
         }
 

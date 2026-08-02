@@ -38,7 +38,12 @@ export class CustomCalloutManager {
     if (typeof activeDocument !== 'undefined' && activeDocument) {
       docs.push(activeDocument);
     }
-    const win = typeof activeWindow !== 'undefined' ? activeWindow : typeof window !== 'undefined' ? window : null;
+    const win =
+      typeof activeWindow !== 'undefined'
+        ? activeWindow
+        : typeof window !== 'undefined'
+          ? window
+          : null;
     if (win?.document && !docs.includes(win.document)) {
       docs.push(win.document);
     }

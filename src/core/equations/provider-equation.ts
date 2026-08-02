@@ -204,10 +204,28 @@ export class ActiveNoteEquationProvider {
       }
     }
 
+    // Deduplicate equations by position range
+    const uniqueEquations: EquationBlock[] = [];
+    const seenRanges = new Set<string>();
+    for (const eq of equations) {
+      const key = `${eq.$pos?.start?.offset ?? eq.$pos?.start?.line}_${eq.$pos?.end?.offset ?? eq.$pos?.end?.line}`;
+      if (!seenRanges.has(key)) {
+        seenRanges.add(key);
+        uniqueEquations.push(eq);
+      }
+    }
+
+    // Strictly sort equations by document position offset/line
+    uniqueEquations.sort((a, b) => {
+      const startA = a.$pos?.start?.offset ?? (a.$pos?.start?.line ?? 0) * 1000;
+      const startB = b.$pos?.start?.offset ?? (b.$pos?.start?.line ?? 0) * 1000;
+      return startA - startB;
+    });
+
     logDebug(
       'EquationProvider',
-      `getEquations total extracted for "${file.path}": ${equations.length}`
+      `getEquations total extracted for "${file.path}": ${uniqueEquations.length}`
     );
-    return equations;
+    return uniqueEquations;
   }
 }

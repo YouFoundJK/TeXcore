@@ -1,4 +1,12 @@
-import { Extension, StateField, EditorState, Annotation, Transaction } from '@codemirror/state';
+import {
+  Extension,
+  StateField,
+  EditorState,
+  Annotation,
+  Transaction,
+  ChangeSet,
+  Text
+} from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField, MarkdownView } from 'obsidian';
 import LatexReferencer from 'main';
@@ -128,6 +136,58 @@ const tagManagerAnnotation = Annotation.define<boolean>();
  * The "Hands". This is the one and only plugin responsible for adding,
  * updating, or removing \tag{...} commands from the editor text.
  */
+/**
+ * Evaluates whether a document change set involves adding/editing/deleting an equation ID
+ * or adding/editing/deleting an equation reference link.
+ */
+export function hasEquationRelevantChanges(changes: ChangeSet, startDoc: Text): boolean {
+  let isRelevant = false;
+  changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+    if (isRelevant) return;
+    const insertedStr = inserted.toString();
+    if (
+      insertedStr.includes('% id:') ||
+      insertedStr.includes('\\label{eq-') ||
+      insertedStr.includes('<!-- id:') ||
+      insertedStr.includes('[[#^eq-') ||
+      insertedStr.includes('^eq-') ||
+      insertedStr.includes('\\eqref{')
+    ) {
+      isRelevant = true;
+    }
+  });
+
+  if (isRelevant) return true;
+
+  changes.iterChanges((fromA, toA) => {
+    if (isRelevant) return;
+    if (toA > fromA && toA - fromA < 300) {
+      const deletedStr = startDoc.sliceString(fromA, toA);
+      if (
+        deletedStr.includes('% id:') ||
+        deletedStr.includes('\\label{eq-') ||
+        deletedStr.includes('<!-- id:') ||
+        deletedStr.includes('[[#^eq-') ||
+        deletedStr.includes('^eq-') ||
+        deletedStr.includes('\\eqref{')
+      ) {
+        isRelevant = true;
+      }
+    }
+  });
+
+  return isRelevant;
+}
+
+/**
+ * Evaluates whether a ViewUpdate document change involves adding/editing an equation ID
+ * or adding/editing an equation reference link.
+ */
+export function isEquationRelevantChange(update: ViewUpdate): boolean {
+  if (!update.docChanged) return false;
+  return hasEquationRelevantChanges(update.changes, update.startState.doc);
+}
+
 function createTagManagerPlugin(
   plugin: LatexReferencer,
   equationField: StateField<EquationState>
@@ -146,11 +206,14 @@ function createTagManagerPlugin(
       }
       update(update: ViewUpdate) {
         const hasTagAnno = update.transactions.some(tr => tr.annotation(tagManagerAnnotation));
-        if (!hasTagAnno) {
-          if (update.docChanged) {
-            logDebug('TagManager', 'ViewUpdate: docChanged. Scheduling check.');
-            this.scheduleCheck(update.view);
-          }
+        if (hasTagAnno) return;
+
+        if (isEquationRelevantChange(update)) {
+          logDebug(
+            'TagManager',
+            'ViewUpdate: equation ID or reference change detected. Scheduling check.'
+          );
+          this.scheduleCheck(update.view);
         }
 
         if (update.selectionSet && this.blockedBySelection) {
@@ -340,23 +403,6 @@ function createTagManagerPlugin(
 
           if (!requiredTagContent) {
             logDebug('TagManager', `Mode 2 skip for ${info.id}: requiredTagContent is null`);
-            const globalTagRegex = /\\tag\{((?:[^{}]|\{[^{}]*\})+)\}/g;
-            let m: RegExpExecArray | null;
-            while ((m = globalTagRegex.exec(mathText)) !== null) {
-              let tagStart = startPos + m.index;
-              const tagEnd = tagStart + m[0].length;
-              if (
-                tagStart > startPos &&
-                view.state.doc.sliceString(tagStart - 1, tagStart) === ' '
-              ) {
-                tagStart--;
-              }
-              logDebug(
-                'TagManager',
-                `Mode 2 REMOVE STALE TAG for ${info.id}: removing "${m[0]}" at ${tagStart}`
-              );
-              changes.push({ from: tagStart, to: tagEnd, insert: '' });
-            }
             continue;
           }
 
@@ -388,36 +434,51 @@ function createTagManagerPlugin(
             continue;
           }
 
-          // No tag exists - insert expectedTagStr right BEFORE endEnv or at math end
-          const isMultiLineBlock = view.state.doc.sliceString(info.from, info.to).includes('\n');
+          // No tag exists - insert expectedTagStr cleanly without introducing extra newlines
           const endEnvMatch = findTopLevelEndEnvMatch(mathText);
-          if (endEnvMatch && endEnvMatch.index !== undefined) {
-            const insertPos = startPos + endEnvMatch.index;
-            const beforeChar = view.state.doc.sliceString(insertPos - 1, insertPos);
-            const pad = /\s/.test(beforeChar) ? '' : ' ';
-            const tagInsert = isMultiLineBlock
-              ? `${pad}${expectedTagStr}\n`
-              : `${pad}${expectedTagStr} `;
-            logDebug(
-              'TagManager',
-              `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`
-            );
-            changes.push({ from: insertPos, to: insertPos, insert: tagInsert });
-            continue;
-          }
+          const rawInsertPos =
+            endEnvMatch && endEnvMatch.index !== undefined
+              ? startPos + endEnvMatch.index
+              : startPos + mathText.length;
 
-          let insertPos = startPos + mathText.length;
+          let insertPos = rawInsertPos;
           while (
             insertPos > startPos &&
-            /\s/.test(view.state.doc.sliceString(insertPos - 1, insertPos))
+            /[ \t]/.test(view.state.doc.sliceString(insertPos - 1, insertPos))
           ) {
             insertPos--;
           }
+
+          // Place tag before trailing newline if present to stay on the math content line
+          if (
+            insertPos > startPos &&
+            view.state.doc.sliceString(insertPos - 1, insertPos) === '\n'
+          ) {
+            insertPos--;
+            if (
+              insertPos > startPos &&
+              view.state.doc.sliceString(insertPos - 1, insertPos) === '\r'
+            ) {
+              insertPos--;
+            }
+            while (
+              insertPos > startPos &&
+              /[ \t]/.test(view.state.doc.sliceString(insertPos - 1, insertPos))
+            ) {
+              insertPos--;
+            }
+          }
+
+          const charBefore =
+            insertPos > startPos ? view.state.doc.sliceString(insertPos - 1, insertPos) : '';
+          const pad = /\s/.test(charBefore) ? '' : ' ';
+          const tagInsert = `${pad}${expectedTagStr}`;
+
           logDebug(
             'TagManager',
-            `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" at math end`
+            `Mode 2 INSERT for ${info.id}: inserting "${tagInsert}" at doc pos ${insertPos}`
           );
-          changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr}` });
+          changes.push({ from: insertPos, to: insertPos, insert: tagInsert });
         }
 
         this.blockedBySelection = blockedChanges > 0;
@@ -452,6 +513,7 @@ function getEquationField(): StateField<EquationState> {
       update(value, tr) {
         if (!activePlugin) return [];
         if (!tr.docChanged) return value;
+        if (!hasEquationRelevantChanges(tr.changes, tr.startState.doc)) return value;
         return parseEquationInfo(tr.state, activePlugin);
       }
     });
