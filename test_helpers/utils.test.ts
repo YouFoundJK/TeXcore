@@ -250,6 +250,21 @@ describe('fixer.ts tests', () => {
     expect(fixed).toContain('\\label{eq-3a7c5d8e}');
     expect(fixed?.split('\n').length).toBe(1);
   });
+
+  it('fixTableMath fixes complex markdown tables with equation environments and \\label', () => {
+    const userTableContent = `| **Ion–ion potential**,<br>$$<br>\\begin{align}<br>u_{ij}(12) &= u^{000}_{ij}(r)\\\\<br>\\end{align}<br>\\label{eq-4a8b2c0d}<br>$$ | **Ion–dipole potential** |
+| --- | --- |
+| **Dipole–ion potential**,<br>$$<br>\\begin{align}<br>u_{nj}(12) &= u^{000}_{nj}(r)\\\\<br>\\end{align}<br>\\label{eq-2c6d8e1f}<br>$$ | **Dipole–dipole potential** |`;
+
+    const fixed = fixTableMath(userTableContent);
+    expect(fixed).not.toBeNull();
+    const fixedLines = fixed!.split('\n');
+    expect(fixedLines.length).toBe(3); // Preserves exact 3 table lines (Row 1, Header Sep, Row 2)
+    expect(fixedLines[0]).not.toContain('<br>\\begin');
+    expect(fixedLines[0]).toContain('\\label{eq-4a8b2c0d}');
+    expect(fixedLines[2]).not.toContain('<br>\\begin');
+    expect(fixedLines[2]).toContain('\\label{eq-2c6d8e1f}');
+  });
 });
 
 

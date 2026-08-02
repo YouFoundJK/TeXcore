@@ -1,7 +1,7 @@
 import { App, Component, MarkdownRenderer, TFile } from 'obsidian';
 import type { TConfig } from '../../ui/export-pdf/modal';
 import { copyAttributes, fixAnchors, modifyDest } from './utils';
-import { checkAndFixCalloutMath } from '../../utils/fixer';
+import { checkAndFixCalloutMath, fixTableMath } from '../../utils/fixer';
 import { showNotice } from 'utils/obsidian';
 
 export function getAllStyles() {
@@ -195,9 +195,16 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
       position: { start, end }
     } of blocks.values()) {
       const blockid = `^${id}`;
-      if (line.includes(blockid) && i >= start.line && i <= end.line) {
+      if (
+        (line.includes(blockid) || line.includes(id) || line.includes(`\\label{${id}}`)) &&
+        i >= start.line &&
+        i <= end.line
+      ) {
         blocks.delete(id);
-        return line.replace(blockid, `<span id="${blockid}" class="blockid"></span> ${blockid}`);
+        if (line.includes(blockid)) {
+          return line.replace(blockid, `<span id="${blockid}" class="blockid"></span> ${blockid}`);
+        }
+        return line;
       }
     }
     return line;
@@ -206,7 +213,12 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
   [...blocks.values()].forEach(({ id, position: { start } }) => {
     const idx = start.line;
     if (idx < lines.length) {
-      lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n${lines[idx]}`;
+      const targetLine = lines[idx];
+      if (targetLine.trim().startsWith('|')) {
+        lines[idx] = targetLine.replace('|', `| <span id="^${id}" class="blockid"></span> `);
+      } else {
+        lines[idx] = `<span id="^${id}" class="blockid"></span>\n\n${targetLine}`;
+      }
     }
   });
 
@@ -214,7 +226,9 @@ export async function renderMarkdown({ app, file, config, extra }: ParamType) {
 
   const tempContainer = activeDocument.createElement('div');
   const linesContent = lines.join('\n');
-  const fixedContent = checkAndFixCalloutMath(linesContent) ?? linesContent;
+  const fixedCallout = checkAndFixCalloutMath(linesContent);
+  const fixedTable = fixTableMath(fixedCallout ?? linesContent);
+  const fixedContent = fixedTable ?? fixedCallout ?? linesContent;
 
   await MarkdownRenderer.render(app, fixedContent, tempContainer, file.path, comp);
 

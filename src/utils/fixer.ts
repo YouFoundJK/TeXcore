@@ -81,7 +81,7 @@ export function fixTableMath(content: string): string | null {
   if (
     !content ||
     !content.includes('|') ||
-    (!content.includes('% id:') && !content.includes('<br>'))
+    (!content.includes('% id:') && !content.includes('<br>') && !content.includes('\\label{'))
   ) {
     return null;
   }
@@ -102,7 +102,7 @@ export function fixTableMath(content: string): string | null {
       if (line.includes('% id:')) {
         fixedLine = fixedLine.replace(/% id:\s*(eq-[\w.-]+)/g, '\\label{$1}');
       }
-      if (fixedLine.includes('<br>')) {
+      if (fixedLine.includes('<br>') || fixedLine.includes('\\label{')) {
         fixedLine = fixedLine.replace(brBeforeMathRegex, ' $1');
         fixedLine = fixedLine.replace(brAfterMathRegex, '$1 ');
         fixedLine = fixedLine.replace(/(\$\$[\s\S]*?\$\$)/g, mathBlock => {
