@@ -60,16 +60,20 @@ export class CustomCalloutManager {
     const callouts = this.plugin.settings.customCallouts || [];
     const docs = this.getDocuments();
 
-    logDebug('CustomCallouts', `Updating callout styles across ${docs.length} document context(s).`, {
-      calloutsCount: callouts.length,
-      callouts: callouts.map(c => ({
-        id: c.id,
-        type: c.type,
-        rawColor: c.color,
-        formattedColor: formatColorToRgb(c.color),
-        icon: c.icon
-      }))
-    });
+    logDebug(
+      'CustomCallouts',
+      `Updating callout styles across ${docs.length} document context(s).`,
+      {
+        calloutsCount: callouts.length,
+        callouts: callouts.map(c => ({
+          id: c.id,
+          type: c.type,
+          rawColor: c.color,
+          formattedColor: formatColorToRgb(c.color),
+          icon: c.icon
+        }))
+      }
+    );
 
     if (docs.length === 0) {
       logWarn('CustomCallouts', 'No valid document context found to apply custom callout styles.');
@@ -155,7 +159,9 @@ export class CustomCalloutManager {
       styleEl.textContent = css;
     }
 
-    logDebug('CustomCallouts', `Successfully applied CSS rules into <style id="${styleId}">`, { css });
+    logDebug('CustomCallouts', `Successfully applied CSS rules into <style id="${styleId}">`, {
+      css
+    });
   }
 
   removeStyles() {
@@ -179,7 +185,10 @@ export class CustomCalloutManager {
       }
     }
 
-    logDebug('CustomCallouts', `Removed custom callout style properties from ${docs.length} document context(s).`);
+    logDebug(
+      'CustomCallouts',
+      `Removed custom callout style properties from ${docs.length} document context(s).`
+    );
   }
 
   unregisterCommands() {

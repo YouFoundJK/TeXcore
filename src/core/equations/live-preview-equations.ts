@@ -32,6 +32,7 @@ type EquationState = readonly EquationInfo[];
  */
 function findMathBlocks(state: EditorState): readonly { from: number; to: number }[] {
   const text = state.doc.toString();
+  if (!text.includes('$$')) return [];
   const mathBlockRanges = findDisplayMathBlocks(text);
 
   return mathBlockRanges.filter(mathRange => {
@@ -71,6 +72,7 @@ const mathBlockPositionsField = StateField.define<readonly { from: number; to: n
  */
 function parseEquationInfo(state: EditorState, plugin: LatexReferencer): EquationState {
   const text = state.doc.toString();
+  if (!text.includes('$$')) return [];
   const file = state.field(editorInfoField).file;
   if (!file) return [];
 
@@ -411,7 +413,8 @@ function createTagManagerPlugin(
           logDebug('TagManager', `Dispatching ${changes.length} tag change(s) to view:`, changes);
           view.dispatch({
             changes,
-            annotations: [tagManagerAnnotation.of(true), Transaction.addToHistory.of(false)]
+            annotations: [tagManagerAnnotation.of(true), Transaction.addToHistory.of(false)],
+            scrollIntoView: false
           });
         }
       }

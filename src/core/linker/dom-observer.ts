@@ -25,6 +25,9 @@ import { fixMathBrInContainer } from '../equations/reading-view-equations';
  * stale 'math-link-processed' class and reprocessing them.
  */
 function processEquationLinksInElement(node: HTMLElement, plugin: LatexReferencer): void {
+  const html = node.outerHTML || node.innerHTML || '';
+  if (!html.includes('#^eq-')) return;
+
   let sourcePath: string | undefined = undefined;
 
   const resolveSourcePath = () => {
@@ -103,8 +106,19 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
         if (mutation.type === 'childList') {
           for (const node of mutation.addedNodes) {
             if (node.instanceOf(HTMLElement)) {
-              processEquationLinksInElement(node, plugin);
-              nodesToFix.push(node);
+              const html = node.outerHTML || node.innerHTML || '';
+              if (html.includes('#^eq-')) {
+                processEquationLinksInElement(node, plugin);
+              }
+              if (
+                html.includes('math') ||
+                html.includes('MathJax') ||
+                html.includes('mjx-') ||
+                html.includes('cm-math-error') ||
+                html.includes('<br')
+              ) {
+                nodesToFix.push(node);
+              }
             }
           }
         }

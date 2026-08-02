@@ -5,7 +5,14 @@ import {
   editorLivePreviewField,
   editorInfoField
 } from 'obsidian';
-import { EditorSelection, RangeSetBuilder, Extension, Prec, StateField } from '@codemirror/state';
+import {
+  EditorSelection,
+  RangeSetBuilder,
+  Extension,
+  Prec,
+  StateField,
+  EditorState
+} from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import LatexReferencer from '../../main';
 
@@ -589,6 +596,30 @@ class RowLayoutWidget extends WidgetType {
   }
 }
 
+function findRowRanges(text: string, state: EditorState): { startPos: number; endPos: number }[] {
+  if (!text.includes(';;;row')) return [];
+  const ranges: { startPos: number; endPos: number }[] = [];
+  const lines = text.split(/\r?\n/);
+  let inRow = false;
+  let startPos = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!inRow) {
+      if (line.startsWith(';;;row')) {
+        inRow = true;
+        startPos = state.doc.line(i + 1).from;
+      }
+    } else {
+      if (line === ';;;') {
+        inRow = false;
+        const endPos = state.doc.line(i + 1).to;
+        ranges.push({ startPos, endPos });
+      }
+    }
+  }
+  return ranges;
+}
+
 let layoutField: StateField<DecorationSet> | null = null;
 let activePlugin: LatexReferencer | null = null;
 
@@ -619,8 +650,56 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
           return Decoration.none;
         }
 
-        const builder = new RangeSetBuilder<Decoration>();
         const docText = state.doc.toString();
+        if (!docText.includes(';;;row')) {
+          return Decoration.none;
+        }
+
+        const currentRanges = findRowRanges(docText, state);
+
+        if (!tr.docChanged && tr.selection !== undefined) {
+          const startText = tr.startState.doc.toString();
+          const startRanges = findRowRanges(startText, tr.startState);
+          if (startRanges.length === currentRanges.length) {
+            let boundaryCrossed = false;
+            for (let i = 0; i < currentRanges.length; i++) {
+              const wasIn = selectionAndRangeOverlap(
+                tr.startState.selection,
+                startRanges[i].startPos,
+                startRanges[i].endPos
+              );
+              const isIn = selectionAndRangeOverlap(
+                tr.state.selection,
+                currentRanges[i].startPos,
+                currentRanges[i].endPos
+              );
+              if (wasIn !== isIn) {
+                boundaryCrossed = true;
+                break;
+              }
+            }
+            if (!boundaryCrossed) {
+              return decorations;
+            }
+          }
+        }
+
+        if (tr.docChanged && tr.selection === undefined) {
+          let rowTextChanged = false;
+          tr.changes.iterChanges((fromA, toA) => {
+            for (const r of currentRanges) {
+              if (fromA <= r.endPos && toA >= r.startPos) {
+                rowTextChanged = true;
+                break;
+              }
+            }
+          });
+          if (!rowTextChanged) {
+            return decorations.map(tr.changes);
+          }
+        }
+
+        const builder = new RangeSetBuilder<Decoration>();
         const lines = docText.split(/\r?\n/);
 
         let inRow = false;

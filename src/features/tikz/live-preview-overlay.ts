@@ -442,6 +442,16 @@ export const createTikzLivePreviewPlugin = (plugin: LatexReferencer): Extension 
             return;
           }
 
+          const docStr = update.state.doc.toString();
+          if (!docStr.includes('```tikz')) {
+            this.cleanup();
+            return;
+          }
+
+          if (!update.docChanged && !update.selectionSet) {
+            return;
+          }
+
           const state = update.state;
           const pos = state.selection.main.head;
 

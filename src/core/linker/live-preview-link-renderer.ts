@@ -124,6 +124,14 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
       }
 
       update(update: ViewUpdate) {
+        const docStr = update.state.doc.toString();
+        if (!docStr.includes('#^eq-')) {
+          if (this.decorations.size > 0) {
+            this.decorations = Decoration.none;
+            this.lastFingerprint = '';
+          }
+          return;
+        }
         let shouldRebuild = update.docChanged || update.viewportChanged;
         if (!shouldRebuild && update.selectionSet) {
           shouldRebuild = this.selectionIntersectsLink(update);
@@ -165,6 +173,13 @@ export const createLivePreviewLinkRendererPlugin = (plugin: LatexReferencer): Ex
         const { state } = view;
 
         if (!state.field(editorLivePreviewField)) {
+          this.decorations = Decoration.none;
+          this.lastFingerprint = '';
+          return;
+        }
+
+        const docStr = state.doc.toString();
+        if (!docStr.includes('#^eq-')) {
           this.decorations = Decoration.none;
           this.lastFingerprint = '';
           return;
