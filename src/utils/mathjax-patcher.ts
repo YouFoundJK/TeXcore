@@ -70,6 +70,22 @@ export function cleanBrFromMathText(text: string): string {
 }
 
 /**
+ * Strips callout/blockquote prefixes (`>`, `> `, `>> `) from lines inside math text
+ * before MathJax compiles it. In Obsidian callouts, Markdown syntax requires each line
+ * inside $$ ... $$ to start with '>', but MathJax would otherwise render those '>' as
+ * greater-than math symbols inside the equation.
+ */
+export function cleanCalloutPrefixesFromMathText(text: string): string {
+  if (!text || typeof text !== 'string' || !text.includes('>')) return text;
+
+  const lines = text.split('\n');
+  const hasCalloutPrefix = lines.some(line => /^\s*(?:>\s*)+/.test(line));
+  if (!hasCalloutPrefix) return text;
+
+  return lines.map(line => line.replace(/^\s*(?:>\s*)+/, '')).join('\n');
+}
+
+/**
  * Deeply patches Obsidian's global MathJax 3 instance so that re-rendering
  * equations during editing/keystrokes never throws "Label '...' multiply defined"
  * and never renders illegal `<br>` tags inside equations.
@@ -170,6 +186,7 @@ export function setupMathJaxPatcher(): void {
             let processedMath = math;
             if (typeof processedMath === 'string') {
               processedMath = cleanBrFromMathText(processedMath);
+              processedMath = cleanCalloutPrefixesFromMathText(processedMath);
             }
             try {
               if (typeof processedMath === 'string' && processedMath.includes('\\label{')) {

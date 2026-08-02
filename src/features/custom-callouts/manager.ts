@@ -38,8 +38,9 @@ export class CustomCalloutManager {
     if (typeof activeDocument !== 'undefined' && activeDocument) {
       docs.push(activeDocument);
     }
-    if (typeof document !== 'undefined' && !docs.includes(document)) {
-      docs.push(document);
+    const win = typeof activeWindow !== 'undefined' ? activeWindow : typeof window !== 'undefined' ? window : null;
+    if (win?.document && !docs.includes(win.document)) {
+      docs.push(win.document);
     }
     if (this.plugin?.app?.workspace) {
       try {

@@ -19,6 +19,7 @@ import {
 
 import { splitIntoLines, insertAt } from '../src/utils/general';
 import { cleanMathBrTags } from '../src/utils/fixer';
+import { cleanCalloutPrefixesFromMathText } from '../src/utils/mathjax-patcher';
 import { App, TFile } from 'obsidian';
 
 describe('format.ts tests', () => {
@@ -264,6 +265,33 @@ describe('fixer.ts tests', () => {
     expect(fixedLines[0]).toContain('\\label{eq-4a8b2c0d}');
     expect(fixedLines[2]).not.toContain('<br>\\begin');
     expect(fixedLines[2]).toContain('\\label{eq-2c6d8e1f}');
+  });
+
+  it('cleanCalloutPrefixesFromMathText dynamically removes leading > from callout math equations', () => {
+    const calloutMath = `> \\begin{aligned}
+> &\\boldsymbol\\rho^{1/2}
+> \\left(
+> \\widehat{\\mathbf H}-\\widehat{\\mathbf q}
+> -\\widehat{\\mathbf H}\\boldsymbol\\rho\\widehat{\\mathbf q}
+> \\right)
+> \\boldsymbol\\rho^{1/2}\\\\
+> &\\qquad=
+> \\left(
+> \\mathbf I-\\boldsymbol\\rho^{1/2}
+> \\widehat{\\mathbf q}^T(-k)
+> \\boldsymbol\\rho^{1/2}
+> \\right)^{-1}-\\mathbf I.
+> \\end{aligned}`;
+
+    const cleaned = cleanCalloutPrefixesFromMathText(calloutMath);
+    expect(cleaned).not.toContain('> ');
+    expect(cleaned.startsWith('\\begin{aligned}')).toBe(true);
+    expect(cleaned).toContain('\\widehat{\\mathbf H}');
+  });
+
+  it('cleanCalloutPrefixesFromMathText preserves standard math and infix > operators', () => {
+    const normalMath = `a > b \\\\ c > d`;
+    expect(cleanCalloutPrefixesFromMathText(normalMath)).toBe(normalMath);
   });
 });
 

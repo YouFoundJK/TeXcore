@@ -35,9 +35,8 @@ import { EquationBlock } from 'types';
 import { patchSuggesterWithQuickPreview } from 'ui/quick-preview/patcher';
 import { setupPagePreviewPatcher } from 'ui/quick-preview/pagePreviewPatcher';
 import { processActiveNoteEquations, clearEquationCache } from './core/equations/numbering';
-import { checkAndFixCalloutMath, fixTableMath } from 'utils/fixer';
 import { setupEquationScrollFix } from 'core/equations/equation-scroll-fix';
-import { showNotice, setCssProps } from 'utils/obsidian';
+import { setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
 import { CustomNoteManager } from 'features/custom-notes/manager';
 import { CustomCalloutManager } from 'features/custom-callouts/manager';
@@ -107,25 +106,6 @@ export default class LatexReferencer extends Plugin {
 
     // Commands
     this.registerZoteroCommand();
-
-    this.addCommand({
-      id: 'fix-callout-equations',
-      name: 'Fix callout & table equations in active note',
-      editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
-        let content = editor.getValue();
-        const fixedCallout = checkAndFixCalloutMath(content);
-        if (fixedCallout) content = fixedCallout;
-        const fixedTable = fixTableMath(content);
-        if (fixedTable) content = fixedTable;
-
-        if (fixedCallout || fixedTable) {
-          editor.setValue(content);
-          showNotice('Fixed equations in note.');
-        } else {
-          showNotice('No issues found or no changes needed.');
-        }
-      }
-    });
 
     this.addCommand({
       id: 'insert-display-math',

@@ -1,4 +1,5 @@
 import { getCalloutPrefix, findDisplayMathBlocks, findTopLevelEndEnvMatch } from './parse';
+import { cleanCalloutPrefixesFromMathText } from './mathjax-patcher';
 import { logDebug } from './logger';
 
 /**
@@ -173,8 +174,9 @@ export function cleanMathBrTags(mathText: string, isSingleLineContext = false): 
   const hasBr = brRegex.test(mathText);
   const hasComment = mathText.includes('%');
   const hasLabel = mathText.includes('\\label{');
+  const hasCalloutPrefix = mathText.includes('>');
 
-  if (!hasBr && !hasComment && !hasLabel) {
+  if (!hasBr && !hasComment && !hasLabel && !hasCalloutPrefix) {
     return mathText;
   }
 
@@ -244,7 +246,8 @@ export function cleanMathBrTags(mathText: string, isSingleLineContext = false): 
   cleaned = cleaned.replace(/[ \t]{2,}/g, ' ');
 
   // 3. Hoist \label{eq-...} if inside environment
-  const finalResult = hoistLabelInEnvironment(cleaned);
+  let finalResult = hoistLabelInEnvironment(cleaned);
+  finalResult = cleanCalloutPrefixesFromMathText(finalResult);
   logDebug('Fixer', `cleanMathBrTags final result:\n  OUTPUT: "${finalResult}"`);
   return finalResult;
 }
