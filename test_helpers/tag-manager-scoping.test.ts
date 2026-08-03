@@ -1,7 +1,9 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView, ViewUpdate } from '@codemirror/view';
 import { isEquationRelevantChange } from '../src/core/equations/live-preview-equations';
-import { hasRowLayoutRelevantChanges } from '../src/features/tikz/row-layout';
+import { hasRowLayoutRelevantChanges, getLayoutField } from '../src/features/tikz/row-layout';
+import { editorLivePreviewField, editorInfoField } from 'obsidian';
+import LatexReferencer from '../src/main';
 
 describe('TagManager Scoping & Event Filtering Tests', () => {
   it('returns FALSE for ordinary text typing', () => {
@@ -239,6 +241,42 @@ describe('TagManager Scoping & Event Filtering Tests', () => {
       expect(capturedUpdate).not.toBeNull();
       expect(hasRowLayoutRelevantChanges(capturedUpdate!.changes, capturedUpdate!.startState.doc)).toBe(true);
       view.destroy();
+    });
+
+    it('STRICT: initial StateField state contains decorations when doc contains existing row markup', () => {
+      const doc = `Some header\n;;;row left | right\nCol 1\n;;\nCol 2\n;;;\nSome footer`;
+      const plugin = {} as unknown as LatexReferencer;
+      const field = getLayoutField(plugin);
+
+      const state = EditorState.create({
+        doc,
+        extensions: [
+          editorLivePreviewField.init(() => true),
+          editorInfoField.init(() => ({ file: { path: 'test.md' } })),
+          field
+        ]
+      });
+
+      const decorations = state.field(field);
+      expect(decorations.size).toBeGreaterThan(0);
+    });
+
+    it('STRICT: initial StateField state is empty when doc does NOT contain row markup', () => {
+      const doc = `Some header\nNo row markup here\nSome footer`;
+      const plugin = {} as unknown as LatexReferencer;
+      const field = getLayoutField(plugin);
+
+      const state = EditorState.create({
+        doc,
+        extensions: [
+          editorLivePreviewField.init(() => true),
+          editorInfoField.init(() => ({ file: { path: 'test.md' } })),
+          field
+        ]
+      });
+
+      const decorations = state.field(field);
+      expect(decorations.size).toBe(0);
     });
   });
 });

@@ -106,6 +106,11 @@ export const editorInfoField = StateField.define<unknown>({
   update: (val: unknown) => val
 });
 
+export const editorLivePreviewField = StateField.define<boolean>({
+  create: () => true,
+  update: (val: boolean) => val
+});
+
 export class Component {}
 export class MarkdownRenderChild extends Component {}
 export class Modal {

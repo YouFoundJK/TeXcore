@@ -647,15 +647,99 @@ export function hasRowLayoutRelevantChanges(changes: ChangeSet, startDoc: CMText
   return isRelevant;
 }
 
+function buildRowLayoutDecorations(
+  state: EditorState,
+  plugin: LatexReferencer,
+  docText: string,
+  sourcePath: string
+): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const lines = docText.split(/\r?\n/);
+
+  let inRow = false;
+  let startPos = -1;
+  let startLineIdx = -1;
+  let specs: ColumnSpec[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!inRow) {
+      if (line.startsWith(';;;row')) {
+        inRow = true;
+        startLineIdx = i;
+        startPos = state.doc.line(i + 1).from;
+        specs = parseRowSpec(line);
+      }
+    } else {
+      if (line === ';;;') {
+        inRow = false;
+        const endPos = state.doc.line(i + 1).to;
+
+        // Decorate if cursor selection is completely outside this block
+        if (!selectionAndRangeOverlap(state.selection, startPos, endPos)) {
+          const columnsMarkdown: string[] = [];
+          const rowLines = lines.slice(startLineIdx + 1, i);
+          let currentColLines: string[] = [];
+
+          for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
+            const rLine = rowLines[rIdx];
+            if (rLine.trim() === ';;') {
+              columnsMarkdown.push(currentColLines.join('\n'));
+              currentColLines = [];
+            } else {
+              currentColLines.push(rLine);
+            }
+          }
+          columnsMarkdown.push(currentColLines.join('\n'));
+
+          builder.add(
+            startPos,
+            endPos,
+            Decoration.replace({
+              widget: new RowLayoutWidget(
+                activePlugin || plugin,
+                sourcePath,
+                specs,
+                columnsMarkdown,
+                startPos
+              ),
+              block: true
+            })
+          );
+        }
+      }
+    }
+  }
+
+  return builder.finish();
+}
+
 let layoutField: StateField<DecorationSet> | null = null;
 let activePlugin: LatexReferencer | null = null;
 
-function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
+export function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
   activePlugin = plugin;
   if (!layoutField) {
     layoutField = StateField.define<DecorationSet>({
-      create() {
-        return Decoration.none;
+      create(state) {
+        const livePreview = state.field(editorLivePreviewField, false);
+        if (!livePreview) {
+          return Decoration.none;
+        }
+
+        const info = state.field(editorInfoField, false);
+        const file = info?.file;
+        const sourcePath = file?.path ?? '';
+        if (!sourcePath) {
+          return Decoration.none;
+        }
+
+        const docText = state.doc.toString();
+        if (!docText.includes(';;;row')) {
+          return Decoration.none;
+        }
+
+        return buildRowLayoutDecorations(state, plugin, docText, sourcePath);
       },
       update(decorations, tr) {
         // Re-evaluate whenever the document contents or selections change
@@ -735,65 +819,7 @@ function getLayoutField(plugin: LatexReferencer): StateField<DecorationSet> {
           }
         }
 
-        const builder = new RangeSetBuilder<Decoration>();
-        const lines = docText.split(/\r?\n/);
-
-        let inRow = false;
-        let startPos = -1;
-        let startLineIdx = -1;
-        let specs: ColumnSpec[] = [];
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!inRow) {
-            if (line.startsWith(';;;row')) {
-              inRow = true;
-              startLineIdx = i;
-              startPos = state.doc.line(i + 1).from;
-              specs = parseRowSpec(line);
-            }
-          } else {
-            if (line === ';;;') {
-              inRow = false;
-              const endPos = state.doc.line(i + 1).to;
-
-              // Decorate if cursor selection is completely outside this block
-              if (!selectionAndRangeOverlap(state.selection, startPos, endPos)) {
-                const columnsMarkdown: string[] = [];
-                const rowLines = lines.slice(startLineIdx + 1, i);
-                let currentColLines: string[] = [];
-
-                for (let rIdx = 0; rIdx < rowLines.length; rIdx++) {
-                  const rLine = rowLines[rIdx];
-                  if (rLine.trim() === ';;') {
-                    columnsMarkdown.push(currentColLines.join('\n'));
-                    currentColLines = [];
-                  } else {
-                    currentColLines.push(rLine);
-                  }
-                }
-                columnsMarkdown.push(currentColLines.join('\n'));
-
-                builder.add(
-                  startPos,
-                  endPos,
-                  Decoration.replace({
-                    widget: new RowLayoutWidget(
-                      activePlugin || plugin,
-                      sourcePath,
-                      specs,
-                      columnsMarkdown,
-                      startPos
-                    ),
-                    block: true
-                  })
-                );
-              }
-            }
-          }
-        }
-
-        return builder.finish();
+        return buildRowLayoutDecorations(state, plugin, docText, sourcePath);
       },
       provide(field) {
         return EditorView.decorations.from(field);
