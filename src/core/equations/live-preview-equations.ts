@@ -70,6 +70,35 @@ const mathBlockPositionsField = StateField.define<readonly { from: number; to: n
   },
   update(value, tr) {
     if (!tr.docChanged) return value;
+    // Fast path: if the document edit doesn't insert or delete double-dollar syntax, math block spans cannot have changed.
+    let isMathBoundaryEdit = false;
+    tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+      if (isMathBoundaryEdit) return;
+      if (inserted.toString().includes('$$')) {
+        isMathBoundaryEdit = true;
+      }
+    });
+    if (!isMathBoundaryEdit) {
+      const oldDoc = tr.startState.doc;
+      tr.changes.iterChanges((fromA, toA) => {
+        if (isMathBoundaryEdit) return;
+        if (toA > fromA && toA - fromA < 300) {
+          const deletedStr = oldDoc.sliceString(fromA, toA);
+          if (deletedStr.includes('$$')) {
+            isMathBoundaryEdit = true;
+          }
+        }
+      });
+    }
+
+    if (!isMathBoundaryEdit) {
+      // Map old ranges through the transaction's changes instead of scanning the whole document
+      return value.map(range => ({
+        from: tr.changes.mapPos(range.from),
+        to: tr.changes.mapPos(range.to)
+      }));
+    }
+
     return findMathBlocks(tr.state);
   }
 });
