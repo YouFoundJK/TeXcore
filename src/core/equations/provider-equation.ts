@@ -128,10 +128,38 @@ export class ActiveNoteEquationProvider {
           );
 
           let processedText = text;
+          const originalLines = text.split(/\r?\n/);
+          const cleanToOriginalMap: number[] = [];
+
           if (section.type === 'callout' || section.type === 'blockquote') {
-            const splitLines = text.split(/\r?\n/);
-            const cleanLines = splitLines.map(l => l.replace(/^\s*>\s?/, ''));
+            const cleanLines = originalLines.map(l => l.replace(/^\s*>\s?/, ''));
             processedText = cleanLines.join('\n');
+
+            let origIdx = 0;
+            for (let i = 0; i < originalLines.length; i++) {
+              const origLine = originalLines[i];
+              const prefixMatch = origLine.match(/^\s*>\s?/);
+              const prefixLen = prefixMatch ? prefixMatch[0].length : 0;
+
+              origIdx += prefixLen;
+              const contentLen = origLine.length - prefixLen;
+              for (let j = 0; j < contentLen; j++) {
+                cleanToOriginalMap.push(origIdx);
+                origIdx++;
+              }
+
+              if (i < originalLines.length - 1) {
+                const hasCarriageReturn = text.startsWith('\r\n', origIdx);
+                cleanToOriginalMap.push(origIdx);
+                origIdx += hasCarriageReturn ? 2 : 1;
+              }
+            }
+            cleanToOriginalMap.push(origIdx);
+          } else {
+            // Identity mapping
+            for (let i = 0; i <= text.length; i++) {
+              cleanToOriginalMap.push(i);
+            }
           }
 
           const mathBlocks = findDisplayMathBlocks(processedText);
@@ -169,9 +197,15 @@ export class ActiveNoteEquationProvider {
             const absStartLine = section.position.start.line + startLineOffset;
             const absEndLine = section.position.start.line + startLineOffset + contentLineCount;
 
+            const startOffset = section.position.start.offset + cleanToOriginalMap[block.from];
+            const endOffset = section.position.start.offset + cleanToOriginalMap[block.to];
+
+            const startCol = startOffset - getLineOffset(absStartLine);
+            const endCol = endOffset - getLineOffset(absEndLine);
+
             const eq = processMathBlock(mathContent, {
-              start: { line: absStartLine, offset: getLineOffset(absStartLine) },
-              end: { line: absEndLine, offset: getLineOffset(absEndLine) }
+              start: { line: absStartLine, col: startCol, offset: startOffset },
+              end: { line: absEndLine, col: endCol, offset: endOffset }
             });
 
             if (eq) {
@@ -195,9 +229,12 @@ export class ActiveNoteEquationProvider {
         const lineCount = (blockText.match(/\n/g) || []).length;
         const endLine = startLine + lineCount;
 
+        const startCol = block.from - getLineOffset(startLine);
+        const endCol = block.to - getLineOffset(endLine);
+
         const eq = processMathBlock(mathContent, {
-          start: { line: startLine, offset: block.from },
-          end: { line: endLine, offset: block.to }
+          start: { line: startLine, col: startCol, offset: block.from },
+          end: { line: endLine, col: endCol, offset: block.to }
         });
 
         equations.push(eq);

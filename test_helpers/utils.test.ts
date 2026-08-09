@@ -193,7 +193,7 @@ S_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\
   });
 });
 
-import { parseEquationId, stripEquationId, formatEquationIdLine } from '../src/utils/equation-id';
+import { parseEquationId, stripEquationId, formatEquationIdLine, cleanMathTextForRendering, cleanMathForComparison, findExactMathBlock } from '../src/utils/equation-id';
 import { hoistLabelInEnvironment, cleanMathBrTags, fixTableMath } from '../src/utils/fixer';
 
 describe('equation-id.ts tests', () => {
@@ -212,6 +212,37 @@ describe('equation-id.ts tests', () => {
   it('formatEquationIdLine defaults to % id: format', () => {
     expect(formatEquationIdLine('eq-123')).toBe('% id: eq-123\n');
     expect(formatEquationIdLine('eq-123', '> ')).toBe('> % id: eq-123\n');
+  });
+
+  it('cleanMathTextForRendering removes comments, HTML comments, Markdown comments, and labels', () => {
+    expect(cleanMathTextForRendering('E = mc^2\n% id: eq-1')).toBe('E = mc^2');
+    expect(cleanMathTextForRendering('E = mc^2\n<!-- id: eq-2 -->')).toBe('E = mc^2');
+    expect(cleanMathTextForRendering('E = mc^2\n%% comment %%')).toBe('E = mc^2');
+    expect(cleanMathTextForRendering('E = mc^2 \\label{eq-3}')).toBe('E = mc^2');
+    expect(cleanMathTextForRendering('E = mc^2\n% standard latex comment')).toBe('E = mc^2');
+  });
+});
+
+describe('search core comparison and matching tests', () => {
+  it('cleanMathForComparison removes callouts, comments, IDs, and spaces', () => {
+    expect(cleanMathForComparison('> $$ \\sin(x) % id: eq-1 $$')).toBe('$$\\sin(x)$$');
+    expect(cleanMathForComparison('>> \\cos(y) \\label{eq-2}')).toBe('\\cos(y)');
+  });
+
+  it('findExactMathBlock locates the correct block', () => {
+    const doc = `
+Some text
+> $$
+> \\sin(x)
+> % id: eq-1
+> $$
+
+Unrelated text
+$$ \\cos(y) $$
+`;
+    const match = findExactMathBlock(doc, '\\sin(x)', 2);
+    expect(match).not.toBeNull();
+    expect(match?.startLine).toBe(2);
   });
 });
 
