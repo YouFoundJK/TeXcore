@@ -71,11 +71,17 @@ describe('CustomCalloutManager & formatColorToRgb', () => {
       // Check inline body style properties
       expect(document.body.style.getPropertyValue('--callout-color-cite')).toBe('235, 219, 178');
       expect(document.body.style.getPropertyValue('--callout-color-authors')).toBe('251, 73, 52');
-      expect(document.body.style.getPropertyValue('--callout-color-definition')).toBe('219, 51, 96');
-      expect(document.body.style.getPropertyValue('--callout-icon-definition')).toBe('lucide-bookmark');
+      expect(document.body.style.getPropertyValue('--callout-color-definition')).toBe(
+        '219, 51, 96'
+      );
+      expect(document.body.style.getPropertyValue('--callout-icon-definition')).toBe(
+        'lucide-bookmark'
+      );
 
       // Check dynamic <style id="obsitexcore-custom-callouts">
-      const injectedStyleTag = document.getElementById('obsitexcore-custom-callouts') as HTMLStyleElement;
+      const injectedStyleTag = document.getElementById(
+        'obsitexcore-custom-callouts'
+      ) as HTMLStyleElement;
       expect(injectedStyleTag).not.toBeNull();
       const css = injectedStyleTag.textContent || '';
 

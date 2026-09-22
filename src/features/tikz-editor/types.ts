@@ -1,3 +1,5 @@
+import type LatexReferencer from '../../main';
+
 export interface EditorElementStyle {
   bold: boolean;
   italic: boolean;
@@ -80,6 +82,7 @@ export interface TikzEditorContext {
   isCodeDirty(): boolean;
   setCodeDirty(dirty: boolean): void;
   getOnSaveCallback(): ((newSource: string) => void) | undefined;
+  getPlugin(): LatexReferencer;
 
   // Constants / config
   PX_PER_UNIT: number;
@@ -102,7 +105,7 @@ export interface TikzEditorContext {
   handleRedo(): void;
   updateHistoryButtons(): void;
   handleSelectVertices(vertices: SelectedVertex[]): void;
-  handleAddElement(elem: Omit<EditorElement, 'id'>): void;
+  handleAddElement(elem: Omit<EditorElement, 'id'>): EditorElement;
   handleUpdateElementPosition(
     id: string,
     x: number,

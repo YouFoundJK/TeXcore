@@ -1,6 +1,6 @@
 import { type TikzEditorContext, type EditorElement } from '../types';
-import { renderMath, finishRenderMath } from 'obsidian';
 import { AssetsManager } from '../assets-manager';
+import { TikzTextRenderer } from '../utils/tikz-text-renderer';
 
 export class CanvasGrid {
   private draggingId: string | null = null;
@@ -11,6 +11,8 @@ export class CanvasGrid {
   private wireCurrent: { x: number; y: number } | null = null;
   private lassoStart: { x: number; y: number } | null = null;
   private lassoCurrent: { x: number; y: number } | null = null;
+  private textRenderer: TikzTextRenderer;
+  private editingElementId: string | null = null;
 
   constructor(
     private context: TikzEditorContext,
@@ -18,12 +20,35 @@ export class CanvasGrid {
     private workspaceEl: HTMLDivElement,
     private wiresOverlayEl: SVGElement
   ) {
+    this.textRenderer = new TikzTextRenderer(this.context.getPlugin(), this.context.PX_PER_UNIT);
     // Canvas mousedown listener
     this.workspaceEl.addEventListener('mousedown', e => this.handleCanvasMouseDown(e));
   }
 
+  public startEditing(id: string | null): void {
+    this.editingElementId = id;
+    this.renderPlacedElements();
+  }
+
+  public isEditing(): boolean {
+    return this.editingElementId !== null;
+  }
+
   public ptToCanvasPx(pt: number): number {
     return pt * (this.context.PX_PER_UNIT / 28.452756);
+  }
+
+  public renderTextWithMath(
+    container: HTMLElement,
+    text: string,
+    fontSizePtOrPx: number,
+    color?: string
+  ): void {
+    const pt =
+      fontSizePtOrPx > 28
+        ? Math.round(fontSizePtOrPx * (28.452756 / this.context.PX_PER_UNIT))
+        : fontSizePtOrPx;
+    void this.textRenderer.renderTextOrMath(container, text, pt, color);
   }
 
   public getBracketGeometry(
@@ -234,53 +259,29 @@ export class CanvasGrid {
           const ly = geom.cuspY + geom.normalY * 10;
           const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
 
-          if (elem.style.math) {
-            const foreign = activeDocument.createElementNS(svgNS, 'foreignObject');
-            foreign.setAttribute('x', (isRight ? lx : lx - 200).toString());
-            foreign.setAttribute('y', (ly - 20).toString());
-            foreign.setAttribute('width', '200');
-            foreign.setAttribute('height', '40');
-            foreign.setCssStyles({ overflow: 'visible' });
+          const foreign = activeDocument.createElementNS(svgNS, 'foreignObject');
+          foreign.setAttribute('x', (isRight ? lx : lx - 200).toString());
+          foreign.setAttribute('y', (ly - 20).toString());
+          foreign.setAttribute('width', '200');
+          foreign.setAttribute('height', '40');
+          foreign.setCssStyles({ overflow: 'visible', pointerEvents: 'none' });
 
-            const div = activeDocument.createElement('div');
-            div.setCssStyles({
-              display: 'flex',
-              justifyContent: isRight ? 'flex-start' : 'flex-end',
-              alignItems: 'center',
-              width: '100%',
-              height: '100%',
-              fontSize: `${fontSizePx}px`,
-              color: elem.style.color || 'var(--text-normal)'
-            });
+          const div = activeDocument.createElement('div');
+          div.setCssStyles({
+            display: 'flex',
+            justifyContent: isRight ? 'flex-start' : 'flex-end',
+            alignItems: 'center',
+            width: '100%',
+            height: '100%',
+            fontSize: `${fontSizePx}px`,
+            fontWeight: elem.style.bold ? 'bold' : 'normal',
+            fontStyle: elem.style.italic ? 'italic' : 'normal',
+            color: elem.style.color || 'var(--text-normal)'
+          });
 
-            try {
-              const mathEl = renderMath(elem.label, false);
-              mathEl.style.fontSize = `${fontSizePx}px`;
-              div.appendChild(mathEl);
-              const MathJax = (
-                window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
-              ).MathJax;
-              if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
-                void finishRenderMath();
-              }
-            } catch {
-              div.textContent = elem.label;
-            }
-            foreign.appendChild(div);
-            group.appendChild(foreign);
-          } else {
-            const text = activeDocument.createElementNS(svgNS, 'text');
-            text.setAttribute('x', lx.toString());
-            text.setAttribute('y', ly.toString());
-            text.setAttribute('font-size', `${fontSizePx}px`);
-            text.setAttribute('font-weight', elem.style.bold ? 'bold' : 'normal');
-            text.setAttribute('font-style', elem.style.italic ? 'italic' : 'normal');
-            text.setAttribute('fill', elem.style.color || 'var(--text-normal)');
-            text.setAttribute('text-anchor', isRight ? 'start' : 'end');
-            text.setAttribute('dominant-baseline', 'middle');
-            text.textContent = elem.label;
-            group.appendChild(text);
-          }
+          this.renderTextWithMath(div, elem.label, fontSizePx, elem.style.color);
+          foreign.appendChild(div);
+          group.appendChild(foreign);
         }
       } else {
         const lineClick = activeDocument.createElementNS(svgNS, 'line');
@@ -438,53 +439,29 @@ export class CanvasGrid {
 
           if (elem.label) {
             const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
-            if (elem.style.math) {
-              const foreign = activeDocument.createElementNS(svgNS, 'foreignObject');
-              foreign.setAttribute('x', (midX - 100).toString());
-              foreign.setAttribute('y', (midY - 28).toString());
-              foreign.setAttribute('width', '200');
-              foreign.setAttribute('height', '24');
-              foreign.setCssStyles({ overflow: 'visible' });
+            const foreign = activeDocument.createElementNS(svgNS, 'foreignObject');
+            foreign.setAttribute('x', (midX - 100).toString());
+            foreign.setAttribute('y', (midY - 20).toString());
+            foreign.setAttribute('width', '200');
+            foreign.setAttribute('height', '40');
+            foreign.setCssStyles({ overflow: 'visible', pointerEvents: 'none' });
 
-              const div = activeDocument.createElement('div');
-              div.setCssStyles({
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%',
-                height: '100%',
-                fontSize: `${fontSizePx}px`,
-                color: elem.style.color || 'var(--text-normal)'
-              });
+            const div = activeDocument.createElement('div');
+            div.setCssStyles({
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+              height: '100%',
+              fontSize: `${fontSizePx}px`,
+              fontWeight: elem.style.bold ? 'bold' : 'normal',
+              fontStyle: elem.style.italic ? 'italic' : 'normal',
+              color: elem.style.color || 'var(--text-normal)'
+            });
 
-              try {
-                const mathEl = renderMath(elem.label, false);
-                mathEl.style.fontSize = `${fontSizePx}px`;
-                div.appendChild(mathEl);
-                const MathJax = (
-                  window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
-                ).MathJax;
-                if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
-                  void finishRenderMath();
-                }
-              } catch {
-                div.textContent = elem.label;
-              }
-              foreign.appendChild(div);
-              group.appendChild(foreign);
-            } else {
-              const text = activeDocument.createElementNS(svgNS, 'text');
-              text.setAttribute('x', midX.toString());
-              text.setAttribute('y', (midY - 18).toString());
-              text.setAttribute('font-size', `${fontSizePx}px`);
-              text.setAttribute('font-weight', elem.style.bold ? 'bold' : 'normal');
-              text.setAttribute('font-style', elem.style.italic ? 'italic' : 'normal');
-              text.setAttribute('fill', elem.style.color || 'var(--text-normal)');
-              text.setAttribute('text-anchor', 'middle');
-              text.setAttribute('dominant-baseline', 'middle');
-              text.textContent = elem.label;
-              group.appendChild(text);
-            }
+            this.renderTextWithMath(div, elem.label, fontSizePx, elem.style.color);
+            foreign.appendChild(div);
+            group.appendChild(foreign);
           }
         }
       }
@@ -678,30 +655,87 @@ export class CanvasGrid {
       el.addEventListener('mousedown', e => this.handleElementMouseDown(e, elem));
 
       if (elem.type === 'text') {
-        const content = activeDocument.createElement('div');
-        content.className = 'text-element-content';
-        const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
-        content.style.fontSize = `${fontSizePx}px`;
-        content.style.fontWeight = elem.style.bold ? 'bold' : 'normal';
-        content.style.fontStyle = elem.style.italic ? 'italic' : 'normal';
-        content.style.color = elem.style.color || 'var(--text-normal)';
-        if (elem.style.math && elem.label) {
-          try {
-            const mathEl = renderMath(elem.label, false);
-            mathEl.style.fontSize = `${fontSizePx}px`;
-            content.appendChild(mathEl);
-            const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } })
-              .MathJax;
-            if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
-              void finishRenderMath();
-            }
-          } catch {
-            content.textContent = elem.label;
+        const isEditing = this.editingElementId === elem.id;
+        if (isEditing) {
+          const input = activeDocument.createElement('input');
+          input.type = 'text';
+          input.className = 'canvas-inline-text-input';
+          input.value = elem.label;
+          const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
+          input.style.fontSize = `${fontSizePx}px`;
+          if (elem.style.color && elem.style.color !== '#f8e7ad') {
+            input.style.color = elem.style.color;
           }
+
+          input.addEventListener('mousedown', e => e.stopPropagation());
+          input.addEventListener('pointerdown', e => e.stopPropagation());
+          input.addEventListener('click', e => e.stopPropagation());
+          input.addEventListener('dblclick', e => e.stopPropagation());
+
+          let committed = false;
+          const commit = () => {
+            if (committed) return;
+            committed = true;
+            this.editingElementId = null;
+            const newLabel = input.value.trim();
+            if (!newLabel && !elem.label) {
+              this.context.handleDeleteElement(elem.id);
+            } else {
+              elem.label = newLabel;
+              elem.style.math = newLabel.includes('$') || /\\[a-zA-Z]+|[_^]/.test(newLabel);
+              this.context.handleUpdateElement(elem);
+              this.render();
+            }
+          };
+
+          input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              commit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              this.editingElementId = null;
+              if (!elem.label) {
+                this.context.handleDeleteElement(elem.id);
+              } else {
+                this.render();
+              }
+            }
+          });
+
+          input.addEventListener('blur', () => {
+            commit();
+          });
+
+          el.appendChild(input);
+          setTimeout(() => {
+            input.focus();
+            input.select();
+          }, 0);
         } else {
-          content.textContent = elem.label || 'Text';
+          const content = activeDocument.createElement('div');
+          content.className = 'text-element-content';
+          const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
+          content.style.fontSize = `${fontSizePx}px`;
+          content.style.fontWeight = elem.style.bold ? 'bold' : 'normal';
+          content.style.fontStyle = elem.style.italic ? 'italic' : 'normal';
+          content.style.color = elem.style.color || 'var(--text-normal)';
+
+          el.addEventListener('dblclick', e => {
+            e.stopPropagation();
+            this.startEditing(elem.id);
+          });
+
+          void this.textRenderer.renderTextOrMath(
+            content,
+            elem.label || 'Text',
+            elem.style.fontSize,
+            elem.style.color
+          );
+          el.appendChild(content);
         }
-        el.appendChild(content);
       } else {
         const visual = activeDocument.createElement('div');
         visual.className = 'node-visual';
@@ -726,24 +760,16 @@ export class CanvasGrid {
           label.className = 'node-label';
           const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
           label.style.fontSize = `${fontSizePx}px`;
+          label.style.fontWeight = elem.style.bold ? 'bold' : 'normal';
+          label.style.fontStyle = elem.style.italic ? 'italic' : 'normal';
           label.style.color = elem.style.color || 'var(--text-normal)';
-          if (elem.style.math) {
-            try {
-              const mathEl = renderMath(elem.label, false);
-              mathEl.style.fontSize = `${fontSizePx}px`;
-              label.appendChild(mathEl);
-              const MathJax = (
-                window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
-              ).MathJax;
-              if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
-                void finishRenderMath();
-              }
-            } catch {
-              label.textContent = elem.label;
-            }
-          } else {
-            label.textContent = elem.label;
-          }
+
+          void this.textRenderer.renderTextOrMath(
+            label,
+            elem.label,
+            elem.style.fontSize,
+            elem.style.color
+          );
           el.appendChild(label);
         }
       }
@@ -822,9 +848,9 @@ export class CanvasGrid {
             (activeTemplate.name === 'Right bracket' || activeTemplate.name === 'Left bracket');
 
           if (dist > 10 || isBracket) {
-            let startX = this.wireStart.x;
+            const startX = this.wireStart.x;
             let startY = this.wireStart.y;
-            let endX = this.wireCurrent.x;
+            const endX = this.wireCurrent.x;
             let endY = this.wireCurrent.y;
 
             if (dist <= 10 && isBracket) {
@@ -933,17 +959,17 @@ export class CanvasGrid {
         svgMarkup: `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><text x="50%" y="60%" dominant-baseline="middle" text-anchor="middle" font-size="22" font-family="serif" font-weight="bold" fill="currentColor">Aa</text></svg>`,
         tikzCommand: '\\node[font={fontSize}] at ({x}, {y}) {{label}};'
       };
-      this.context.handleAddElement({
+      const created = this.context.handleAddElement({
         type: 'text',
         name: 'Text',
         x: coords.x,
         y: coords.y,
-        label: template.name === 'Text' ? 'Label Text' : template.name,
+        label: '',
         rotation: 0,
         style: {
           bold: false,
           italic: false,
-          math: true,
+          math: false,
           color: '#f8e7ad',
           fontSize: 12,
           thickness: 1.0
@@ -951,6 +977,9 @@ export class CanvasGrid {
         svgMarkup: template.svgMarkup,
         tikzCommand: template.tikzCommand
       });
+      if (created) {
+        this.startEditing(created.id);
+      }
     } else if (activeTool === 'select' || activeTool === 'erase') {
       const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
       if (activeTool === 'select' && !isMultiSelect) {

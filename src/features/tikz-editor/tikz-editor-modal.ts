@@ -97,6 +97,9 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   // Getters / Setters
+  getPlugin(): LatexReferencer {
+    return this.plugin;
+  }
   getElements() {
     return this.elements;
   }
@@ -278,7 +281,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     this.renderRightSidebar();
   }
 
-  handleAddElement(elem: Omit<EditorElement, 'id'>) {
+  handleAddElement(elem: Omit<EditorElement, 'id'>): EditorElement {
     const newId = this.createId();
     const newElem: EditorElement = {
       ...elem,
@@ -302,6 +305,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
     this.saveHistoryState();
     this.renderCanvas();
     this.renderRightSidebar();
+    return newElem;
   }
 
   handleUpdateElementPosition(
@@ -549,13 +553,6 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
 
   private handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      this.close();
-      return;
-    }
-
     // Check if typing in input/textarea
     const activeEl = activeDocument.activeElement;
     if (
@@ -564,6 +561,13 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
         activeEl.tagName === 'TEXTAREA' ||
         (activeEl as HTMLElement).isContentEditable)
     ) {
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.close();
       return;
     }
 

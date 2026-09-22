@@ -1,5 +1,6 @@
 import { TikzCodec } from '../src/features/tikz-editor/utils/tikz-codec';
-import { type EditorElementStyle } from '../src/features/tikz-editor/types';
+import { type EditorElement, type EditorElementStyle } from '../src/features/tikz-editor/types';
+import { AssetsManager } from '../src/features/tikz-editor/assets-manager';
 
 describe('TikzCodec robust parsing tests', () => {
   const defaultStyle: EditorElementStyle = {
@@ -117,12 +118,12 @@ at (2.15,-1.8)
     const result = codec.parse(source);
     expect(result.elements.length).toBeGreaterThan(15);
 
-    // Verify text nodes were parsed
+    // Verify text nodes were parsed with $...$ math enclosing preserved
     const textNodes = result.elements.filter(e => e.type === 'text');
-    expect(textNodes.map(t => t.label)).toContain('f');
-    expect(textNodes.map(t => t.label)).toContain('g');
-    expect(textNodes.map(t => t.label)).toContain('x');
-    expect(textNodes.map(t => t.label)).toContain('\\mathrm{slope}=p');
+    expect(textNodes.map(t => t.label)).toContain('$f$');
+    expect(textNodes.map(t => t.label)).toContain('$g$');
+    expect(textNodes.map(t => t.label)).toContain('$x$');
+    expect(textNodes.map(t => t.label)).toContain('$\\mathrm{slope}=p$');
 
     // Verify curve plot segments were parsed
     const blueSegments = result.elements.filter(
@@ -163,10 +164,9 @@ at (2.15,-1.8)
   });
 
   it('groups solid and dashed wire into unified Wire component', () => {
-    const { AssetsManager } = require('../src/features/tikz-editor/assets-manager');
     const core = AssetsManager.getCoreComponents();
-    expect(core.some((c: any) => c.name === 'Wire')).toBe(true);
-    expect(core.some((c: any) => c.name === 'Dashed Wire')).toBe(false);
+    expect(core.some(c => c.name === 'Wire')).toBe(true);
+    expect(core.some(c => c.name === 'Dashed Wire')).toBe(false);
   });
 
   it('parses and generates crossed wire with decorations.pathmorphing and crosses decoration', () => {
@@ -188,7 +188,7 @@ at (2.15,-1.8)
   });
 
   it('generates crossed wire with color and custom thickness correctly', () => {
-    const crossedElement: any = {
+    const crossedElement: EditorElement = {
       id: 'test_cross',
       type: 'wire',
       name: 'Wire',
@@ -221,7 +221,7 @@ at (2.15,-1.8)
   });
 
   it('generates Right bracket with decoration and node label correctly', () => {
-    const bracketElement: any = {
+    const bracketElement: EditorElement = {
       id: 'bracket_1',
       type: 'wire',
       name: 'Right bracket',
@@ -261,7 +261,9 @@ at (2.15,-1.8)
 `;
     const result = codec.parse(tikzCode);
     const elements = result.elements;
-    const bracket = elements.find(el => el.name === 'Right bracket' || el.style.bracketDirection === 'right');
+    const bracket = elements.find(
+      el => el.name === 'Right bracket' || el.style.bracketDirection === 'right'
+    );
     expect(bracket).toBeDefined();
     expect(bracket?.type).toBe('wire');
     expect(bracket?.label).toBe('Rows 1-2');
@@ -286,5 +288,54 @@ at (2.15,-1.8)
     expect(smallEl).toBeDefined();
     expect(smallEl?.style.fontSize).toBe(8);
   });
-});
 
+  it('keeps pure text simple and wraps LaTeX symbols in $...$', () => {
+    const tikzCode = `
+\\begin{tikzpicture}
+\\node at (0, 0) {=};
+\\node at (1, 0) {1};
+\\node at (2, 0) {+};
+\\node at (3, 0) {+\\frac12};
+\\node at (4, 0) {$+\\frac{1}{2}$};
+\\end{tikzpicture}
+`;
+    const result = codec.parse(tikzCode);
+    const elements = result.elements;
+    expect(elements.length).toBe(5);
+
+    // Pure text should have no $ and math=false
+    const eq = elements.find(el => el.label === '=');
+    expect(eq).toBeDefined();
+    expect(eq?.style.math).toBe(false);
+
+    const one = elements.find(el => el.label === '1');
+    expect(one).toBeDefined();
+    expect(one?.style.math).toBe(false);
+
+    const plus = elements.find(el => el.label === '+');
+    expect(plus).toBeDefined();
+    expect(plus?.style.math).toBe(false);
+
+    // LaTeX symbol without $ should be auto-wrapped in $
+    const frac1 = elements.find(el => el.label === '$+\\frac12$');
+    expect(frac1).toBeDefined();
+    expect(frac1?.style.math).toBe(true);
+
+    // LaTeX symbol with $ should stay enclosed in $
+    const frac2 = elements.find(el => el.label === '$+\\frac{1}{2}$');
+    expect(frac2).toBeDefined();
+    expect(frac2?.style.math).toBe(true);
+
+    // Generation: pure text should NOT have $, LaTeX should have $ without double-wrapping
+    const generated = codec.generate(elements, '');
+    expect(generated).toContain('{=}');
+    expect(generated).toContain('{1}');
+    expect(generated).toContain('{+}');
+    expect(generated).toContain('{$+\\frac12$}');
+    expect(generated).toContain('{$+\\frac{1}{2}$}');
+    expect(generated).not.toContain('{$=$}');
+    expect(generated).not.toContain('{$1$}');
+    expect(generated).not.toContain('{$+$}');
+    expect(generated).not.toContain('$$');
+  });
+});

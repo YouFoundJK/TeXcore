@@ -146,9 +146,7 @@ a_j^0 = ax
 $$
 `;
 
-    const mockApp = MockAppBuilder.make()
-      .file('doc.md', new FileBuilder().text(content))
-      .done();
+    const mockApp = MockAppBuilder.make().file('doc.md', new FileBuilder().text(content)).done();
 
     const file = mockApp.vault.getFileByPath('doc.md')!;
     const cache = mockApp.metadataCache.getFileCache(file)!;
@@ -218,9 +216,7 @@ a_j^0 = ax
 $$
 `;
 
-    const mockApp = MockAppBuilder.make()
-      .file('doc.md', new FileBuilder().text(content))
-      .done();
+    const mockApp = MockAppBuilder.make().file('doc.md', new FileBuilder().text(content)).done();
 
     const file = mockApp.vault.getFileByPath('doc.md')!;
     const cache = mockApp.metadataCache.getFileCache(file)!;

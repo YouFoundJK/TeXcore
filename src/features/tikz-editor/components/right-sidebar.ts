@@ -60,6 +60,8 @@ export class RightSidebar {
         titleDiv.createSpan({ text: 'Edit component: ' });
         titleDiv.createSpan({ cls: 'comp-name', text: selectedElement.name });
 
+        let mathBtn: HTMLButtonElement | null = null;
+
         // 1. Label text input
         const labelGroup = editPanel.createDiv({ cls: 'control-group' });
         labelGroup.createEl('label', { attr: { for: 'label-input' }, text: 'Label text' });
@@ -67,11 +69,25 @@ export class RightSidebar {
         const labelInput = inputRow.createEl('input', {
           type: 'text',
           value: selectedElement.label,
-          attr: { id: 'label-input', placeholder: 'Enter label...' }
+          attr: { id: 'label-input', placeholder: 'Text or $LaTeX$' }
         });
+        const hintEl = labelGroup.createEl('div', {
+          text: 'Pure text, or use $...$ for LaTeX (e.g. $\\frac{1}{2}$)'
+        });
+        hintEl.setCssStyles({ fontSize: '0.78em', color: 'var(--text-muted)', marginTop: '4px' });
+
         labelInput.oninput = () => {
           selectedElement.label = labelInput.value;
+          selectedElement.style.math =
+            selectedElement.label.includes('$') || /\\[a-zA-Z]+|[_^]/.test(selectedElement.label);
           this.context.handleUpdateElement(selectedElement, false);
+          if (mathBtn) {
+            if (selectedElement.label.includes('$')) {
+              mathBtn.addClass('active');
+            } else {
+              mathBtn.removeClass('active');
+            }
+          }
         };
         labelInput.onchange = () => {
           this.context.saveHistoryState();
@@ -291,16 +307,23 @@ export class RightSidebar {
           });
         };
 
-        const mathBtn = styleBtnsRow.createEl('button', {
-          cls: selectedElement.style.math ? 'active' : '',
+        mathBtn = styleBtnsRow.createEl('button', {
+          cls: selectedElement.label.includes('$') ? 'active' : '',
           text: '$',
-          title: 'Math formula ($...$)'
+          title: 'Wrap/unwrap label with $...$ for LaTeX'
         });
         mathBtn.onclick = () => {
-          this.context.handleUpdateElement({
-            ...selectedElement,
-            style: { ...selectedElement.style, math: !selectedElement.style.math }
-          });
+          let newLabel = selectedElement.label;
+          if (newLabel.startsWith('$') && newLabel.endsWith('$')) {
+            newLabel = newLabel.slice(1, -1);
+          } else {
+            newLabel = `$${newLabel}$`;
+          }
+          selectedElement.label = newLabel;
+          selectedElement.style.math = newLabel.includes('$') || /\\[a-zA-Z]+|[_^]/.test(newLabel);
+          labelInput.value = newLabel;
+          this.context.handleUpdateElement(selectedElement);
+          this.context.renderRightSidebar();
         };
 
         // 4. Rotation Slider
@@ -582,18 +605,36 @@ export class RightSidebar {
           this.context.handleUpdateElements(updated);
         };
 
+        const hasDollar = selectedElements.some(el => el.label.includes('$'));
         const mathBtn = styleBtnsRow.createEl('button', {
-          cls: firstElement.style.math ? 'active' : '',
+          cls: hasDollar ? 'active' : '',
           text: '$',
-          title: 'Math formula ($...$)'
+          title: 'Wrap/unwrap label with $...$ for LaTeX'
         });
         mathBtn.onclick = () => {
-          const val = !firstElement.style.math;
-          const updated = selectedElements.map(el => ({
-            ...el,
-            style: { ...el.style, math: val }
-          }));
+          const shouldWrap = !hasDollar;
+          const updated = selectedElements.map(el => {
+            let label = el.label;
+            if (shouldWrap) {
+              if (!label.startsWith('$') || !label.endsWith('$')) {
+                label = `$${label}$`;
+              }
+            } else {
+              if (label.startsWith('$') && label.endsWith('$')) {
+                label = label.slice(1, -1);
+              }
+            }
+            return {
+              ...el,
+              label,
+              style: {
+                ...el.style,
+                math: label.includes('$') || /\\[a-zA-Z]+|[_^]/.test(label)
+              }
+            };
+          });
           this.context.handleUpdateElements(updated);
+          this.context.renderRightSidebar();
         };
 
         // Delete elements

@@ -176,9 +176,11 @@ export class FileBuilder {
   }
 
   frontmatter(frontmatter: Record<string, unknown>): FileBuilder {
-    const frontmatterLines = Object.entries(frontmatter).map(
-      ([k, v]): FileBlock => ({ type: 'frontmatter', key: k, text: v })
-    );
+    const frontmatterLines = Object.entries(frontmatter).map(([k, v]): FileBlock => ({
+      type: 'frontmatter',
+      key: k,
+      text: v
+    }));
     return new FileBuilder([...this.lines, ...frontmatterLines]);
   }
 

@@ -167,9 +167,13 @@ S_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\
 
     const parts = splitMathIntoTopLevelRows(input);
     expect(parts.length).toBe(3);
-    expect(parts[0]).toContain('\\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0\n\\end{pmatrix}');
+    expect(parts[0]).toContain(
+      '\\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0\n\\end{pmatrix}'
+    );
     expect(parts[1]).toBe('\\\\');
-    expect(parts[2]).toContain('\\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0 \n\\end{pmatrix}');
+    expect(parts[2]).toContain(
+      '\\begin{pmatrix} m & n & l \\\\ \\chi & -\\chi & 0 \n\\end{pmatrix}'
+    );
   });
 
   it('should correctly find top-level end environment matches while ignoring nested environments', () => {
@@ -182,4 +186,3 @@ S_{ij,\\chi}^{mn}(r) = (-1)^\\chi\\ 2\\pi \\sum_l \\begin{pmatrix} m & n & l \\\
     expect(match?.matchText).toBe('\\end{align}');
   });
 });
-

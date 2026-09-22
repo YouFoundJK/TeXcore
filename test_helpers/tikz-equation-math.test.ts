@@ -24,7 +24,7 @@ describe('CustomHTMLMachine math equation rendering', () => {
         characters: {
           49: { width: 5, height: 7, depth: 0 }, // '1'
           50: { width: 5, height: 7, depth: 0 }, // '2'
-          43: { width: 5, height: 5, depth: 0 }  // '+'
+          43: { width: 5, height: 5, depth: 0 } // '+'
         }
       }
     };

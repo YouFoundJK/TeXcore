@@ -357,21 +357,8 @@ export class TikzCodec {
       label = label.slice(1, -1).trim();
     }
 
-    let math = false;
     let bold = false;
     let italic = false;
-
-    if (label.startsWith('$') && label.endsWith('$')) {
-      label = label.slice(1, -1).trim();
-      math = true;
-    } else if (
-      /\\(mathrm|mathbf|mathit|text|frac|alpha|beta|gamma|delta|pi|sigma|theta|sum|int)\b/.test(
-        label
-      ) ||
-      /[_^=]/.test(label)
-    ) {
-      math = true;
-    }
 
     if (label.includes('\\textbf{')) {
       bold = true;
@@ -403,6 +390,12 @@ export class TikzCodec {
         label = label.replace(new RegExp(`\\${macro}\\b\\s*`, 'g'), '');
         break;
       }
+    }
+
+    let math = label.includes('$');
+    if (!label.includes('$') && /\\[a-zA-Z]+|[_^]/.test(label)) {
+      label = `$${label}$`;
+      math = true;
     }
 
     const style: EditorElementStyle = {
@@ -698,13 +691,8 @@ export class TikzCodec {
           const optsStyle = this.parseOptions(`${braceOpts}, ${nodeOpts}`);
 
           let label = rawLabel.trim();
-          let math = false;
           let bold = false;
           let italic = false;
-          if (label.startsWith('$') && label.endsWith('$')) {
-            label = label.slice(1, -1).trim();
-            math = true;
-          }
           if (label.includes('\\textbf{')) {
             bold = true;
             label = label.replace(/\\textbf\{([^}]+)\}/g, '$1');
@@ -712,6 +700,11 @@ export class TikzCodec {
           if (label.includes('\\textit{')) {
             italic = true;
             label = label.replace(/\\textit\{([^}]+)\}/g, '$1');
+          }
+          let math = label.includes('$');
+          if (!label.includes('$') && /\\[a-zA-Z]+|[_^]/.test(label)) {
+            label = `$${label}$`;
+            math = true;
           }
 
           let bracketDirection: 'right' | 'left' = isMirror ? 'left' : 'right';
@@ -855,7 +848,7 @@ export class TikzCodec {
           const side = isLeft ? 'left' : 'right';
           braceCmd += ` node[midway, ${side}=${amp + 2}pt, font={fontSize}] {{label}}`;
         }
-        cmd = braceCmd + ';';
+        cmd = `${braceCmd};`;
       }
 
       if (elem.radius !== undefined) {
@@ -948,9 +941,15 @@ export class TikzCodec {
 
       let formattedLabel = elem.label || '';
       if (formattedLabel) {
-        if (elem.style.bold) formattedLabel = `\\textbf{${formattedLabel}}`;
-        if (elem.style.italic) formattedLabel = `\\textit{${formattedLabel}}`;
-        if (elem.style.math) formattedLabel = `$${formattedLabel}$`;
+        if (elem.style.bold && !formattedLabel.includes('\\textbf{')) {
+          formattedLabel = `\\textbf{${formattedLabel}}`;
+        }
+        if (elem.style.italic && !formattedLabel.includes('\\textit{')) {
+          formattedLabel = `\\textit{${formattedLabel}}`;
+        }
+        if (!formattedLabel.includes('$') && /\\[a-zA-Z]+|[_^]/.test(formattedLabel)) {
+          formattedLabel = `$${formattedLabel}$`;
+        }
       }
 
       const fontCommand =
