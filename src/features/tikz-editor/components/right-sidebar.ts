@@ -134,6 +134,45 @@ export class RightSidebar {
           });
         };
 
+        // 2.6 Wire Style dropdown (if wire or line element)
+        if (
+          selectedElement.type === 'wire' ||
+          selectedElement.name === 'Wire' ||
+          selectedElement.name === 'Arrow' ||
+          selectedElement.name === 'Dashed Wire'
+        ) {
+          const wireStyleGroup = editPanel.createDiv({ cls: 'control-group' });
+          wireStyleGroup.createEl('label', {
+            attr: { for: 'wire-style-select' },
+            text: 'Wire style'
+          });
+          const wireStyleSelect = wireStyleGroup.createEl('select', {
+            attr: { id: 'wire-style-select' }
+          });
+          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
+            { value: 'solid', label: 'Solid' },
+            { value: 'dashed', label: 'Dashed' },
+            { value: 'dotted', label: 'Dotted' },
+            { value: 'crossed', label: 'Crossed' }
+          ];
+          const activeWireStyle =
+            selectedElement.style.lineStyle ||
+            (selectedElement.name === 'Dashed Wire' ? 'dashed' : 'solid');
+          wireStyles.forEach(s => {
+            const opt = wireStyleSelect.createEl('option', { value: s.value, text: s.label });
+            if (activeWireStyle === s.value) opt.selected = true;
+          });
+          wireStyleSelect.onchange = () => {
+            const chosen = wireStyleSelect.value as 'solid' | 'dashed' | 'dotted' | 'crossed';
+            this.context.setActiveWireStyle(chosen);
+            this.context.handleUpdateElement({
+              ...selectedElement,
+              style: { ...selectedElement.style, lineStyle: chosen }
+            });
+            this.context.renderLeftSidebar();
+          };
+        }
+
         // 3. Style buttons
         const styleGroup = editPanel.createDiv({ cls: 'control-group' });
         styleGroup.createSpan({ cls: 'label-heading', text: 'Styles' });
@@ -357,6 +396,41 @@ export class RightSidebar {
           this.context.handleUpdateElements(updated);
         };
 
+        // Wire Style dropdown for multi-select (if any wire selected)
+        if (selectedElements.some(el => el.type === 'wire')) {
+          const wireStyleGroup = editPanel.createDiv({ cls: 'control-group' });
+          wireStyleGroup.createEl('label', {
+            attr: { for: 'multi-wire-style-select' },
+            text: 'Wire style'
+          });
+          const wireStyleSelect = wireStyleGroup.createEl('select', {
+            attr: { id: 'multi-wire-style-select' }
+          });
+          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
+            { value: 'solid', label: 'Solid' },
+            { value: 'dashed', label: 'Dashed' },
+            { value: 'dotted', label: 'Dotted' },
+            { value: 'crossed', label: 'Crossed' }
+          ];
+          const firstWire = selectedElements.find(el => el.type === 'wire');
+          const activeWireStyle = firstWire?.style.lineStyle || 'solid';
+          wireStyles.forEach(s => {
+            const opt = wireStyleSelect.createEl('option', { value: s.value, text: s.label });
+            if (activeWireStyle === s.value) opt.selected = true;
+          });
+          wireStyleSelect.onchange = () => {
+            const chosen = wireStyleSelect.value as 'solid' | 'dashed' | 'dotted' | 'crossed';
+            this.context.setActiveWireStyle(chosen);
+            const updated = selectedElements.map(el =>
+              el.type === 'wire'
+                ? { ...el, style: { ...el.style, lineStyle: chosen } }
+                : el
+            );
+            this.context.handleUpdateElements(updated);
+            this.context.renderLeftSidebar();
+          };
+        }
+
         const styleGroup = editPanel.createDiv({ cls: 'control-group' });
         styleGroup.createSpan({ cls: 'label-heading', text: 'Styles' });
         const styleBtnsRow = styleGroup.createDiv({ cls: 'row style-btns' });
@@ -417,6 +491,40 @@ export class RightSidebar {
         deleteBtn.onclick = () => {
           this.context.handleDeleteElements(selectedElements.map(el => el.id));
         };
+      } else if (this.context.getActiveTool() === 'wire') {
+        const editPanel = tabContent.createDiv({ cls: 'edit-panel' });
+        const titleDiv = editPanel.createDiv({ cls: 'section-title' });
+        titleDiv.createSpan({ text: 'Wire tool settings' });
+
+        const wireStyleGroup = editPanel.createDiv({ cls: 'control-group' });
+        wireStyleGroup.createEl('label', {
+          attr: { for: 'tool-wire-style-select' },
+          text: 'Default wire style'
+        });
+        const wireStyleSelect = wireStyleGroup.createEl('select', {
+          attr: { id: 'tool-wire-style-select' }
+        });
+        const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
+          { value: 'solid', label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+          { value: 'crossed', label: 'Crossed' }
+        ];
+        const activeWireStyle = this.context.getActiveWireStyle();
+        wireStyles.forEach(s => {
+          const opt = wireStyleSelect.createEl('option', { value: s.value, text: s.label });
+          if (activeWireStyle === s.value) opt.selected = true;
+        });
+        wireStyleSelect.onchange = () => {
+          const chosen = wireStyleSelect.value as 'solid' | 'dashed' | 'dotted' | 'crossed';
+          this.context.setActiveWireStyle(chosen);
+          this.context.renderLeftSidebar();
+        };
+
+        const tip = editPanel.createEl('p', {
+          text: 'Click and drag on the canvas to draw a wire with the selected style.'
+        });
+        tip.setCssStyles({ color: 'var(--text-muted)', fontSize: '0.85em', marginTop: '12px' });
       } else {
         const emptyState = tabContent.createDiv({ cls: 'empty-state' });
         emptyState.createEl('p', {

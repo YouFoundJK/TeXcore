@@ -940,6 +940,19 @@ div.tikz-editor-modal .modal-close-button {
     box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
+.tikz-editor-ui select.comp-style-select {
+    width: 90%;
+    margin-top: 2px;
+    padding: 2px 4px;
+    font-size: 0.72em;
+    height: 22px;
+    border-radius: var(--radius-s);
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
 .tikz-editor-ui button.pin-btn {
     position: absolute;
     top: 6px;

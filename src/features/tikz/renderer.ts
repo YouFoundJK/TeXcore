@@ -221,6 +221,17 @@ export class TikzRenderer {
       cleaned = `\\usetikzlibrary{arrows.meta}\n${cleaned}`;
     }
 
+    const needsDecorations =
+      (cleaned.includes('crosses') ||
+        cleaned.includes('decorate') ||
+        cleaned.includes('decorations.pathmorphing') ||
+        cleaned.includes('decorations.shapes')) &&
+      !cleaned.includes('decorations.pathmorphing');
+
+    if (needsDecorations) {
+      cleaned = `\\usetikzlibrary{decorations.pathmorphing,decorations.shapes}\n${cleaned}`;
+    }
+
     return cleaned;
   }
 

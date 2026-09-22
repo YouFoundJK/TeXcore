@@ -45,13 +45,6 @@ export class AssetsManager {
       tikzCommand: '\\fill ({x}, {y}) circle (2.5pt);'
     },
     {
-      name: 'Dashed Wire',
-      type: 'wire',
-      category: 'Basic',
-      svgMarkup: `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><line x1="5" y1="20" x2="35" y2="20" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4,3" /><circle cx="5" cy="20" r="3" fill="currentColor"/><circle cx="35" cy="20" r="3" fill="currentColor"/></svg>`,
-      tikzCommand: '\\draw[line width=0.8pt, dashed] ({x}, {y}) -- ({x2}, {y2});'
-    },
-    {
       name: 'Arrow',
       type: 'wire',
       category: 'Basic',
@@ -237,6 +230,38 @@ export class AssetsManager {
 
   public static getCoreComponents(): ComponentTemplate[] {
     return [...this.corePackages];
+  }
+
+  public static getWireSvgMarkup(
+    style: 'solid' | 'dashed' | 'dotted' | 'crossed' = 'solid'
+  ): string {
+    switch (style) {
+      case 'dashed':
+        return `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><line x1="5" y1="20" x2="35" y2="20" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4,3" /><circle cx="5" cy="20" r="3" fill="currentColor"/><circle cx="35" cy="20" r="3" fill="currentColor"/></svg>`;
+      case 'dotted':
+        return `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><line x1="5" y1="20" x2="35" y2="20" stroke="currentColor" stroke-width="2.5" stroke-dasharray="2,3" /><circle cx="5" cy="20" r="3" fill="currentColor"/><circle cx="35" cy="20" r="3" fill="currentColor"/></svg>`;
+      case 'crossed':
+        return `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><path d="M 8 16 L 14 24 M 14 16 L 8 24 M 17 16 L 23 24 M 23 16 L 17 24 M 26 16 L 32 24 M 32 16 L 26 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="20" r="3" fill="currentColor"/><circle cx="35" cy="20" r="3" fill="currentColor"/></svg>`;
+      case 'solid':
+      default:
+        return `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><line x1="5" y1="20" x2="35" y2="20" stroke="currentColor" stroke-width="2.5" /><circle cx="5" cy="20" r="3" fill="currentColor"/><circle cx="35" cy="20" r="3" fill="currentColor"/></svg>`;
+    }
+  }
+
+  public static getWireTikzCommand(
+    style: 'solid' | 'dashed' | 'dotted' | 'crossed' = 'solid'
+  ): string {
+    switch (style) {
+      case 'dashed':
+        return '\\draw[line width=0.8pt, dashed] ({x}, {y}) -- ({x2}, {y2});';
+      case 'dotted':
+        return '\\draw[line width=0.8pt, dotted] ({x}, {y}) -- ({x2}, {y2});';
+      case 'crossed':
+        return '\\draw[decorate, decoration={crosses, segment length=6pt}, thick] ({x}, {y}) -- ({x2}, {y2});';
+      case 'solid':
+      default:
+        return '\\draw[line width=0.8pt] ({x}, {y}) -- ({x2}, {y2});';
+    }
   }
 
   public static getRegistry(): TikzPackage[] {

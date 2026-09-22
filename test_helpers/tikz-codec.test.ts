@@ -161,4 +161,62 @@ at (2.15,-1.8)
     const customGen = codec.generate(customElements, '');
     expect(customGen).toContain('color={rgb,255:red,59;green,130;blue,246}');
   });
+
+  it('groups solid and dashed wire into unified Wire component', () => {
+    const { AssetsManager } = require('../src/features/tikz-editor/assets-manager');
+    const core = AssetsManager.getCoreComponents();
+    expect(core.some((c: any) => c.name === 'Wire')).toBe(true);
+    expect(core.some((c: any) => c.name === 'Dashed Wire')).toBe(false);
+  });
+
+  it('parses and generates crossed wire with decorations.pathmorphing and crosses decoration', () => {
+    const crossedSource = `
+\\usetikzlibrary{decorations.pathmorphing}
+\\begin{tikzpicture}
+\\draw[decorate, decoration={crosses, segment length=6pt}, thick] (0, 0) -- (5, 0);
+\\end{tikzpicture}
+`;
+    const parsed = codec.parse(crossedSource);
+    expect(parsed.elements.length).toBe(1);
+    const wire = parsed.elements[0];
+    expect(wire.type).toBe('wire');
+    expect(wire.style.lineStyle).toBe('crossed');
+
+    const generated = codec.generate(parsed.elements, '');
+    expect(generated).toContain('\\usetikzlibrary{decorations.pathmorphing');
+    expect(generated).toContain('decorate, decoration={crosses, segment length=6pt}, thick');
+  });
+
+  it('generates crossed wire with color and custom thickness correctly', () => {
+    const crossedElement: any = {
+      id: 'test_cross',
+      type: 'wire',
+      name: 'Wire',
+      x: 120,
+      y: 360,
+      x2: 440,
+      y2: 360,
+      label: '',
+      rotation: 0,
+      style: {
+        bold: false,
+        italic: false,
+        math: false,
+        color: '#ef4444',
+        fontSize: 12,
+        thickness: 2.5,
+        lineStyle: 'crossed'
+      },
+      svgMarkup: '',
+      tikzCommand: '\\draw[line width=0.8pt] ({x}, {y}) -- ({x2}, {y2});'
+    };
+
+    const generated = codec.generate([crossedElement], '');
+    expect(generated).toContain('\\usetikzlibrary{decorations.pathmorphing');
+    expect(generated).toContain('color={rgb,255:red,239;green,68;blue,68}');
+    expect(generated).toContain('decorate, decoration={crosses, segment length=6pt}');
+    expect(generated).toContain('line width=2.5pt');
+    // Ensure old line width=0.8pt was cleaned up
+    expect(generated).not.toContain('line width=0.8pt');
+  });
 });

@@ -471,6 +471,21 @@ export class TikzJaxLoader {
           assetsToLoad.add(cand);
         }
       }
+
+      if (lib.startsWith('decorations')) {
+        [
+          'tex_files/tikzlibrarydecorations.code.tex.gz',
+          'tex_files/pgfmoduledecorations.code.tex.gz',
+          'tex_files/tikzlibrarydecorations.pathmorphing.code.tex.gz',
+          'tex_files/pgflibrarydecorations.pathmorphing.code.tex.gz',
+          'tex_files/tikzlibrarydecorations.shapes.code.tex.gz',
+          'tex_files/pgflibrarydecorations.shapes.code.tex.gz'
+        ].forEach(f => {
+          if (availableAssets.includes(f)) {
+            assetsToLoad.add(f);
+          }
+        });
+      }
     }
 
     // Load and decompress all resolved assets in parallel

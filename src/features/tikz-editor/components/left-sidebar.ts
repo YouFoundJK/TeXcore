@@ -335,15 +335,43 @@ export class LeftSidebar {
           };
         }
 
-        const svgContainer = card.createDiv({ cls: 'svg-container' });
+        const isWire = comp.name === 'Wire';
+        const svgMarkup = isWire
+          ? AssetsManager.getWireSvgMarkup(this.context.getActiveWireStyle())
+          : comp.svgMarkup;
 
+        const svgContainer = card.createDiv({ cls: 'svg-container' });
         const compSvgParser = new DOMParser();
-        const compSvgDoc = compSvgParser.parseFromString(comp.svgMarkup, 'text/html');
+        const compSvgDoc = compSvgParser.parseFromString(svgMarkup, 'text/html');
         const svgNode = compSvgDoc.querySelector('svg');
         if (svgNode) {
           svgContainer.appendChild(activeDocument.importNode(svgNode, true));
         }
         card.createEl('span', { cls: 'comp-label', text: comp.name });
+
+        if (isWire) {
+          const styleSelect = card.createEl('select', { cls: 'comp-style-select' });
+          styleSelect.title = 'Select wire style';
+          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
+            { value: 'solid', label: 'Solid' },
+            { value: 'dashed', label: 'Dashed' },
+            { value: 'dotted', label: 'Dotted' },
+            { value: 'crossed', label: 'Crossed' }
+          ];
+          const activeWireStyle = this.context.getActiveWireStyle();
+          wireStyles.forEach(s => {
+            const opt = styleSelect.createEl('option', { value: s.value, text: s.label });
+            if (activeWireStyle === s.value) opt.selected = true;
+          });
+          styleSelect.onclick = e => e.stopPropagation();
+          styleSelect.onchange = e => {
+            e.stopPropagation();
+            const val = styleSelect.value as 'solid' | 'dashed' | 'dotted' | 'crossed';
+            this.context.setActiveWireStyle(val);
+            this.context.handleSelectTool('wire');
+            this.render();
+          };
+        }
 
         card.onclick = () => {
           this.context.handleSelectTemplate(comp);

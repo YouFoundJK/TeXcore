@@ -106,7 +106,7 @@ export class TikzCodec {
     color?: string;
     rawColor?: string;
     thickness?: number;
-    lineStyle?: 'solid' | 'dashed' | 'dotted';
+    lineStyle?: 'solid' | 'dashed' | 'dotted' | 'crossed';
     arrowStyle?: boolean;
     fontSize?: number;
   } {
@@ -148,8 +148,15 @@ export class TikzCodec {
     else if (optsStr.includes('ultra thin')) res.thickness = 0.2;
     else if (optsStr.includes('thin')) res.thickness = 0.8;
 
-    if (optsStr.includes('dotted')) res.lineStyle = 'dotted';
-    else if (optsStr.includes('dashed')) res.lineStyle = 'dashed';
+    if (optsStr.includes('crosses') || optsStr.includes('decorations.pathmorphing')) {
+      res.lineStyle = 'crossed';
+    } else if (optsStr.includes('dotted')) {
+      res.lineStyle = 'dotted';
+    } else if (optsStr.includes('dashed')) {
+      res.lineStyle = 'dashed';
+    } else if (optsStr.includes('solid')) {
+      res.lineStyle = 'solid';
+    }
 
     if (
       optsStr.includes('->') ||
@@ -248,25 +255,35 @@ export class TikzCodec {
     optsStyle?: ReturnType<typeof this.parseOptions>
   ): EditorElement {
     let name = 'Wire';
-    if (optsStyle?.lineStyle === 'dashed' || optsStyle?.lineStyle === 'dotted') {
-      name = 'Dashed Wire';
-    } else if (optsStyle?.arrowStyle) {
+    if (optsStyle?.arrowStyle) {
       name = 'Arrow';
     }
 
-    const wire = AssetsManager.getCoreComponents().find(t => t.name === name);
+    const wire =
+      AssetsManager.getCoreComponents().find(t => t.name === name) ??
+      AssetsManager.getCoreComponents().find(t => t.type === 'wire');
     if (!wire) {
       throw new Error(`Core component '${name}' not found`);
     }
 
+    const lineStyle = optsStyle?.lineStyle;
     const style: EditorElementStyle = {
       ...this.defaultStyle,
       color: optsStyle?.color ?? this.defaultStyle.color,
       rawColor: optsStyle?.rawColor,
       thickness: optsStyle?.thickness ?? this.defaultStyle.thickness,
-      lineStyle: optsStyle?.lineStyle,
+      lineStyle,
       arrowStyle: optsStyle?.arrowStyle
     };
+
+    const svgMarkup =
+      name === 'Wire' && lineStyle
+        ? AssetsManager.getWireSvgMarkup(lineStyle)
+        : wire.svgMarkup;
+    const tikzCommand =
+      name === 'Wire' && lineStyle
+        ? AssetsManager.getWireTikzCommand(lineStyle)
+        : wire.tikzCommand;
 
     return {
       id: this.createId(),
@@ -279,8 +296,8 @@ export class TikzCodec {
       label: '',
       rotation: 0,
       style,
-      svgMarkup: wire.svgMarkup,
-      tikzCommand: wire.tikzCommand
+      svgMarkup,
+      tikzCommand
     };
   }
 
@@ -660,6 +677,14 @@ export class TikzCodec {
       ) {
         neededLibraries.add('arrows.meta');
       }
+      if (
+        elem.style.lineStyle === 'crossed' ||
+        elem.tikzCommand?.includes('crosses') ||
+        elem.tikzCommand?.includes('decorations.pathmorphing')
+      ) {
+        neededLibraries.add('decorations.pathmorphing');
+        neededLibraries.add('decorations.shapes');
+      }
       const regPkg = AssetsManager.getRegistry().find(p =>
         p.components.some(comp => comp.name === elem.name)
       );
@@ -704,13 +729,22 @@ export class TikzCodec {
       // Handle style options insertion into TikZ command
       const opts: string[] = [];
 
-      if (elem.style.thickness && elem.style.thickness !== 1.0) {
-        opts.push(`line width=${elem.style.thickness}pt`);
-      }
-      if (elem.style.lineStyle === 'dotted') {
-        opts.push('dotted');
-      } else if (elem.style.lineStyle === 'dashed') {
-        opts.push('dashed');
+      if (elem.style.lineStyle === 'crossed') {
+        opts.push('decorate, decoration={crosses, segment length=6pt}');
+        if (elem.style.thickness && elem.style.thickness !== 1.0 && elem.style.thickness !== 1.5) {
+          opts.push(`line width=${elem.style.thickness}pt`);
+        } else {
+          opts.push('thick');
+        }
+      } else {
+        if (elem.style.thickness && elem.style.thickness !== 1.0) {
+          opts.push(`line width=${elem.style.thickness}pt`);
+        }
+        if (elem.style.lineStyle === 'dotted') {
+          opts.push('dotted');
+        } else if (elem.style.lineStyle === 'dashed') {
+          opts.push('dashed');
+        }
       }
       if (elem.style.rawColor) {
         const raw = elem.style.rawColor;
@@ -736,7 +770,10 @@ export class TikzCodec {
       if (opts.length > 0) {
         const hasColor = opts.some(o => o.startsWith('color='));
         const hasLineWidth = opts.some(o => o.startsWith('line width='));
-        const hasLineStyle = opts.some(o => o === 'dotted' || o === 'dashed');
+        const hasLineStyle = opts.some(
+          o => o === 'dotted' || o === 'dashed' || o.includes('crosses')
+        );
+        const isCrossed = elem.style.lineStyle === 'crossed';
 
         cmd = cmd.replace(
           /(\\draw|\\fill|\\node)(\[[^\]]*\])?/,
@@ -750,11 +787,15 @@ export class TikzCodec {
                 .replace(/(?:color|draw|fill)=(?:\{[^}]*\}|[^,\]]+)/g, '')
                 .replace(/,,+/g, ',');
             }
-            if (hasLineWidth) {
+            if (hasLineWidth || isCrossed) {
               inner = inner.replace(/line width=[^,\]]+/g, '').replace(/,,+/g, ',');
             }
             if (hasLineStyle) {
-              inner = inner.replace(/\b(dotted|dashed|solid)\b/g, '').replace(/,,+/g, ',');
+              inner = inner
+                .replace(/\b(dotted|dashed|solid|thick)\b/g, '')
+                .replace(/decorate\b/g, '')
+                .replace(/decoration=\{[^}]*\}/g, '')
+                .replace(/,,+/g, ',');
             }
             const cleanedInner = inner
               .split(',')

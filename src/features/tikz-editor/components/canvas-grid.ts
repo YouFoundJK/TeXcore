@@ -1,5 +1,6 @@
 import { type TikzEditorContext, type EditorElement } from '../types';
 import { renderMath, finishRenderMath } from 'obsidian';
+import { AssetsManager } from '../assets-manager';
 
 export class CanvasGrid {
   private draggingId: string | null = null;
@@ -110,26 +111,61 @@ export class CanvasGrid {
       const isBasicWire =
         elem.name === 'Wire' || elem.name === 'Dashed Wire' || elem.name === 'Arrow';
       if (isBasicWire) {
-        const line = activeDocument.createElementNS(svgNS, 'line');
-        line.setAttribute('x1', elem.x.toString());
-        line.setAttribute('y1', elem.y.toString());
-        line.setAttribute('x2', elem.x2.toString());
-        line.setAttribute('y2', elem.y2.toString());
         const strokeColor = selectedVertices.some(v => v.elementId === elem.id)
           ? 'var(--text-accent)'
           : elem.style.color && elem.style.color !== '#f8e7ad'
             ? elem.style.color
             : '#e2e8f0';
-        line.setAttribute('stroke', strokeColor);
-        line.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
 
-        if (elem.name === 'Dashed Wire' || elem.style.lineStyle === 'dashed') {
-          line.setAttribute('stroke-dasharray', '6,4');
-        } else if (elem.style.lineStyle === 'dotted') {
-          line.setAttribute('stroke-dasharray', '2,4');
+        if (elem.style.lineStyle === 'crossed') {
+          const dx = elem.x2 - elem.x;
+          const dy = elem.y2 - elem.y;
+          const len = Math.hypot(dx, dy);
+          if (len > 0) {
+            const path = activeDocument.createElementNS(svgNS, 'path');
+            const ux = dx / len;
+            const uy = dy / len;
+            const vx = -uy;
+            const vy = ux;
+            const crossSize = Math.max(3.5, 3 * (elem.style.thickness ?? 1.0));
+            const d1x = (ux + vx) * crossSize * 0.7071;
+            const d1y = (uy + vy) * crossSize * 0.7071;
+            const d2x = (ux - vx) * crossSize * 0.7071;
+            const d2y = (uy - vy) * crossSize * 0.7071;
+
+            const step = 8;
+            let pathData = '';
+            const count = Math.max(1, Math.floor(len / step));
+            for (let i = 0; i <= count; i++) {
+              const d = (i / count) * len;
+              const cx = elem.x + ux * d;
+              const cy = elem.y + uy * d;
+              pathData += `M ${cx - d1x} ${cy - d1y} L ${cx + d1x} ${cy + d1y} `;
+              pathData += `M ${cx - d2x} ${cy - d2y} L ${cx + d2x} ${cy + d2y} `;
+            }
+            path.setAttribute('d', pathData.trim());
+            path.setAttribute('stroke', strokeColor);
+            path.setAttribute('stroke-width', (elem.style.thickness ?? 1.5).toString());
+            path.setAttribute('stroke-linecap', 'round');
+            group.appendChild(path);
+          }
+        } else {
+          const line = activeDocument.createElementNS(svgNS, 'line');
+          line.setAttribute('x1', elem.x.toString());
+          line.setAttribute('y1', elem.y.toString());
+          line.setAttribute('x2', elem.x2.toString());
+          line.setAttribute('y2', elem.y2.toString());
+          line.setAttribute('stroke', strokeColor);
+          line.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+
+          if (elem.name === 'Dashed Wire' || elem.style.lineStyle === 'dashed') {
+            line.setAttribute('stroke-dasharray', '6,4');
+          } else if (elem.style.lineStyle === 'dotted') {
+            line.setAttribute('stroke-dasharray', '2,4');
+          }
+
+          group.appendChild(line);
         }
-
-        group.appendChild(line);
 
         if (elem.name === 'Arrow' || elem.style.arrowStyle) {
           const dx = elem.x2 - elem.x;
@@ -340,15 +376,56 @@ export class CanvasGrid {
         innerG.appendChild(svgWrap);
         this.wiresOverlayEl.appendChild(innerG);
       } else {
-        const line = activeDocument.createElementNS(svgNS, 'line');
-        line.setAttribute('x1', this.wireStart.x.toString());
-        line.setAttribute('y1', this.wireStart.y.toString());
-        line.setAttribute('x2', this.wireCurrent.x.toString());
-        line.setAttribute('y2', this.wireCurrent.y.toString());
-        line.setAttribute('stroke', 'var(--text-accent)');
-        line.setAttribute('stroke-width', '2');
-        line.setAttribute('stroke-dasharray', '4,4');
-        this.wiresOverlayEl.appendChild(line);
+        const wireStyle = this.context.getActiveWireStyle();
+        if (wireStyle === 'crossed') {
+          const dx = this.wireCurrent.x - this.wireStart.x;
+          const dy = this.wireCurrent.y - this.wireStart.y;
+          const len = Math.hypot(dx, dy);
+          if (len > 0) {
+            const path = activeDocument.createElementNS(svgNS, 'path');
+            const ux = dx / len;
+            const uy = dy / len;
+            const vx = -uy;
+            const vy = ux;
+            const crossSize = 3.5;
+            const d1x = (ux + vx) * crossSize * 0.7071;
+            const d1y = (uy + vy) * crossSize * 0.7071;
+            const d2x = (ux - vx) * crossSize * 0.7071;
+            const d2y = (uy - vy) * crossSize * 0.7071;
+
+            const step = 8;
+            let pathData = '';
+            const count = Math.max(1, Math.floor(len / step));
+            for (let i = 0; i <= count; i++) {
+              const d = (i / count) * len;
+              const cx = this.wireStart.x + ux * d;
+              const cy = this.wireStart.y + uy * d;
+              pathData += `M ${cx - d1x} ${cy - d1y} L ${cx + d1x} ${cy + d1y} `;
+              pathData += `M ${cx - d2x} ${cy - d2y} L ${cx + d2x} ${cy + d2y} `;
+            }
+            path.setAttribute('d', pathData.trim());
+            path.setAttribute('stroke', 'var(--text-accent)');
+            path.setAttribute('stroke-width', '1.5');
+            path.setAttribute('stroke-linecap', 'round');
+            this.wiresOverlayEl.appendChild(path);
+          }
+        } else {
+          const line = activeDocument.createElementNS(svgNS, 'line');
+          line.setAttribute('x1', this.wireStart.x.toString());
+          line.setAttribute('y1', this.wireStart.y.toString());
+          line.setAttribute('x2', this.wireCurrent.x.toString());
+          line.setAttribute('y2', this.wireCurrent.y.toString());
+          line.setAttribute('stroke', 'var(--text-accent)');
+          line.setAttribute('stroke-width', '2');
+          if (wireStyle === 'dashed') {
+            line.setAttribute('stroke-dasharray', '6,4');
+          } else if (wireStyle === 'dotted') {
+            line.setAttribute('stroke-dasharray', '2,4');
+          } else {
+            line.setAttribute('stroke-dasharray', '4,4');
+          }
+          this.wiresOverlayEl.appendChild(line);
+        }
       }
     }
 
@@ -539,6 +616,8 @@ export class CanvasGrid {
             const normalizedAngle = (angleVal + 360) % 360;
 
             if (activeTemplate && activeTemplate.type === 'wire') {
+              const isWireComp = activeTemplate.name === 'Wire';
+              const wireStyle = isWireComp ? this.context.getActiveWireStyle() : undefined;
               this.context.handleAddElement({
                 type: 'wire',
                 name: activeTemplate.name,
@@ -546,7 +625,7 @@ export class CanvasGrid {
                 y: this.wireStart.y,
                 x2: this.wireCurrent.x,
                 y2: this.wireCurrent.y,
-                label: activeTemplate.name,
+                label: isWireComp ? '' : activeTemplate.name,
                 rotation: normalizedAngle,
                 style: {
                   bold: false,
@@ -554,12 +633,18 @@ export class CanvasGrid {
                   math: false,
                   color: '#f8e7ad',
                   fontSize: 12,
-                  thickness: 1.0
+                  thickness: 1.0,
+                  lineStyle: wireStyle
                 },
-                svgMarkup: activeTemplate.svgMarkup,
-                tikzCommand: activeTemplate.tikzCommand
+                svgMarkup: isWireComp && wireStyle
+                  ? AssetsManager.getWireSvgMarkup(wireStyle)
+                  : activeTemplate.svgMarkup,
+                tikzCommand: isWireComp && wireStyle
+                  ? AssetsManager.getWireTikzCommand(wireStyle)
+                  : activeTemplate.tikzCommand
               });
             } else {
+              const wireStyle = this.context.getActiveWireStyle();
               this.context.handleAddElement({
                 type: 'wire',
                 name: 'Wire',
@@ -575,10 +660,11 @@ export class CanvasGrid {
                   math: false,
                   color: '#f8e7ad',
                   fontSize: 12,
-                  thickness: 1.0
+                  thickness: 1.0,
+                  lineStyle: wireStyle
                 },
-                svgMarkup: `<svg viewBox="0 0 40 40"><line x1="0" y1="20" x2="40" y2="20" stroke="currentColor" stroke-width="2"/></svg>`,
-                tikzCommand: '\\draw[line width=0.8pt] ({x}, {y}) -- ({x2}, {y2});'
+                svgMarkup: AssetsManager.getWireSvgMarkup(wireStyle),
+                tikzCommand: AssetsManager.getWireTikzCommand(wireStyle)
               });
             }
           }

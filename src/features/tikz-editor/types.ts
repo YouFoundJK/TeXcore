@@ -6,7 +6,7 @@ export interface EditorElementStyle {
   rawColor?: string;
   fontSize: number; // in pt
   thickness?: number; // line width in pt
-  lineStyle?: 'solid' | 'dashed' | 'dotted';
+  lineStyle?: 'solid' | 'dashed' | 'dotted' | 'crossed';
   arrowStyle?: boolean;
 }
 
@@ -51,6 +51,8 @@ export interface TikzEditorContext {
   getElements(): EditorElement[];
   setElements(elements: EditorElement[]): void;
   getActiveTool(): 'select' | 'wire' | 'text' | 'erase';
+  getActiveWireStyle(): 'solid' | 'dashed' | 'dotted' | 'crossed';
+  setActiveWireStyle(style: 'solid' | 'dashed' | 'dotted' | 'crossed'): void;
   getActiveTemplate(): ComponentTemplate | null;
   getSelectedVertices(): SelectedVertex[];
   setSelectedVertices(vertices: SelectedVertex[]): void;

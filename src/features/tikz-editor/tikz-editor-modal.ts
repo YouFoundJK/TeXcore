@@ -34,6 +34,7 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   // State variables
   private elements: EditorElement[] = [];
   private activeTool: 'select' | 'wire' | 'text' | 'erase' = 'select';
+  private activeWireStyle: 'solid' | 'dashed' | 'dotted' | 'crossed' = 'solid';
   private activeTemplate: ComponentTemplate | null = null;
   private selectedVertices: SelectedVertex[] = [];
   private snapToGrid = true;
@@ -104,6 +105,12 @@ export class TikzEditorModal extends Modal implements TikzEditorContext {
   }
   getActiveTool() {
     return this.activeTool;
+  }
+  getActiveWireStyle() {
+    return this.activeWireStyle;
+  }
+  setActiveWireStyle(style: 'solid' | 'dashed' | 'dotted' | 'crossed') {
+    this.activeWireStyle = style;
   }
   getActiveTemplate() {
     return this.activeTemplate;
