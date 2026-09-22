@@ -169,12 +169,22 @@ export class TikzCodec {
     }
 
     const scaleMatch = optsStr.match(/scale\s*=\s*(\d+(?:\.\d+)?)/i);
+    const fontsizeMatch =
+      optsStr.match(/fontsize\s*=\s*\{?(\d+)/i) ?? optsStr.match(/\\fontsize\{(\d+)\}/i);
     if (scaleMatch) {
       res.fontSize = Math.round(12 * parseFloat(scaleMatch[1]));
-    } else if (optsStr.includes('\\Huge')) res.fontSize = 24;
+    } else if (fontsizeMatch) {
+      res.fontSize = parseInt(fontsizeMatch[1]);
+    } else if (optsStr.includes('\\Huge')) res.fontSize = 30;
+    else if (optsStr.includes('\\huge')) res.fontSize = 24;
+    else if (optsStr.includes('\\LARGE')) res.fontSize = 20;
     else if (optsStr.includes('\\Large')) res.fontSize = 18;
     else if (optsStr.includes('\\large')) res.fontSize = 14;
+    else if (optsStr.includes('\\normalsize')) res.fontSize = 12;
     else if (optsStr.includes('\\small')) res.fontSize = 10;
+    else if (optsStr.includes('\\footnotesize')) res.fontSize = 9;
+    else if (optsStr.includes('\\scriptsize')) res.fontSize = 8;
+    else if (optsStr.includes('\\tiny')) res.fontSize = 6;
 
     return res;
   }
@@ -277,13 +287,9 @@ export class TikzCodec {
     };
 
     const svgMarkup =
-      name === 'Wire' && lineStyle
-        ? AssetsManager.getWireSvgMarkup(lineStyle)
-        : wire.svgMarkup;
+      name === 'Wire' && lineStyle ? AssetsManager.getWireSvgMarkup(lineStyle) : wire.svgMarkup;
     const tikzCommand =
-      name === 'Wire' && lineStyle
-        ? AssetsManager.getWireTikzCommand(lineStyle)
-        : wire.tikzCommand;
+      name === 'Wire' && lineStyle ? AssetsManager.getWireTikzCommand(lineStyle) : wire.tikzCommand;
 
     return {
       id: this.createId(),
@@ -376,6 +382,29 @@ export class TikzCodec {
       label = label.replace(/\\textit\{([^}]+)\}/g, '$1');
     }
 
+    let fontSize = optsStyle?.fontSize;
+    const fontMacros: { [macro: string]: number } = {
+      '\\Huge': 30,
+      '\\huge': 24,
+      '\\LARGE': 20,
+      '\\Large': 18,
+      '\\large': 14,
+      '\\normalsize': 12,
+      '\\small': 10,
+      '\\footnotesize': 9,
+      '\\scriptsize': 8,
+      '\\tiny': 6
+    };
+    for (const [macro, size] of Object.entries(fontMacros)) {
+      if (label.includes(macro)) {
+        if (!fontSize) {
+          fontSize = size;
+        }
+        label = label.replace(new RegExp(`\\${macro}\\b\\s*`, 'g'), '');
+        break;
+      }
+    }
+
     const style: EditorElementStyle = {
       ...this.defaultStyle,
       math,
@@ -383,7 +412,7 @@ export class TikzCodec {
       italic,
       color: optsStyle?.color ?? this.defaultStyle.color,
       rawColor: optsStyle?.rawColor,
-      fontSize: optsStyle?.fontSize ?? this.defaultStyle.fontSize
+      fontSize: fontSize ?? this.defaultStyle.fontSize
     };
 
     return {
@@ -641,6 +670,91 @@ export class TikzCodec {
         continue;
       }
 
+      // 5.5. Curly bracket matching
+      if (stmt.includes('brace')) {
+        const braceOptsMatch = stmt.match(/\\draw\s*\[([^\]]*)\]/);
+        const braceOpts = braceOptsMatch?.[1] ?? '';
+        const isMirror = braceOpts.includes('mirror');
+        const ampMatch = braceOpts.match(/amplitude\s*=\s*(\d+(?:\.\d+)?)\s*(pt|cm|mm)?/i);
+        let amplitude = 16;
+        if (ampMatch) {
+          let val = parseFloat(ampMatch[1]);
+          const unit = ampMatch[2]?.toLowerCase();
+          if (unit === 'cm') val *= 28.45;
+          amplitude = Math.round(val * (80 / 28.452756));
+        }
+
+        const pointMatchesList = Array.from(stmt.matchAll(/\([^)]+\)/g));
+        const pts: { x: number; y: number }[] = [];
+        for (const m of pointMatchesList) {
+          const p = this.parsePoint(m[0], currentShift, namedCoords);
+          if (p) pts.push(p);
+        }
+
+        if (pts.length >= 2) {
+          const nodeLabelMatch = stmt.match(/node\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}/);
+          const rawLabel = nodeLabelMatch ? nodeLabelMatch[1] : '';
+          const nodeOpts = stmt.match(/node\s*\[([^\]]*)\]/)?.[1] ?? '';
+          const optsStyle = this.parseOptions(`${braceOpts}, ${nodeOpts}`);
+
+          let label = rawLabel.trim();
+          let math = false;
+          let bold = false;
+          let italic = false;
+          if (label.startsWith('$') && label.endsWith('$')) {
+            label = label.slice(1, -1).trim();
+            math = true;
+          }
+          if (label.includes('\\textbf{')) {
+            bold = true;
+            label = label.replace(/\\textbf\{([^}]+)\}/g, '$1');
+          }
+          if (label.includes('\\textit{')) {
+            italic = true;
+            label = label.replace(/\\textit\{([^}]+)\}/g, '$1');
+          }
+
+          let bracketDirection: 'right' | 'left' = isMirror ? 'left' : 'right';
+          if (nodeOpts.includes('left')) {
+            bracketDirection = 'left';
+          } else if (nodeOpts.includes('right')) {
+            bracketDirection = 'right';
+          }
+
+          const name = bracketDirection === 'left' ? 'Left bracket' : 'Right bracket';
+          const template =
+            AssetsManager.getCoreComponents().find(t => t.name === name) ??
+            AssetsManager.getCoreComponents().find(t => t.name === 'Right bracket')!;
+
+          parsedElements.push({
+            id: this.createId(),
+            type: 'wire',
+            name,
+            x: this.toCanvasX(pts[0].x),
+            y: this.toCanvasY(pts[0].y),
+            x2: this.toCanvasX(pts[1].x),
+            y2: this.toCanvasY(pts[1].y),
+            label,
+            rotation: 0,
+            style: {
+              ...this.defaultStyle,
+              bold,
+              italic,
+              math,
+              color: optsStyle.color ?? this.defaultStyle.color,
+              rawColor: optsStyle.rawColor,
+              thickness: optsStyle.thickness ?? 1.5,
+              fontSize: optsStyle.fontSize ?? this.defaultStyle.fontSize,
+              bracketDirection,
+              bracketAmplitude: amplitude
+            },
+            svgMarkup: template.svgMarkup,
+            tikzCommand: template.tikzCommand
+          });
+          continue;
+        }
+      }
+
       // 6. Generic \draw paths matching (multi-point lines / arrows)
       if (stmt.startsWith('\\draw')) {
         const drawOptsMatch = stmt.match(/^\\draw\s*\[([^\]]*)\]/);
@@ -685,6 +799,14 @@ export class TikzCodec {
         neededLibraries.add('decorations.pathmorphing');
         neededLibraries.add('decorations.shapes');
       }
+      if (
+        elem.name === 'Right bracket' ||
+        elem.name === 'Left bracket' ||
+        elem.tikzCommand?.includes('brace') ||
+        elem.tikzCommand?.includes('decorations.pathreplacing')
+      ) {
+        neededLibraries.add('decorations.pathreplacing');
+      }
       const regPkg = AssetsManager.getRegistry().find(p =>
         p.components.some(comp => comp.name === elem.name)
       );
@@ -721,6 +843,20 @@ export class TikzCodec {
 
       let cmd = elem.tikzCommand;
       if (!cmd) return;
+
+      if (elem.name === 'Right bracket' || elem.name === 'Left bracket') {
+        const isLeft = elem.style.bracketDirection === 'left' || elem.name === 'Left bracket';
+        const mirrorStr = isLeft ? ', mirror' : '';
+        const amp = elem.style.bracketAmplitude
+          ? Math.max(2, Math.round(elem.style.bracketAmplitude * (28.452756 / 80)))
+          : 6;
+        let braceCmd = `\\draw[decorate, decoration={brace${mirrorStr}, amplitude=${amp}pt}] ({x}, {y}) -- ({x2}, {y2})`;
+        if (elem.label) {
+          const side = isLeft ? 'left' : 'right';
+          braceCmd += ` node[midway, ${side}=${amp + 2}pt, font={fontSize}] {{label}}`;
+        }
+        cmd = braceCmd + ';';
+      }
 
       if (elem.radius !== undefined) {
         cmd = cmd.replace(/circle\s*\([^)]*\)/g, `circle (${elem.radius}pt)`);
@@ -818,15 +954,25 @@ export class TikzCodec {
       }
 
       const fontCommand =
-        elem.style.fontSize <= 10
-          ? '\\small'
-          : elem.style.fontSize <= 12
-            ? '\\normalsize'
-            : elem.style.fontSize <= 14
-              ? '\\large'
-              : elem.style.fontSize <= 18
-                ? '\\Large'
-                : '\\Huge';
+        elem.style.fontSize <= 6
+          ? '\\tiny'
+          : elem.style.fontSize <= 8
+            ? '\\scriptsize'
+            : elem.style.fontSize <= 9
+              ? '\\footnotesize'
+              : elem.style.fontSize <= 10
+                ? '\\small'
+                : elem.style.fontSize <= 12
+                  ? '\\normalsize'
+                  : elem.style.fontSize <= 14
+                    ? '\\large'
+                    : elem.style.fontSize <= 18
+                      ? '\\Large'
+                      : elem.style.fontSize <= 20
+                        ? '\\LARGE'
+                        : elem.style.fontSize <= 24
+                          ? '\\huge'
+                          : '\\Huge';
 
       cmd = cmd.replace(/{x}/g, xVal);
       cmd = cmd.replace(/{y}/g, yVal);

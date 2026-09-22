@@ -8,6 +8,8 @@ export interface EditorElementStyle {
   thickness?: number; // line width in pt
   lineStyle?: 'solid' | 'dashed' | 'dotted' | 'crossed';
   arrowStyle?: boolean;
+  bracketDirection?: 'right' | 'left';
+  bracketAmplitude?: number;
 }
 
 export interface EditorElement {

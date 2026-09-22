@@ -221,6 +221,14 @@ export class TikzRenderer {
       cleaned = `\\usetikzlibrary{arrows.meta}\n${cleaned}`;
     }
 
+    const needsPathreplacing =
+      (cleaned.includes('brace') || cleaned.includes('decorations.pathreplacing')) &&
+      !cleaned.includes('decorations.pathreplacing');
+
+    if (needsPathreplacing) {
+      cleaned = `\\usetikzlibrary{decorations.pathreplacing}\n${cleaned}`;
+    }
+
     const needsDecorations =
       (cleaned.includes('crosses') ||
         cleaned.includes('decorate') ||

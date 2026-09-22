@@ -70,33 +70,36 @@ export class RightSidebar {
           attr: { id: 'label-input', placeholder: 'Enter label...' }
         });
         labelInput.oninput = () => {
-          this.context.handleUpdateElement({
-            ...selectedElement,
-            label: labelInput.value
-          });
+          selectedElement.label = labelInput.value;
+          this.context.handleUpdateElement(selectedElement, false);
+        };
+        labelInput.onchange = () => {
+          this.context.saveHistoryState();
         };
 
         // 2. Text size and Color picker
         const fontColorGroup = editPanel.createDiv({ cls: 'control-group' });
-        fontColorGroup.createEl('label', {
-          attr: { for: 'font-size-select' },
-          text: 'Text size & color'
+        const currentFontSize = selectedElement.style.fontSize ?? 12;
+        const fontLabel = fontColorGroup.createEl('label', {
+          attr: { for: 'font-size-slider' },
+          text: `Text size (${currentFontSize} pt)`
         });
         const fontColorRow = fontColorGroup.createDiv({ cls: 'row gap' });
 
-        const fontSizeSelect = fontColorRow.createEl('select', {
-          attr: { id: 'font-size-select' }
+        const fontSlider = fontColorRow.createEl('input', {
+          type: 'range',
+          value: currentFontSize.toString(),
+          attr: { id: 'font-size-slider', min: '6', max: '36', step: '1' }
         });
-        [10, 12, 14, 18, 24].forEach(pt => {
-          const opt = fontSizeSelect.createEl('option', { value: pt.toString(), text: `${pt} pt` });
-          if (selectedElement.style.fontSize === pt) opt.selected = true;
-        });
-        fontSizeSelect.onchange = () => {
-          const size = parseInt(fontSizeSelect.value) || 12;
-          this.context.handleUpdateElement({
-            ...selectedElement,
-            style: { ...selectedElement.style, fontSize: size }
-          });
+        fontSlider.setCssStyles({ flex: '1' });
+        fontSlider.oninput = () => {
+          const size = parseInt(fontSlider.value) || 12;
+          fontLabel.textContent = `Text size (${size} pt)`;
+          selectedElement.style.fontSize = size;
+          this.context.handleUpdateElement(selectedElement, false);
+        };
+        fontSlider.onchange = () => {
+          this.context.saveHistoryState();
         };
 
         const colorPickerWrap = fontColorRow.createDiv({ cls: 'color-picker-wrap' });
@@ -107,13 +110,37 @@ export class RightSidebar {
             : '#f8e7ad'
         });
         colorInput.oninput = () => {
-          this.context.handleUpdateElement({
-            ...selectedElement,
-            style: { ...selectedElement.style, color: colorInput.value, rawColor: undefined }
-          });
+          selectedElement.style.color = colorInput.value;
+          selectedElement.style.rawColor = undefined;
+          this.context.handleUpdateElement(selectedElement, false);
+        };
+        colorInput.onchange = () => {
+          this.context.saveHistoryState();
         };
 
+        // Font size presets
+        const fontPresetsRow = fontColorGroup.createDiv({ cls: 'presets-row' });
+        [8, 10, 12, 14, 18, 24].forEach(pt => {
+          const btn = fontPresetsRow.createEl('button', {
+            cls: `preset-btn${selectedElement.style.fontSize === pt ? ' active' : ''}`,
+            text: `${pt} pt`
+          });
+          btn.onclick = () => {
+            fontSlider.value = pt.toString();
+            fontLabel.textContent = `Text size (${pt} pt)`;
+            this.context.handleUpdateElement({
+              ...selectedElement,
+              style: { ...selectedElement.style, fontSize: pt }
+            });
+          };
+        });
+
         // 2.5 Thickness Slider
+        const isBracket =
+          selectedElement.name === 'Right bracket' ||
+          selectedElement.name === 'Left bracket' ||
+          selectedElement.name.toLowerCase().includes('bracket');
+
         const thicknessGroup = editPanel.createDiv({ cls: 'control-group' });
         const currentThickness = selectedElement.style.thickness ?? 1.0;
         const thicknessLabel = thicknessGroup.createEl('label', {
@@ -128,18 +155,79 @@ export class RightSidebar {
         thicknessSlider.oninput = () => {
           const val = parseFloat(thicknessSlider.value) || 1.0;
           thicknessLabel.textContent = `Thickness (${val} pt)`;
-          this.context.handleUpdateElement({
-            ...selectedElement,
-            style: { ...selectedElement.style, thickness: val }
-          });
+          selectedElement.style.thickness = val;
+          this.context.handleUpdateElement(selectedElement, false);
+        };
+        thicknessSlider.onchange = () => {
+          this.context.saveHistoryState();
         };
 
-        // 2.6 Wire Style dropdown (if wire or line element)
+        // 2.55 Bracket options
+        if (isBracket) {
+          const bracketGroup = editPanel.createDiv({ cls: 'control-group' });
+          bracketGroup.createEl('label', { text: 'Bracket direction' });
+          const dirRow = bracketGroup.createDiv({ cls: 'row gap' });
+
+          const currentDir =
+            selectedElement.style.bracketDirection ??
+            (selectedElement.name === 'Left bracket' ? 'left' : 'right');
+
+          const rightBtn = dirRow.createEl('button', {
+            cls: `preset-btn${currentDir === 'right' ? ' active' : ''}`,
+            text: 'Right ( } )'
+          });
+          rightBtn.setCssStyles({ flex: '1' });
+          rightBtn.onclick = () => {
+            this.context.handleUpdateElement({
+              ...selectedElement,
+              name: 'Right bracket',
+              style: { ...selectedElement.style, bracketDirection: 'right' }
+            });
+          };
+
+          const leftBtn = dirRow.createEl('button', {
+            cls: `preset-btn${currentDir === 'left' ? ' active' : ''}`,
+            text: 'Left ( { )'
+          });
+          leftBtn.setCssStyles({ flex: '1' });
+          leftBtn.onclick = () => {
+            this.context.handleUpdateElement({
+              ...selectedElement,
+              name: 'Left bracket',
+              style: { ...selectedElement.style, bracketDirection: 'left' }
+            });
+          };
+
+          // Depth / Amplitude slider
+          const ampGroup = editPanel.createDiv({ cls: 'control-group' });
+          const currentAmp = selectedElement.style.bracketAmplitude ?? 16;
+          const ampLabel = ampGroup.createEl('label', {
+            attr: { for: 'bracket-amp-slider' },
+            text: `Bracket depth (${currentAmp} px)`
+          });
+          const ampSlider = ampGroup.createEl('input', {
+            type: 'range',
+            value: currentAmp.toString(),
+            attr: { id: 'bracket-amp-slider', min: '8', max: '36', step: '1' }
+          });
+          ampSlider.oninput = () => {
+            const val = parseInt(ampSlider.value) || 16;
+            ampLabel.textContent = `Bracket depth (${val} px)`;
+            selectedElement.style.bracketAmplitude = val;
+            this.context.handleUpdateElement(selectedElement, false);
+          };
+          ampSlider.onchange = () => {
+            this.context.saveHistoryState();
+          };
+        }
+
+        // 2.6 Wire Style dropdown (if wire or line element, not bracket)
         if (
-          selectedElement.type === 'wire' ||
-          selectedElement.name === 'Wire' ||
-          selectedElement.name === 'Arrow' ||
-          selectedElement.name === 'Dashed Wire'
+          !isBracket &&
+          (selectedElement.type === 'wire' ||
+            selectedElement.name === 'Wire' ||
+            selectedElement.name === 'Arrow' ||
+            selectedElement.name === 'Dashed Wire')
         ) {
           const wireStyleGroup = editPanel.createDiv({ cls: 'control-group' });
           wireStyleGroup.createEl('label', {
@@ -149,12 +237,13 @@ export class RightSidebar {
           const wireStyleSelect = wireStyleGroup.createEl('select', {
             attr: { id: 'wire-style-select' }
           });
-          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
-            { value: 'solid', label: 'Solid' },
-            { value: 'dashed', label: 'Dashed' },
-            { value: 'dotted', label: 'Dotted' },
-            { value: 'crossed', label: 'Crossed' }
-          ];
+          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] =
+            [
+              { value: 'solid', label: 'Solid' },
+              { value: 'dashed', label: 'Dashed' },
+              { value: 'dotted', label: 'Dotted' },
+              { value: 'crossed', label: 'Crossed' }
+            ];
           const activeWireStyle =
             selectedElement.style.lineStyle ||
             (selectedElement.name === 'Dashed Wire' ? 'dashed' : 'solid');
@@ -341,23 +430,30 @@ export class RightSidebar {
 
         // Shared Style Properties (Color, Thickness, Styles)
         const fontColorGroup = editPanel.createDiv({ cls: 'control-group' });
-        fontColorGroup.createEl('label', { text: 'Shared styles' });
+        const currentFontSize = firstElement.style.fontSize ?? 12;
+        const fontLabel = fontColorGroup.createEl('label', {
+          attr: { for: 'multi-font-size-slider' },
+          text: `Text size (${currentFontSize} pt)`
+        });
         const fontColorRow = fontColorGroup.createDiv({ cls: 'row gap' });
 
-        const fontSizeSelect = fontColorRow.createEl('select', {
-          attr: { id: 'font-size-select' }
+        const fontSlider = fontColorRow.createEl('input', {
+          type: 'range',
+          value: currentFontSize.toString(),
+          attr: { id: 'multi-font-size-slider', min: '6', max: '36', step: '1' }
         });
-        [10, 12, 14, 18, 24].forEach(pt => {
-          const opt = fontSizeSelect.createEl('option', { value: pt.toString(), text: `${pt} pt` });
-          if (firstElement.style.fontSize === pt) opt.selected = true;
-        });
-        fontSizeSelect.onchange = () => {
-          const size = parseInt(fontSizeSelect.value) || 12;
+        fontSlider.setCssStyles({ flex: '1' });
+        fontSlider.oninput = () => {
+          const size = parseInt(fontSlider.value) || 12;
+          fontLabel.textContent = `Text size (${size} pt)`;
           const updated = selectedElements.map(el => ({
             ...el,
             style: { ...el.style, fontSize: size }
           }));
-          this.context.handleUpdateElements(updated);
+          this.context.handleUpdateElements(updated, false);
+        };
+        fontSlider.onchange = () => {
+          this.context.saveHistoryState();
         };
 
         const colorPickerWrap = fontColorRow.createDiv({ cls: 'color-picker-wrap' });
@@ -372,8 +468,29 @@ export class RightSidebar {
             ...el,
             style: { ...el.style, color: colorInput.value, rawColor: undefined }
           }));
-          this.context.handleUpdateElements(updated);
+          this.context.handleUpdateElements(updated, false);
         };
+        colorInput.onchange = () => {
+          this.context.saveHistoryState();
+        };
+
+        // Presets row
+        const fontPresetsRow = fontColorGroup.createDiv({ cls: 'presets-row' });
+        [8, 10, 12, 14, 18, 24].forEach(pt => {
+          const btn = fontPresetsRow.createEl('button', {
+            cls: `preset-btn${firstElement.style.fontSize === pt ? ' active' : ''}`,
+            text: `${pt} pt`
+          });
+          btn.onclick = () => {
+            fontSlider.value = pt.toString();
+            fontLabel.textContent = `Text size (${pt} pt)`;
+            const updated = selectedElements.map(el => ({
+              ...el,
+              style: { ...el.style, fontSize: pt }
+            }));
+            this.context.handleUpdateElements(updated, true);
+          };
+        });
 
         const thicknessGroup = editPanel.createDiv({ cls: 'control-group' });
         const currentThickness = firstElement.style.thickness ?? 1.0;
@@ -393,7 +510,10 @@ export class RightSidebar {
             ...el,
             style: { ...el.style, thickness: val }
           }));
-          this.context.handleUpdateElements(updated);
+          this.context.handleUpdateElements(updated, false);
+        };
+        thicknessSlider.onchange = () => {
+          this.context.saveHistoryState();
         };
 
         // Wire Style dropdown for multi-select (if any wire selected)
@@ -406,12 +526,13 @@ export class RightSidebar {
           const wireStyleSelect = wireStyleGroup.createEl('select', {
             attr: { id: 'multi-wire-style-select' }
           });
-          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
-            { value: 'solid', label: 'Solid' },
-            { value: 'dashed', label: 'Dashed' },
-            { value: 'dotted', label: 'Dotted' },
-            { value: 'crossed', label: 'Crossed' }
-          ];
+          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] =
+            [
+              { value: 'solid', label: 'Solid' },
+              { value: 'dashed', label: 'Dashed' },
+              { value: 'dotted', label: 'Dotted' },
+              { value: 'crossed', label: 'Crossed' }
+            ];
           const firstWire = selectedElements.find(el => el.type === 'wire');
           const activeWireStyle = firstWire?.style.lineStyle || 'solid';
           wireStyles.forEach(s => {
@@ -422,9 +543,7 @@ export class RightSidebar {
             const chosen = wireStyleSelect.value as 'solid' | 'dashed' | 'dotted' | 'crossed';
             this.context.setActiveWireStyle(chosen);
             const updated = selectedElements.map(el =>
-              el.type === 'wire'
-                ? { ...el, style: { ...el.style, lineStyle: chosen } }
-                : el
+              el.type === 'wire' ? { ...el, style: { ...el.style, lineStyle: chosen } } : el
             );
             this.context.handleUpdateElements(updated);
             this.context.renderLeftSidebar();

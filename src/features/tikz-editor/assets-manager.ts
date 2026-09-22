@@ -78,6 +78,21 @@ export class AssetsManager {
       category: 'Basic',
       svgMarkup: `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><polygon points="20,8 8,30 32,30" fill="none" stroke="currentColor" stroke-width="2" /></svg>`,
       tikzCommand: '\\draw ({x}, {y}) +(0,0.4) -- +(-0.4,-0.3) -- +(0.4,-0.3) -- cycle;'
+    },
+    {
+      name: 'Right bracket',
+      type: 'wire',
+      category: 'Basic',
+      svgMarkup: `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><path d="M 14 6 C 18 6, 20 10, 20 15 L 20 17 C 20 19, 23 20, 25 20 C 23 20, 20 21, 20 23 L 20 25 C 20 30, 18 34, 14 34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="14" cy="6" r="2.5" fill="currentColor"/><circle cx="14" cy="34" r="2.5" fill="currentColor"/></svg>`,
+      tikzCommand: '\\draw[decorate, decoration={brace, amplitude=6pt}] ({x}, {y}) -- ({x2}, {y2});'
+    },
+    {
+      name: 'Left bracket',
+      type: 'wire',
+      category: 'Basic',
+      svgMarkup: `<svg viewBox="0 0 40 40" width="30" height="30" style="color: var(--text-normal);"><path d="M 26 6 C 22 6, 20 10, 20 15 L 20 17 C 20 19, 17 20, 15 20 C 17 20, 20 21, 20 23 L 20 25 C 20 30, 22 34, 26 34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="26" cy="6" r="2.5" fill="currentColor"/><circle cx="26" cy="34" r="2.5" fill="currentColor"/></svg>`,
+      tikzCommand:
+        '\\draw[decorate, decoration={brace, mirror, amplitude=6pt}] ({x}, {y}) -- ({x2}, {y2});'
     }
   ];
 

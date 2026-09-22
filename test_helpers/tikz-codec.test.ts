@@ -219,4 +219,72 @@ at (2.15,-1.8)
     // Ensure old line width=0.8pt was cleaned up
     expect(generated).not.toContain('line width=0.8pt');
   });
+
+  it('generates Right bracket with decoration and node label correctly', () => {
+    const bracketElement: any = {
+      id: 'bracket_1',
+      type: 'wire',
+      name: 'Right bracket',
+      x: 160,
+      y: 80,
+      x2: 160,
+      y2: 240,
+      label: '$N = 2$',
+      rotation: 0,
+      style: {
+        bold: false,
+        italic: false,
+        math: true,
+        color: '#000000',
+        fontSize: 12,
+        thickness: 1,
+        lineStyle: 'solid',
+        bracketDirection: 'right',
+        bracketAmplitude: 17
+      },
+      svgMarkup: '',
+      tikzCommand: '\\draw[decorate, decoration={brace, amplitude=6pt}] ({x}, {y}) -- ({x2}, {y2});'
+    };
+
+    const generated = codec.generate([bracketElement], '');
+    expect(generated).toContain('\\usetikzlibrary{decorations.pathreplacing');
+    expect(generated).toContain('decorate, decoration={brace, amplitude=6pt}');
+    expect(generated).toContain('node[midway, right=8pt, font=\\normalsize]');
+    expect(generated).toContain('{$N = 2$}');
+  });
+
+  it('parses TikZ brace command into Right bracket element', () => {
+    const tikzCode = `
+\\begin{tikzpicture}
+\\draw [decorate, decoration={brace, amplitude=8pt}] (1, 2) -- (1, -1) node[midway, right=10pt] {Rows 1-2};
+\\end{tikzpicture}
+`;
+    const result = codec.parse(tikzCode);
+    const elements = result.elements;
+    const bracket = elements.find(el => el.name === 'Right bracket' || el.style.bracketDirection === 'right');
+    expect(bracket).toBeDefined();
+    expect(bracket?.type).toBe('wire');
+    expect(bracket?.label).toBe('Rows 1-2');
+    expect(bracket?.style.bracketDirection).toBe('right');
+    expect(bracket?.style.bracketAmplitude).toBeGreaterThan(20);
+  });
+
+  it('parses LaTeX font sizes correctly on text nodes', () => {
+    const tikzCode = `
+\\begin{tikzpicture}
+\\node [font=\\Huge] at (0, 0) {Huge Title};
+\\node at (2, 0) {\\scriptsize Small subtext};
+\\end{tikzpicture}
+`;
+    const result = codec.parse(tikzCode);
+    const elements = result.elements;
+    expect(elements.length).toBe(2);
+    const hugeEl = elements.find(el => el.label.includes('Huge Title'));
+    const smallEl = elements.find(el => el.label.includes('Small subtext'));
+    expect(hugeEl).toBeDefined();
+    expect(hugeEl?.style.fontSize).toBe(30);
+    expect(smallEl).toBeDefined();
+    expect(smallEl?.style.fontSize).toBe(8);
+  });
 });
+

@@ -352,12 +352,13 @@ export class LeftSidebar {
         if (isWire) {
           const styleSelect = card.createEl('select', { cls: 'comp-style-select' });
           styleSelect.title = 'Select wire style';
-          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] = [
-            { value: 'solid', label: 'Solid' },
-            { value: 'dashed', label: 'Dashed' },
-            { value: 'dotted', label: 'Dotted' },
-            { value: 'crossed', label: 'Crossed' }
-          ];
+          const wireStyles: { value: 'solid' | 'dashed' | 'dotted' | 'crossed'; label: string }[] =
+            [
+              { value: 'solid', label: 'Solid' },
+              { value: 'dashed', label: 'Dashed' },
+              { value: 'dotted', label: 'Dotted' },
+              { value: 'crossed', label: 'Crossed' }
+            ];
           const activeWireStyle = this.context.getActiveWireStyle();
           wireStyles.forEach(s => {
             const opt = styleSelect.createEl('option', { value: s.value, text: s.label });

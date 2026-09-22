@@ -22,6 +22,103 @@ export class CanvasGrid {
     this.workspaceEl.addEventListener('mousedown', e => this.handleCanvasMouseDown(e));
   }
 
+  public ptToCanvasPx(pt: number): number {
+    return pt * (this.context.PX_PER_UNIT / 28.452756);
+  }
+
+  public getBracketGeometry(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    direction: 'right' | 'left' = 'right',
+    amplitude = 16
+  ): { pathD: string; cuspX: number; cuspY: number; normalX: number; normalY: number } {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) {
+      return { pathD: '', cuspX: x1, cuspY: y1, normalX: 1, normalY: 0 };
+    }
+
+    const ux = dx / len;
+    const uy = dy / len;
+
+    const isVertical = Math.abs(dy) >= Math.abs(dx);
+    let nx = dy / len;
+    let ny = -dx / len;
+
+    if (isVertical) {
+      if (direction === 'right' && nx < 0) {
+        nx = -nx;
+        ny = -ny;
+      } else if (direction === 'left' && nx > 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+    } else {
+      if (direction === 'right' && ny < 0) {
+        nx = -nx;
+        ny = -ny;
+      } else if (direction === 'left' && ny > 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+    }
+
+    const amp = amplitude;
+    const r = Math.min(16, len / 6);
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    const cuspX = midX + nx * amp;
+    const cuspY = midY + ny * amp;
+
+    const p1x = x1 + ux * r + nx * (amp * 0.5);
+    const p1y = y1 + uy * r + ny * (amp * 0.5);
+
+    const p2x = midX - ux * r + nx * (amp * 0.5);
+    const p2y = midY - uy * r + ny * (amp * 0.5);
+
+    const p4x = midX + ux * r + nx * (amp * 0.5);
+    const p4y = midY + uy * r + ny * (amp * 0.5);
+
+    const p5x = x2 - ux * r + nx * (amp * 0.5);
+    const p5y = y2 - uy * r + ny * (amp * 0.5);
+
+    const cp0_1x = x1 + nx * (amp * 0.1);
+    const cp0_1y = y1 + ny * (amp * 0.1);
+    const cp0_2x = x1 + ux * (r * 0.5) + nx * (amp * 0.5);
+    const cp0_2y = y1 + uy * (r * 0.5) + ny * (amp * 0.5);
+
+    const cp1_1x = midX - ux * (r * 0.5) + nx * (amp * 0.5);
+    const cp1_1y = midY - uy * (r * 0.5) + ny * (amp * 0.5);
+    const cp1_2x = midX - ux * (r * 0.2) + nx * (amp * 0.95);
+    const cp1_2y = midY - uy * (r * 0.2) + ny * (amp * 0.95);
+
+    const cp2_1x = midX + ux * (r * 0.2) + nx * (amp * 0.95);
+    const cp2_1y = midY + uy * (r * 0.2) + ny * (amp * 0.95);
+    const cp2_2x = midX + ux * (r * 0.5) + nx * (amp * 0.5);
+    const cp2_2y = midY + uy * (r * 0.5) + ny * (amp * 0.5);
+
+    const cp3_1x = x2 - ux * (r * 0.5) + nx * (amp * 0.5);
+    const cp3_1y = y2 - uy * (r * 0.5) + ny * (amp * 0.5);
+    const cp3_2x = x2 + nx * (amp * 0.1);
+    const cp3_2y = y2 + ny * (amp * 0.1);
+
+    const pathD = [
+      `M ${x1} ${y1}`,
+      `C ${cp0_1x} ${cp0_1y}, ${cp0_2x} ${cp0_2y}, ${p1x} ${p1y}`,
+      `L ${p2x} ${p2y}`,
+      `C ${cp1_1x} ${cp1_1y}, ${cp1_2x} ${cp1_2y}, ${cuspX} ${cuspY}`,
+      `C ${cp2_1x} ${cp2_1y}, ${cp2_2x} ${cp2_2y}, ${p4x} ${p4y}`,
+      `L ${p5x} ${p5y}`,
+      `C ${cp3_1x} ${cp3_1y}, ${cp3_2x} ${cp3_2y}, ${x2} ${y2}`
+    ].join(' ');
+
+    return { pathD, cuspX, cuspY, normalX: nx, normalY: ny };
+  }
+
   public render() {
     const gridBg = this.workspaceEl.querySelector('.grid-background');
     if (gridBg) {
@@ -98,181 +195,67 @@ export class CanvasGrid {
       );
       group.addEventListener('mousedown', e => this.handleElementMouseDown(e, elem));
 
-      const lineClick = activeDocument.createElementNS(svgNS, 'line');
-      lineClick.setAttribute('x1', elem.x.toString());
-      lineClick.setAttribute('y1', elem.y.toString());
-      lineClick.setAttribute('x2', elem.x2.toString());
-      lineClick.setAttribute('y2', elem.y2.toString());
-      lineClick.setAttribute('stroke', 'transparent');
-      lineClick.setAttribute('stroke-width', '12');
-      lineClick.setCssStyles({ cursor: 'pointer' });
-      group.appendChild(lineClick);
+      const isBracket =
+        elem.name === 'Right bracket' ||
+        elem.name === 'Left bracket' ||
+        elem.name.toLowerCase().includes('bracket');
 
-      const isBasicWire =
-        elem.name === 'Wire' || elem.name === 'Dashed Wire' || elem.name === 'Arrow';
-      if (isBasicWire) {
+      if (isBracket) {
         const strokeColor = selectedVertices.some(v => v.elementId === elem.id)
           ? 'var(--text-accent)'
           : elem.style.color && elem.style.color !== '#f8e7ad'
             ? elem.style.color
             : '#e2e8f0';
 
-        if (elem.style.lineStyle === 'crossed') {
-          const dx = elem.x2 - elem.x;
-          const dy = elem.y2 - elem.y;
-          const len = Math.hypot(dx, dy);
-          if (len > 0) {
-            const path = activeDocument.createElementNS(svgNS, 'path');
-            const ux = dx / len;
-            const uy = dy / len;
-            const vx = -uy;
-            const vy = ux;
-            const crossSize = Math.max(3.5, 3 * (elem.style.thickness ?? 1.0));
-            const d1x = (ux + vx) * crossSize * 0.7071;
-            const d1y = (uy + vy) * crossSize * 0.7071;
-            const d2x = (ux - vx) * crossSize * 0.7071;
-            const d2y = (uy - vy) * crossSize * 0.7071;
+        const dir =
+          elem.style.bracketDirection ?? (elem.name === 'Left bracket' ? 'left' : 'right');
+        const amp = elem.style.bracketAmplitude ?? 16;
+        const geom = this.getBracketGeometry(elem.x, elem.y, elem.x2, elem.y2, dir, amp);
 
-            const step = 8;
-            let pathData = '';
-            const count = Math.max(1, Math.floor(len / step));
-            for (let i = 0; i <= count; i++) {
-              const d = (i / count) * len;
-              const cx = elem.x + ux * d;
-              const cy = elem.y + uy * d;
-              pathData += `M ${cx - d1x} ${cy - d1y} L ${cx + d1x} ${cy + d1y} `;
-              pathData += `M ${cx - d2x} ${cy - d2y} L ${cx + d2x} ${cy + d2y} `;
-            }
-            path.setAttribute('d', pathData.trim());
-            path.setAttribute('stroke', strokeColor);
-            path.setAttribute('stroke-width', (elem.style.thickness ?? 1.5).toString());
-            path.setAttribute('stroke-linecap', 'round');
-            group.appendChild(path);
-          }
-        } else {
-          const line = activeDocument.createElementNS(svgNS, 'line');
-          line.setAttribute('x1', elem.x.toString());
-          line.setAttribute('y1', elem.y.toString());
-          line.setAttribute('x2', elem.x2.toString());
-          line.setAttribute('y2', elem.y2.toString());
-          line.setAttribute('stroke', strokeColor);
-          line.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+        const pathClick = activeDocument.createElementNS(svgNS, 'path');
+        pathClick.setAttribute('d', geom.pathD);
+        pathClick.setAttribute('stroke', 'transparent');
+        pathClick.setAttribute('stroke-width', '16');
+        pathClick.setAttribute('fill', 'none');
+        pathClick.setCssStyles({ cursor: 'pointer' });
+        group.appendChild(pathClick);
 
-          if (elem.name === 'Dashed Wire' || elem.style.lineStyle === 'dashed') {
-            line.setAttribute('stroke-dasharray', '6,4');
-          } else if (elem.style.lineStyle === 'dotted') {
-            line.setAttribute('stroke-dasharray', '2,4');
-          }
-
-          group.appendChild(line);
-        }
-
-        if (elem.name === 'Arrow' || elem.style.arrowStyle) {
-          const dx = elem.x2 - elem.x;
-          const dy = elem.y2 - elem.y;
-          const len = Math.hypot(dx, dy);
-          if (len > 0) {
-            const angle = Math.atan2(dy, dx);
-            const headLen = Math.min(10, len);
-            const p1x = elem.x2 - headLen * Math.cos(angle - Math.PI / 6);
-            const p1y = elem.y2 - headLen * Math.sin(angle - Math.PI / 6);
-            const p2x = elem.x2 - headLen * Math.cos(angle + Math.PI / 6);
-            const p2y = elem.y2 - headLen * Math.sin(angle + Math.PI / 6);
-            const head = activeDocument.createElementNS(svgNS, 'polygon');
-            head.setAttribute('points', `${elem.x2},${elem.y2} ${p1x},${p1y} ${p2x},${p2y}`);
-            head.setAttribute('fill', strokeColor);
-            group.appendChild(head);
-          }
-        }
-      } else {
-        const dx = elem.x2 - elem.x;
-        const dy = elem.y2 - elem.y;
-        const len = Math.hypot(dx, dy);
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        const midX = elem.x + dx / 2;
-        const midY = elem.y + dy / 2;
-
-        const margin = Math.min(25, len / 2);
-        const startX = elem.x + (dx / len) * (len / 2 - margin);
-        const startY = elem.y + (dy / len) * (len / 2 - margin);
-        const endX = elem.x2 - (dx / len) * (len / 2 - margin);
-        const endY = elem.y2 - (dy / len) * (len / 2 - margin);
-
-        const line1 = activeDocument.createElementNS(svgNS, 'line');
-        line1.setAttribute('x1', elem.x.toString());
-        line1.setAttribute('y1', elem.y.toString());
-        line1.setAttribute('x2', startX.toString());
-        line1.setAttribute('y2', startY.toString());
-        line1.setAttribute(
-          'stroke',
-          selectedVertices.some(v => v.elementId === elem.id)
-            ? 'var(--text-accent)'
-            : elem.style.color || 'var(--text-normal)'
-        );
-        line1.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
-        group.appendChild(line1);
-
-        const line2 = activeDocument.createElementNS(svgNS, 'line');
-        line2.setAttribute('x1', endX.toString());
-        line2.setAttribute('y1', endY.toString());
-        line2.setAttribute('x2', elem.x2.toString());
-        line2.setAttribute('y2', elem.y2.toString());
-        line2.setAttribute(
-          'stroke',
-          selectedVertices.some(v => v.elementId === elem.id)
-            ? 'var(--text-accent)'
-            : elem.style.color || 'var(--text-normal)'
-        );
-        line2.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
-        group.appendChild(line2);
-
-        const innerG = activeDocument.createElementNS(svgNS, 'g');
-        innerG.setAttribute(
-          'transform',
-          `translate(${midX}, ${midY}) rotate(${angle}) translate(-25, -10)`
-        );
-
-        const svgWrap = activeDocument.createElementNS(svgNS, 'g');
-        svgWrap.setAttribute('class', 'comp-svg-fill');
-        const wireColor = selectedVertices.some(v => v.elementId === elem.id)
-          ? 'var(--text-accent)'
-          : elem.style.color || 'var(--text-normal)';
-        svgWrap.style.color = wireColor;
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(elem.svgMarkup, 'text/html');
-        const svgNode = doc.querySelector('svg');
-        if (svgNode) {
-          svgNode.setCssStyles({ color: wireColor });
-          svgNode.setAttribute('stroke', wireColor);
-          svgNode.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
-          svgWrap.appendChild(activeDocument.importNode(svgNode, true));
-        }
-        innerG.appendChild(svgWrap);
-        group.appendChild(innerG);
+        const path = activeDocument.createElementNS(svgNS, 'path');
+        path.setAttribute('d', geom.pathD);
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', (elem.style.thickness ?? 1.5).toString());
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        group.appendChild(path);
 
         if (elem.label) {
+          const isRight = geom.normalX >= 0;
+          const lx = geom.cuspX + geom.normalX * 10;
+          const ly = geom.cuspY + geom.normalY * 10;
+          const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
+
           if (elem.style.math) {
             const foreign = activeDocument.createElementNS(svgNS, 'foreignObject');
-            foreign.setAttribute('x', (midX - 100).toString());
-            foreign.setAttribute('y', (midY - 28).toString());
+            foreign.setAttribute('x', (isRight ? lx : lx - 200).toString());
+            foreign.setAttribute('y', (ly - 20).toString());
             foreign.setAttribute('width', '200');
-            foreign.setAttribute('height', '24');
+            foreign.setAttribute('height', '40');
             foreign.setCssStyles({ overflow: 'visible' });
 
             const div = activeDocument.createElement('div');
             div.setCssStyles({
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: isRight ? 'flex-start' : 'flex-end',
               alignItems: 'center',
               width: '100%',
               height: '100%',
-              fontSize: `${elem.style.fontSize}px`,
+              fontSize: `${fontSizePx}px`,
               color: elem.style.color || 'var(--text-normal)'
             });
 
             try {
               const mathEl = renderMath(elem.label, false);
+              mathEl.style.fontSize = `${fontSizePx}px`;
               div.appendChild(mathEl);
               const MathJax = (
                 window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
@@ -287,16 +270,221 @@ export class CanvasGrid {
             group.appendChild(foreign);
           } else {
             const text = activeDocument.createElementNS(svgNS, 'text');
-            text.setAttribute('x', midX.toString());
-            text.setAttribute('y', (midY - 18).toString());
-            text.setAttribute('font-size', `${elem.style.fontSize}px`);
+            text.setAttribute('x', lx.toString());
+            text.setAttribute('y', ly.toString());
+            text.setAttribute('font-size', `${fontSizePx}px`);
             text.setAttribute('font-weight', elem.style.bold ? 'bold' : 'normal');
             text.setAttribute('font-style', elem.style.italic ? 'italic' : 'normal');
             text.setAttribute('fill', elem.style.color || 'var(--text-normal)');
-            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('text-anchor', isRight ? 'start' : 'end');
             text.setAttribute('dominant-baseline', 'middle');
             text.textContent = elem.label;
             group.appendChild(text);
+          }
+        }
+      } else {
+        const lineClick = activeDocument.createElementNS(svgNS, 'line');
+        lineClick.setAttribute('x1', elem.x.toString());
+        lineClick.setAttribute('y1', elem.y.toString());
+        lineClick.setAttribute('x2', elem.x2.toString());
+        lineClick.setAttribute('y2', elem.y2.toString());
+        lineClick.setAttribute('stroke', 'transparent');
+        lineClick.setAttribute('stroke-width', '12');
+        lineClick.setCssStyles({ cursor: 'pointer' });
+        group.appendChild(lineClick);
+
+        const isBasicWire =
+          elem.name === 'Wire' || elem.name === 'Dashed Wire' || elem.name === 'Arrow';
+        if (isBasicWire) {
+          const strokeColor = selectedVertices.some(v => v.elementId === elem.id)
+            ? 'var(--text-accent)'
+            : elem.style.color && elem.style.color !== '#f8e7ad'
+              ? elem.style.color
+              : '#e2e8f0';
+
+          if (elem.style.lineStyle === 'crossed') {
+            const dx = elem.x2 - elem.x;
+            const dy = elem.y2 - elem.y;
+            const len = Math.hypot(dx, dy);
+            if (len > 0) {
+              const path = activeDocument.createElementNS(svgNS, 'path');
+              const ux = dx / len;
+              const uy = dy / len;
+              const vx = -uy;
+              const vy = ux;
+              const crossSize = Math.max(3.5, 3 * (elem.style.thickness ?? 1.0));
+              const d1x = (ux + vx) * crossSize * 0.7071;
+              const d1y = (uy + vy) * crossSize * 0.7071;
+              const d2x = (ux - vx) * crossSize * 0.7071;
+              const d2y = (uy - vy) * crossSize * 0.7071;
+
+              const step = 8;
+              let pathData = '';
+              const count = Math.max(1, Math.floor(len / step));
+              for (let i = 0; i <= count; i++) {
+                const d = (i / count) * len;
+                const cx = elem.x + ux * d;
+                const cy = elem.y + uy * d;
+                pathData += `M ${cx - d1x} ${cy - d1y} L ${cx + d1x} ${cy + d1y} `;
+                pathData += `M ${cx - d2x} ${cy - d2y} L ${cx + d2x} ${cy + d2y} `;
+              }
+              path.setAttribute('d', pathData.trim());
+              path.setAttribute('stroke', strokeColor);
+              path.setAttribute('stroke-width', (elem.style.thickness ?? 1.5).toString());
+              path.setAttribute('stroke-linecap', 'round');
+              group.appendChild(path);
+            }
+          } else {
+            const line = activeDocument.createElementNS(svgNS, 'line');
+            line.setAttribute('x1', elem.x.toString());
+            line.setAttribute('y1', elem.y.toString());
+            line.setAttribute('x2', elem.x2.toString());
+            line.setAttribute('y2', elem.y2.toString());
+            line.setAttribute('stroke', strokeColor);
+            line.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+
+            if (elem.name === 'Dashed Wire' || elem.style.lineStyle === 'dashed') {
+              line.setAttribute('stroke-dasharray', '6,4');
+            } else if (elem.style.lineStyle === 'dotted') {
+              line.setAttribute('stroke-dasharray', '2,4');
+            }
+
+            group.appendChild(line);
+          }
+
+          if (elem.name === 'Arrow' || elem.style.arrowStyle) {
+            const dx = elem.x2 - elem.x;
+            const dy = elem.y2 - elem.y;
+            const len = Math.hypot(dx, dy);
+            if (len > 0) {
+              const angle = Math.atan2(dy, dx);
+              const headLen = Math.min(10, len);
+              const p1x = elem.x2 - headLen * Math.cos(angle - Math.PI / 6);
+              const p1y = elem.y2 - headLen * Math.sin(angle - Math.PI / 6);
+              const p2x = elem.x2 - headLen * Math.cos(angle + Math.PI / 6);
+              const p2y = elem.y2 - headLen * Math.sin(angle + Math.PI / 6);
+              const head = activeDocument.createElementNS(svgNS, 'polygon');
+              head.setAttribute('points', `${elem.x2},${elem.y2} ${p1x},${p1y} ${p2x},${p2y}`);
+              head.setAttribute('fill', strokeColor);
+              group.appendChild(head);
+            }
+          }
+        } else {
+          const dx = elem.x2 - elem.x;
+          const dy = elem.y2 - elem.y;
+          const len = Math.hypot(dx, dy);
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+          const midX = elem.x + dx / 2;
+          const midY = elem.y + dy / 2;
+
+          const margin = Math.min(25, len / 2);
+          const startX = elem.x + (dx / len) * (len / 2 - margin);
+          const startY = elem.y + (dy / len) * (len / 2 - margin);
+          const endX = elem.x2 - (dx / len) * (len / 2 - margin);
+          const endY = elem.y2 - (dy / len) * (len / 2 - margin);
+
+          const line1 = activeDocument.createElementNS(svgNS, 'line');
+          line1.setAttribute('x1', elem.x.toString());
+          line1.setAttribute('y1', elem.y.toString());
+          line1.setAttribute('x2', startX.toString());
+          line1.setAttribute('y2', startY.toString());
+          line1.setAttribute(
+            'stroke',
+            selectedVertices.some(v => v.elementId === elem.id)
+              ? 'var(--text-accent)'
+              : elem.style.color || 'var(--text-normal)'
+          );
+          line1.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+          group.appendChild(line1);
+
+          const line2 = activeDocument.createElementNS(svgNS, 'line');
+          line2.setAttribute('x1', endX.toString());
+          line2.setAttribute('y1', endY.toString());
+          line2.setAttribute('x2', elem.x2.toString());
+          line2.setAttribute('y2', elem.y2.toString());
+          line2.setAttribute(
+            'stroke',
+            selectedVertices.some(v => v.elementId === elem.id)
+              ? 'var(--text-accent)'
+              : elem.style.color || 'var(--text-normal)'
+          );
+          line2.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+          group.appendChild(line2);
+
+          const innerG = activeDocument.createElementNS(svgNS, 'g');
+          innerG.setAttribute(
+            'transform',
+            `translate(${midX}, ${midY}) rotate(${angle}) translate(-25, -10)`
+          );
+
+          const svgWrap = activeDocument.createElementNS(svgNS, 'g');
+          svgWrap.setAttribute('class', 'comp-svg-fill');
+          const wireColor = selectedVertices.some(v => v.elementId === elem.id)
+            ? 'var(--text-accent)'
+            : elem.style.color || 'var(--text-normal)';
+          svgWrap.style.color = wireColor;
+
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(elem.svgMarkup, 'text/html');
+          const svgNode = doc.querySelector('svg');
+          if (svgNode) {
+            svgNode.setCssStyles({ color: wireColor });
+            svgNode.setAttribute('stroke', wireColor);
+            svgNode.setAttribute('stroke-width', (elem.style.thickness ?? 1.0).toString());
+            svgWrap.appendChild(activeDocument.importNode(svgNode, true));
+          }
+          innerG.appendChild(svgWrap);
+          group.appendChild(innerG);
+
+          if (elem.label) {
+            const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
+            if (elem.style.math) {
+              const foreign = activeDocument.createElementNS(svgNS, 'foreignObject');
+              foreign.setAttribute('x', (midX - 100).toString());
+              foreign.setAttribute('y', (midY - 28).toString());
+              foreign.setAttribute('width', '200');
+              foreign.setAttribute('height', '24');
+              foreign.setCssStyles({ overflow: 'visible' });
+
+              const div = activeDocument.createElement('div');
+              div.setCssStyles({
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                height: '100%',
+                fontSize: `${fontSizePx}px`,
+                color: elem.style.color || 'var(--text-normal)'
+              });
+
+              try {
+                const mathEl = renderMath(elem.label, false);
+                mathEl.style.fontSize = `${fontSizePx}px`;
+                div.appendChild(mathEl);
+                const MathJax = (
+                  window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
+                ).MathJax;
+                if (MathJax && typeof MathJax.chtmlStylesheet === 'function') {
+                  void finishRenderMath();
+                }
+              } catch {
+                div.textContent = elem.label;
+              }
+              foreign.appendChild(div);
+              group.appendChild(foreign);
+            } else {
+              const text = activeDocument.createElementNS(svgNS, 'text');
+              text.setAttribute('x', midX.toString());
+              text.setAttribute('y', (midY - 18).toString());
+              text.setAttribute('font-size', `${fontSizePx}px`);
+              text.setAttribute('font-weight', elem.style.bold ? 'bold' : 'normal');
+              text.setAttribute('font-style', elem.style.italic ? 'italic' : 'normal');
+              text.setAttribute('fill', elem.style.color || 'var(--text-normal)');
+              text.setAttribute('text-anchor', 'middle');
+              text.setAttribute('dominant-baseline', 'middle');
+              text.textContent = elem.label;
+              group.appendChild(text);
+            }
           }
         }
       }
@@ -336,7 +524,27 @@ export class CanvasGrid {
     // Draw active wire preview
     if (this.wireStart && this.wireCurrent) {
       const activeTemplate = this.context.getActiveTemplate();
-      if (activeTemplate && activeTemplate.type === 'wire') {
+      if (
+        activeTemplate &&
+        (activeTemplate.name === 'Right bracket' || activeTemplate.name === 'Left bracket')
+      ) {
+        const dir = activeTemplate.name === 'Left bracket' ? 'left' : 'right';
+        const geom = this.getBracketGeometry(
+          this.wireStart.x,
+          this.wireStart.y,
+          this.wireCurrent.x,
+          this.wireCurrent.y,
+          dir,
+          16
+        );
+        const path = activeDocument.createElementNS(svgNS, 'path');
+        path.setAttribute('d', geom.pathD);
+        path.setAttribute('stroke', 'var(--text-accent)');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-dasharray', '4,4');
+        this.wiresOverlayEl.appendChild(path);
+      } else if (activeTemplate && activeTemplate.type === 'wire') {
         const dx = this.wireCurrent.x - this.wireStart.x;
         const dy = this.wireCurrent.y - this.wireStart.y;
 
@@ -472,13 +680,15 @@ export class CanvasGrid {
       if (elem.type === 'text') {
         const content = activeDocument.createElement('div');
         content.className = 'text-element-content';
-        content.style.fontSize = `${elem.style.fontSize}px`;
+        const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
+        content.style.fontSize = `${fontSizePx}px`;
         content.style.fontWeight = elem.style.bold ? 'bold' : 'normal';
         content.style.fontStyle = elem.style.italic ? 'italic' : 'normal';
         content.style.color = elem.style.color || 'var(--text-normal)';
         if (elem.style.math && elem.label) {
           try {
             const mathEl = renderMath(elem.label, false);
+            mathEl.style.fontSize = `${fontSizePx}px`;
             content.appendChild(mathEl);
             const MathJax = (window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } })
               .MathJax;
@@ -514,11 +724,13 @@ export class CanvasGrid {
         if (elem.label) {
           const label = activeDocument.createElement('div');
           label.className = 'node-label';
-          label.style.fontSize = `${elem.style.fontSize}px`;
+          const fontSizePx = this.ptToCanvasPx(elem.style.fontSize);
+          label.style.fontSize = `${fontSizePx}px`;
           label.style.color = elem.style.color || 'var(--text-normal)';
           if (elem.style.math) {
             try {
               const mathEl = renderMath(elem.label, false);
+              mathEl.style.fontSize = `${fontSizePx}px`;
               label.appendChild(mathEl);
               const MathJax = (
                 window as typeof window & { MathJax?: { chtmlStylesheet?: unknown } }
@@ -605,17 +817,50 @@ export class CanvasGrid {
             this.wireCurrent.x - this.wireStart.x,
             this.wireCurrent.y - this.wireStart.y
           );
-          if (dist > 10) {
-            const angleVal = Math.round(
-              Math.atan2(
-                this.wireCurrent.y - this.wireStart.y,
-                this.wireCurrent.x - this.wireStart.x
-              ) *
-                (180 / Math.PI)
-            );
+          const isBracket =
+            activeTemplate &&
+            (activeTemplate.name === 'Right bracket' || activeTemplate.name === 'Left bracket');
+
+          if (dist > 10 || isBracket) {
+            let startX = this.wireStart.x;
+            let startY = this.wireStart.y;
+            let endX = this.wireCurrent.x;
+            let endY = this.wireCurrent.y;
+
+            if (dist <= 10 && isBracket) {
+              const halfH = this.context.PX_PER_UNIT;
+              startY = this.wireStart.y - halfH;
+              endY = this.wireStart.y + halfH;
+            }
+
+            const angleVal = Math.round(Math.atan2(endY - startY, endX - startX) * (180 / Math.PI));
             const normalizedAngle = (angleVal + 360) % 360;
 
-            if (activeTemplate && activeTemplate.type === 'wire') {
+            if (isBracket && activeTemplate) {
+              const dir = activeTemplate.name === 'Left bracket' ? 'left' : 'right';
+              this.context.handleAddElement({
+                type: 'wire',
+                name: activeTemplate.name,
+                x: startX,
+                y: startY,
+                x2: endX,
+                y2: endY,
+                label: '',
+                rotation: 0,
+                style: {
+                  bold: false,
+                  italic: false,
+                  math: false,
+                  color: '#f8e7ad',
+                  fontSize: 12,
+                  thickness: 1.5,
+                  bracketDirection: dir,
+                  bracketAmplitude: 16
+                },
+                svgMarkup: activeTemplate.svgMarkup,
+                tikzCommand: activeTemplate.tikzCommand
+              });
+            } else if (activeTemplate && activeTemplate.type === 'wire') {
               const isWireComp = activeTemplate.name === 'Wire';
               const wireStyle = isWireComp ? this.context.getActiveWireStyle() : undefined;
               this.context.handleAddElement({
@@ -636,12 +881,14 @@ export class CanvasGrid {
                   thickness: 1.0,
                   lineStyle: wireStyle
                 },
-                svgMarkup: isWireComp && wireStyle
-                  ? AssetsManager.getWireSvgMarkup(wireStyle)
-                  : activeTemplate.svgMarkup,
-                tikzCommand: isWireComp && wireStyle
-                  ? AssetsManager.getWireTikzCommand(wireStyle)
-                  : activeTemplate.tikzCommand
+                svgMarkup:
+                  isWireComp && wireStyle
+                    ? AssetsManager.getWireSvgMarkup(wireStyle)
+                    : activeTemplate.svgMarkup,
+                tikzCommand:
+                  isWireComp && wireStyle
+                    ? AssetsManager.getWireTikzCommand(wireStyle)
+                    : activeTemplate.tikzCommand
               });
             } else {
               const wireStyle = this.context.getActiveWireStyle();
