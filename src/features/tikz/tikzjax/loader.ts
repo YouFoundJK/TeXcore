@@ -20,7 +20,7 @@ interface DviParsedCommand {
   execute(machine: HTMLMachine): void;
 }
 
-class CustomHTMLMachine extends HTMLMachine {
+export class CustomHTMLMachine extends HTMLMachine {
   private originH: number = 0;
   private originV: number = 0;
   private textBlockOriginH: number = 0;
@@ -77,8 +77,10 @@ class CustomHTMLMachine extends HTMLMachine {
         `<span style="background: ${this.color}; position: absolute; top: ${top}pt; left: ${left}pt; width:${b}pt; height: ${a}pt;"></span>\n`
       );
     } else {
-      const relH = (pos.h - this.originH) * this.pointsPerDviUnit;
-      const relV = (this.originV - pos.v) * this.pointsPerDviUnit;
+      const originH = this.textBlockOriginH || this.originH;
+      const originV = this.textBlockOriginV || this.originV;
+      const relH = (pos.h - originH) * this.pointsPerDviUnit;
+      const relV = (pos.v - rule.a - originV) * this.pointsPerDviUnit;
       this.output.write(
         `<rect x="${relH}" y="${relV}" width="${b}" height="${a}" fill="${this.color}" />\n`
       );
@@ -123,7 +125,7 @@ class CustomHTMLMachine extends HTMLMachine {
       );
     } else {
       const relH = (pos.h - this.textBlockOriginH) * this.pointsPerDviUnit;
-      const relV = (this.textBlockOriginV - pos.v) * this.pointsPerDviUnit;
+      const relV = (pos.v - this.textBlockOriginV) * this.pointsPerDviUnit;
       this.output.write(
         `<text alignment-baseline="baseline" y="${relV}" x="${relH}" style="font-family: ${this.font.name}; font-size: ${fontsize};">${htmlText}</text>\n`
       );
