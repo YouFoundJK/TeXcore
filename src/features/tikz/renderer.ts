@@ -7,7 +7,7 @@ export class TikzRenderer {
   private tikzjaxCss: string = '';
   public isLoaded: boolean = false;
 
-  private renderCache = new Map<string, string>();
+  private renderCache = new Map<string, SVGElement>();
 
   constructor(public plugin: LatexReferencer) {
     this.loader = new TikzJaxLoader(this.plugin);
@@ -48,7 +48,11 @@ export class TikzRenderer {
 
   public async render(source: string): Promise<SVGElement> {
     const code = this.tidyTikzSource(source);
-    this.renderCache.delete(code);
+
+    const cached = this.renderCache.get(code);
+    if (cached) {
+      return cached.cloneNode(true) as SVGElement;
+    }
 
     // Lazy-load tikzjax.css if not loaded yet
     if (!this.tikzjaxCss) {
@@ -74,8 +78,16 @@ export class TikzRenderer {
     const svg = await this.loader.render(code);
     this.postProcessSvg(svg);
 
-    // Save outerHTML of post-processed SVG to cache
-    this.renderCache.set(code, svg.outerHTML);
+    // Evict oldest entries if cache exceeds capacity
+    if (this.renderCache.size >= 50) {
+      const oldestKey = this.renderCache.keys().next().value;
+      if (oldestKey) {
+        this.renderCache.delete(oldestKey);
+      }
+    }
+
+    // Save cloned SVG element to cache
+    this.renderCache.set(code, svg.cloneNode(true) as SVGElement);
 
     return svg;
   }

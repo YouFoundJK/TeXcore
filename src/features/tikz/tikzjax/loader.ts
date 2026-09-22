@@ -48,12 +48,13 @@ class CustomHTMLMachine extends HTMLMachine {
 
     let replacedSvg = svgStr.replace(
       '<svg beginpicture>',
-      `<svg beginpicture width="10pt" height="10pt" viewBox="0 0 10 10" style="overflow: visible; position: relative;">`
+      `<svg width="10pt" height="10pt" viewBox="0 0 10 10" style="overflow: visible; position: relative;">`
     );
     replacedSvg = replacedSvg.replace(
       '<svg>',
       `<svg width="10pt" height="10pt" viewBox="0 0 10 10" style="overflow: visible; position: relative;">`
     );
+    replacedSvg = replacedSvg.replace('</svg endpicture>', '</svg>');
 
     const relLeft = (pos.h - this.originH) * this.pointsPerDviUnit;
     const relTop = (pos.v - this.originV) * this.pointsPerDviUnit;
@@ -653,6 +654,8 @@ export class TikzJaxLoader {
         }
       }
     }
+
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
     return svg;
   }

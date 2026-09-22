@@ -295,6 +295,9 @@ export default class LatexReferencer extends Plugin {
 
   async saveSettings() {
     clearEquationCache();
+    if (this.tikzRenderer) {
+      this.tikzRenderer.clearCache();
+    }
     await this.saveData(this.settings);
   }
 
