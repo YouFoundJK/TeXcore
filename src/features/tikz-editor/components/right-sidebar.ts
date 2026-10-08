@@ -405,7 +405,10 @@ export class RightSidebar {
 
           const isCircleShape = selectedElement.name.toLowerCase().includes('circle');
           const minRadius = isCircleShape ? '2.0' : '1.0';
-          const maxRadius = isCircleShape ? '30.0' : '8.0';
+          const maxVal = isCircleShape
+            ? Math.max(30, Math.ceil(selectedElement.radius))
+            : Math.max(8, Math.ceil(selectedElement.radius));
+          const maxRadius = maxVal.toString();
           const stepRadius = isCircleShape ? '1.0' : '0.5';
 
           const radiusGroup = editPanel.createDiv({ cls: 'control-group' });
@@ -425,6 +428,9 @@ export class RightSidebar {
               ...selectedElement,
               radius: rad
             });
+          };
+          radiusSlider.onchange = () => {
+            this.context.saveHistoryState();
           };
         }
 

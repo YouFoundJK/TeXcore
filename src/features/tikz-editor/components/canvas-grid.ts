@@ -710,7 +710,7 @@ export class CanvasGrid {
           });
 
           el.appendChild(input);
-          setTimeout(() => {
+          window.setTimeout(() => {
             input.focus();
             input.select();
           }, 0);
@@ -741,17 +741,63 @@ export class CanvasGrid {
         visual.className = 'node-visual';
         visual.style.color = elem.style.color || 'var(--text-normal)';
 
-        let svg = elem.svgMarkup;
-        if (elem.radius !== undefined) {
-          const svgRadius = elem.radius * 2.5;
-          svg = svg.replace(/r="\d+(\.\d+)?"/g, `r="${svgRadius}"`);
-        }
+        const isPureCircle =
+          elem.name === 'Circle' ||
+          elem.name === 'Filled Circle' ||
+          elem.name === 'Open node' ||
+          elem.name === 'Filled node';
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(svg, 'text/html');
-        const svgNode = doc.querySelector('svg');
-        if (svgNode) {
-          visual.appendChild(activeDocument.importNode(svgNode, true));
+        let radiusPx = 0;
+        if (isPureCircle) {
+          const isFilled =
+            elem.name === 'Filled Circle' ||
+            elem.name === 'Filled node' ||
+            elem.name.toLowerCase().includes('fill');
+          const defaultRadius = elem.name.toLowerCase().includes('circle') ? 12.0 : 2.0;
+          const radiusPt = elem.radius ?? defaultRadius;
+          radiusPx = this.ptToCanvasPx(radiusPt);
+          const strokePt = elem.style.thickness ?? 1.0;
+          const strokePx = Math.max(1, this.ptToCanvasPx(strokePt));
+          const pad = (isFilled ? 0 : strokePx / 2) + 2;
+          const size = Math.ceil((radiusPx + pad) * 2);
+          const center = size / 2;
+
+          const svgNS = 'http://www.w3.org/2000/svg';
+          const svgEl = activeDocument.createElementNS(svgNS, 'svg');
+          svgEl.setAttribute('width', size.toString());
+          svgEl.setAttribute('height', size.toString());
+          svgEl.setAttribute('viewBox', `0 0 ${size} ${size}`);
+          svgEl.setCssStyles({ overflow: 'visible' });
+
+          const circleEl = activeDocument.createElementNS(svgNS, 'circle');
+          circleEl.setAttribute('cx', center.toString());
+          circleEl.setAttribute('cy', center.toString());
+          circleEl.setAttribute('r', radiusPx.toString());
+
+          const color = elem.style.color || 'var(--text-normal)';
+          if (isFilled) {
+            circleEl.setAttribute('fill', color);
+            circleEl.setAttribute('stroke', 'none');
+          } else {
+            circleEl.setAttribute('fill', 'none');
+            circleEl.setAttribute('stroke', color);
+            circleEl.setAttribute('stroke-width', strokePx.toString());
+          }
+          svgEl.appendChild(circleEl);
+          visual.appendChild(svgEl);
+        } else {
+          let svg = elem.svgMarkup;
+          if (elem.radius !== undefined) {
+            const svgRadius = elem.radius * 2.5;
+            svg = svg.replace(/r="\d+(\.\d+)?"/g, `r="${svgRadius}"`);
+          }
+
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(svg, 'text/html');
+          const svgNode = doc.querySelector('svg');
+          if (svgNode) {
+            visual.appendChild(activeDocument.importNode(svgNode, true));
+          }
         }
         el.appendChild(visual);
 
@@ -763,6 +809,9 @@ export class CanvasGrid {
           label.style.fontWeight = elem.style.bold ? 'bold' : 'normal';
           label.style.fontStyle = elem.style.italic ? 'italic' : 'normal';
           label.style.color = elem.style.color || 'var(--text-normal)';
+          if (radiusPx > 0) {
+            label.setCssStyles({ top: `${Math.max(14, radiusPx + 4)}px` });
+          }
 
           void this.textRenderer.renderTextOrMath(
             label,
@@ -804,6 +853,15 @@ export class CanvasGrid {
     const coords = this.getCanvasCoords(e);
 
     if (activeTemplate && activeTemplate.type === 'component') {
+      let radius: number | undefined = undefined;
+      if (activeTemplate.name.toLowerCase().includes('junction')) {
+        radius = 2.5;
+      } else if (activeTemplate.name.toLowerCase().includes('circle')) {
+        radius = 12.0;
+      } else if (activeTemplate.name.toLowerCase().includes('node')) {
+        radius = 2.0;
+      }
+
       this.context.handleAddElement({
         type: 'component',
         name: activeTemplate.name,
@@ -811,6 +869,7 @@ export class CanvasGrid {
         y: coords.y,
         label: '',
         rotation: 0,
+        radius,
         style: {
           bold: false,
           italic: false,

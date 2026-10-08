@@ -531,20 +531,21 @@ export class TikzCodec {
 
       // 2. Circle matching
       const circleMatch = stmt.match(
-        /\\(fill|draw)(?:\s*\[([^\]]*)\])?\s*(\([^)]+\))\s*circle\s*\(\s*(\d+(?:\.\d+)?)\s*(pt|cm)?\s*\)(?:\s*node\[[^\]]*\]\s*\{(.*)\})?/
+        /\\(filldraw|fill|draw)(?:\s*\[([^\]]*)\])?\s*(\([^)]+\))\s*circle\s*(?:\(\s*(\d+(?:\.\d+)?)\s*(pt|cm)?\s*\)|\[\s*radius\s*=\s*(\d+(?:\.\d+)?)\s*(pt|cm)?\s*\])(?:\s*node\[[^\]]*\]\s*\{(.*)\})?/
       );
       if (circleMatch) {
         const point = this.parsePoint(circleMatch[3], currentShift, namedCoords);
         if (point) {
-          let parsedRadius = parseFloat(circleMatch[4]);
-          const unit = circleMatch[5]?.toLowerCase();
+          const rawRadius = circleMatch[4] ?? circleMatch[6];
+          const unit = (circleMatch[5] ?? circleMatch[7])?.toLowerCase();
+          let parsedRadius = rawRadius !== undefined ? parseFloat(rawRadius) : NaN;
           if (!isNaN(parsedRadius)) {
             if (unit === 'cm' || (unit === undefined && parsedRadius < 1.0)) {
               parsedRadius = parsedRadius * 28.45;
             }
-            parsedRadius = Math.max(parsedRadius, 2.0);
+            parsedRadius = Math.max(parsedRadius, 1.0);
           }
-          const isFilled = circleMatch[1] === 'fill';
+          const isFilled = circleMatch[1] === 'fill' || circleMatch[1] === 'filldraw';
           const isLarge = !isNaN(parsedRadius) && parsedRadius >= 6.0;
           let nodeName: 'Filled node' | 'Open node' | 'Circle' | 'Filled Circle';
           if (isFilled) {
@@ -554,12 +555,13 @@ export class TikzCodec {
           }
 
           const optsStyle = this.parseOptions(circleMatch[2] ?? '');
+          const nodeLabel = circleMatch[8] ?? '';
           parsedElements.push(
             this.makeNode(
               nodeName,
               point.x,
               point.y,
-              circleMatch[6] ?? '',
+              nodeLabel,
               isNaN(parsedRadius) ? undefined : parsedRadius,
               optsStyle
             )

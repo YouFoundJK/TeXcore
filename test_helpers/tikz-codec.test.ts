@@ -338,4 +338,28 @@ at (2.15,-1.8)
     expect(generated).not.toContain('{$+$}');
     expect(generated).not.toContain('$$');
   });
+
+  it('correctly parses and round-trips filled and unfilled circles with radii', () => {
+    const tikzCode = `
+\\begin{tikzpicture}
+  \\draw (1.50, 0.50) circle (12pt);
+  \\fill (2.50, 1.50) circle (12pt);
+\\end{tikzpicture}
+`;
+    const result = codec.parse(tikzCode);
+    expect(result.elements.length).toBe(2);
+
+    const drawCircle = result.elements.find(el => el.name === 'Circle');
+    expect(drawCircle).toBeDefined();
+    expect(drawCircle?.radius).toBe(12.0);
+
+    const fillCircle = result.elements.find(el => el.name === 'Filled Circle');
+    expect(fillCircle).toBeDefined();
+    expect(fillCircle?.radius).toBe(12.0);
+
+    const generated = codec.generate(result.elements, '');
+    expect(generated).toContain('\\draw (1.50, 0.50) circle (12pt);');
+    expect(generated).toContain('\\fill (2.50, 1.50) circle (12pt);');
+  });
 });
+
