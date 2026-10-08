@@ -3,7 +3,7 @@
  * Enabled when window.ObsiTeXDebug is true or when debugMode is enabled in plugin settings.
  */
 
-let debugEnabled = true; // Default to true for easy debugging as requested by user
+let debugEnabled = false; // Default to false to avoid spamming console
 
 export function setDebugMode(enabled: boolean): void {
   debugEnabled = enabled;

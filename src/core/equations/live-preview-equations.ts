@@ -77,8 +77,9 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
   const mathBlocks = state.field(mathBlockPositionsField);
   const equationInfos: EquationInfo[] = [];
 
-  console.log(
-    `[ObsiTeX TagManager] parseEquationInfo called for "${file.path}". Found ${mathBlocks.length} math blocks and ${processedEquations.size} processed equations.`
+  logDebug(
+    'TagManager',
+    `parseEquationInfo called for "${file.path}". Found ${mathBlocks.length} math blocks and ${processedEquations.size} processed equations.`
   );
 
   for (const block of mathBlocks) {
@@ -99,8 +100,9 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
     if (id) {
       const eq = processedEquations.get(id);
       const printName = eq?.$printName ?? null;
-      console.log(
-        `[ObsiTeX TagManager] Math block [${block.from}-${block.to}] -> ID: "${id}", printName: "${printName}", subIndices:`,
+      logDebug(
+        'TagManager',
+        `Math block [${block.from}-${block.to}] -> ID: "${id}", printName: "${printName}", subIndices:`,
         eq?.$subIndices ? Array.from(eq.$subIndices) : 'none'
       );
       equationInfos.push({
@@ -111,8 +113,9 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
         subIndices: eq?.$subIndices
       });
     } else {
-      console.log(
-        `[ObsiTeX TagManager] Math block [${block.from}-${block.to}] has NO id comment. Snippet: "${blockText.substring(0, 50).replace(/\n/g, ' ')}"`
+      logDebug(
+        'TagManager',
+        `Math block [${block.from}-${block.to}] has NO id comment. Snippet: "${blockText.substring(0, 50).replace(/\n/g, ' ')}"`
       );
     }
   }
@@ -136,21 +139,22 @@ function createTagManagerPlugin(
       blockedBySelection = false;
 
       constructor(view: EditorView) {
-        console.log('[ObsiTeX TagManager] ViewPlugin created for view.');
+        logDebug('TagManager', 'ViewPlugin created for view.');
         this.scheduleCheck(view);
       }
       update(update: ViewUpdate) {
         const hasTagAnno = update.transactions.some(tr => tr.annotation(tagManagerAnnotation));
         if (!hasTagAnno) {
           if (update.docChanged) {
-            console.log('[ObsiTeX TagManager] ViewUpdate: docChanged. Scheduling check.');
+            logDebug('TagManager', 'ViewUpdate: docChanged. Scheduling check.');
             this.scheduleCheck(update.view);
           }
         }
 
         if (update.selectionSet && this.blockedBySelection) {
-          console.log(
-            '[ObsiTeX TagManager] ViewUpdate: selectionSet while blockedBySelection=true. Scheduling check.'
+          logDebug(
+            'TagManager',
+            'ViewUpdate: selectionSet while blockedBySelection=true. Scheduling check.'
           );
           this.scheduleCheck(update.view);
         }
@@ -163,25 +167,28 @@ function createTagManagerPlugin(
       runCheck(view: EditorView) {
         const hasFocus = view.hasFocus;
         const docFocus = view.dom.ownerDocument?.hasFocus?.();
-        console.log(
-          `[ObsiTeX TagManager] runCheck starting. view.hasFocus=${hasFocus}, docHasFocus=${docFocus}`
+        logDebug(
+          'TagManager',
+          `runCheck starting. view.hasFocus=${hasFocus}, docHasFocus=${docFocus}`
         );
 
         if (hasFocus === false && docFocus) {
-          console.log(
-            '[ObsiTeX TagManager] runCheck skipped: view.hasFocus is false while document has focus.'
+          logDebug(
+            'TagManager',
+            'runCheck skipped: view.hasFocus is false while document has focus.'
           );
           return;
         }
 
         const equationInfos = view.state.field(equationField);
         if (!equationInfos || equationInfos.length === 0) {
-          console.log('[ObsiTeX TagManager] runCheck: no managed equationInfos in field.');
+          logDebug('TagManager', 'runCheck: no managed equationInfos in field.');
           return;
         }
 
-        console.log(
-          `[ObsiTeX TagManager] runCheck evaluating ${equationInfos.length} managed equation(s).`
+        logDebug(
+          'TagManager',
+          `runCheck evaluating ${equationInfos.length} managed equation(s).`
         );
 
         const changes: { from: number; to: number; insert: string }[] = [];
@@ -206,8 +213,9 @@ function createTagManagerPlugin(
 
         for (const info of equationInfos) {
           if (info.from < 0 || info.to > view.state.doc.length || info.from >= info.to) {
-            console.log(
-              `[ObsiTeX TagManager] Safety bounds skip for ${info.id}: [${info.from}-${info.to}], doc length ${view.state.doc.length}`
+            logDebug(
+              'TagManager',
+              `Safety bounds skip for ${info.id}: [${info.from}-${info.to}], doc length ${view.state.doc.length}`
             );
             continue;
           }
@@ -217,8 +225,9 @@ function createTagManagerPlugin(
           );
           if (isNearOrInside) {
             blockedChanges++;
-            console.log(
-              `[ObsiTeX TagManager] Blocked tag check for ${info.id}: cursor selection near/inside block [${info.from}-${info.to}]`
+            logDebug(
+              'TagManager',
+              `Blocked tag check for ${info.id}: cursor selection near/inside block [${info.from}-${info.to}]`
             );
             continue;
           }
@@ -246,8 +255,9 @@ function createTagManagerPlugin(
               }
             }
             if (unclosedTopLevelEnv) {
-              console.log(
-                `[ObsiTeX TagManager] Skipped tag update for ${info.id}: unclosed environment \\begin{${unclosedTopLevelEnv}}`
+              logDebug(
+                'TagManager',
+                `Skipped tag update for ${info.id}: unclosed environment \\begin{${unclosedTopLevelEnv}}`
               );
               continue;
             }
@@ -284,8 +294,9 @@ function createTagManagerPlugin(
 
             if (needsUpdate) {
               const newMathText = newParts.join('');
-              console.log(
-                `[ObsiTeX TagManager] Mode 1: Updating sub-equation tags for ${info.id} to ${baseName}.*`
+              logDebug(
+                'TagManager',
+                `Mode 1: Updating sub-equation tags for ${info.id} to ${baseName}.*`
               );
               changes.push({
                 from: startPos,
@@ -293,8 +304,9 @@ function createTagManagerPlugin(
                 insert: newMathText
               });
             } else {
-              console.log(
-                `[ObsiTeX TagManager] Mode 1: Sub-equation tags for ${info.id} already match ${baseName}.*`
+              logDebug(
+                'TagManager',
+                `Mode 1: Sub-equation tags for ${info.id} already match ${baseName}.*`
               );
             }
             continue;
@@ -304,13 +316,15 @@ function createTagManagerPlugin(
           const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
           const existingTagMatch = mathText.match(/\\tag\{([^{}]+)\}/);
 
-          console.log(
-            `[ObsiTeX TagManager] Mode 2 checking ${info.id}: printName="${info.printName}", requiredTag="${requiredTagContent}", existingTag="${existingTagMatch ? existingTagMatch[1] : 'NONE'}"`
+          logDebug(
+            'TagManager',
+            `Mode 2 checking ${info.id}: printName="${info.printName}", requiredTag="${requiredTagContent}", existingTag="${existingTagMatch ? existingTagMatch[1] : 'NONE'}"`
           );
 
           if (!requiredTagContent) {
-            console.log(
-              `[ObsiTeX TagManager] Mode 2 skip for ${info.id}: requiredTagContent is null`
+            logDebug(
+              'TagManager',
+              `Mode 2 skip for ${info.id}: requiredTagContent is null`
             );
             continue;
           }
@@ -318,21 +332,24 @@ function createTagManagerPlugin(
           const expectedTagStr = `\\tag{${requiredTagContent}}`;
 
           if (blockContent.includes(expectedTagStr)) {
-            console.log(
-              `[ObsiTeX TagManager] Mode 2 OK for ${info.id}: blockContent already contains "${expectedTagStr}"`
+            logDebug(
+              'TagManager',
+              `Mode 2 OK for ${info.id}: blockContent already contains "${expectedTagStr}"`
             );
             continue;
           }
 
           if (existingTagMatch && existingTagMatch.index !== undefined) {
             if (existingTagMatch[1] === requiredTagContent) {
-              console.log(
-                `[ObsiTeX TagManager] Mode 2 OK for ${info.id}: tag content "${existingTagMatch[1]}" already equals required "${requiredTagContent}"`
+              logDebug(
+                'TagManager',
+                `Mode 2 OK for ${info.id}: tag content "${existingTagMatch[1]}" already equals required "${requiredTagContent}"`
               );
               continue;
             }
-            console.log(
-              `[ObsiTeX TagManager] Mode 2 REPLACE for ${info.id}: changing "${existingTagMatch[0]}" -> "${expectedTagStr}"`
+            logDebug(
+              'TagManager',
+              `Mode 2 REPLACE for ${info.id}: changing "${existingTagMatch[0]}" -> "${expectedTagStr}"`
             );
             const tagStart = startPos + existingTagMatch.index;
             const tagEnd = tagStart + existingTagMatch[0].length;
@@ -346,8 +363,9 @@ function createTagManagerPlugin(
             const insertPos = startPos + endEnvMatch.index;
             const beforeChar = view.state.doc.sliceString(insertPos - 1, insertPos);
             const pad = /\s/.test(beforeChar) ? '' : ' ';
-            console.log(
-              `[ObsiTeX TagManager] Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`
+            logDebug(
+              'TagManager',
+              `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`
             );
             changes.push({ from: insertPos, to: insertPos, insert: `${pad}${expectedTagStr}\n` });
             continue;
@@ -360,20 +378,23 @@ function createTagManagerPlugin(
           ) {
             insertPos--;
           }
-          console.log(
-            `[ObsiTeX TagManager] Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" at math end`
+          logDebug(
+            'TagManager',
+            `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" at math end`
           );
           changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr}` });
         }
 
         this.blockedBySelection = blockedChanges > 0;
-        console.log(
-          `[ObsiTeX TagManager] runCheck summary: ${changes.length} change(s) prepared, ${blockedChanges} block(s) selection-blocked.`
+        logDebug(
+          'TagManager',
+          `runCheck summary: ${changes.length} change(s) prepared, ${blockedChanges} block(s) selection-blocked.`
         );
 
         if (changes.length > 0) {
-          console.log(
-            `[ObsiTeX TagManager] Dispatching ${changes.length} tag change(s) to view:`,
+          logDebug(
+            'TagManager',
+            `Dispatching ${changes.length} tag change(s) to view:`,
             changes
           );
           view.dispatch({
