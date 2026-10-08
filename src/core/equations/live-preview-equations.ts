@@ -10,7 +10,7 @@ import {
   findTopLevelEndEnvMatch,
   TOP_LEVEL_EQ_ENVS
 } from 'utils/parse';
-import { logDebug, logWarn } from 'utils/logger';
+import { logDebug } from 'utils/logger';
 
 /**
  * The in-memory state for the TagManager. It holds only the information
@@ -90,10 +90,15 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
     if (idMatch) {
       id = idMatch[1];
     } else {
-      const textAfter = text.substring(block.to, Math.min(text.length, block.to + 100));
-      const nextLineMatch = textAfter.match(/^\s*\n\s*\^(eq-[\w.-]+)/);
-      if (nextLineMatch) {
-        id = nextLineMatch[1];
+      const labelMatch = blockText.match(/\\label\{(eq-[\w.-]+)\}/);
+      if (labelMatch) {
+        id = labelMatch[1];
+      } else {
+        const textAfter = text.substring(block.to, Math.min(text.length, block.to + 100));
+        const nextLineMatch = textAfter.match(/^\s*\n\s*\^(eq-[\w.-]+)/);
+        if (nextLineMatch) {
+          id = nextLineMatch[1];
+        }
       }
     }
 
@@ -186,10 +191,7 @@ function createTagManagerPlugin(
           return;
         }
 
-        logDebug(
-          'TagManager',
-          `runCheck evaluating ${equationInfos.length} managed equation(s).`
-        );
+        logDebug('TagManager', `runCheck evaluating ${equationInfos.length} managed equation(s).`);
 
         const changes: { from: number; to: number; insert: string }[] = [];
         const selection = view.state.selection;
@@ -322,10 +324,7 @@ function createTagManagerPlugin(
           );
 
           if (!requiredTagContent) {
-            logDebug(
-              'TagManager',
-              `Mode 2 skip for ${info.id}: requiredTagContent is null`
-            );
+            logDebug('TagManager', `Mode 2 skip for ${info.id}: requiredTagContent is null`);
             continue;
           }
 
@@ -367,7 +366,13 @@ function createTagManagerPlugin(
               'TagManager',
               `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`
             );
-            changes.push({ from: insertPos, to: insertPos, insert: `${pad}${expectedTagStr}\n` });
+            const isSingleLine = !mathText.includes('\n');
+            const separator = isSingleLine ? ' ' : '\n';
+            changes.push({
+              from: insertPos,
+              to: insertPos,
+              insert: `${pad}${expectedTagStr}${separator}`
+            });
             continue;
           }
 
@@ -392,11 +397,7 @@ function createTagManagerPlugin(
         );
 
         if (changes.length > 0) {
-          logDebug(
-            'TagManager',
-            `Dispatching ${changes.length} tag change(s) to view:`,
-            changes
-          );
+          logDebug('TagManager', `Dispatching ${changes.length} tag change(s) to view:`, changes);
           view.dispatch({
             changes,
             annotations: [tagManagerAnnotation.of(true), Transaction.addToHistory.of(false)]

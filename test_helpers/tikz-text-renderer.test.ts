@@ -3,13 +3,13 @@ import type LatexReferencer from '../src/main';
 
 describe('TikzTextRenderer', () => {
   let mockPlugin: LatexReferencer;
-  let mockRender: jest.Mock;
+  let mockRender: jest.Mock<Promise<SVGElement>, [string]>;
 
   beforeEach(() => {
-    mockRender = jest.fn().mockImplementation(async (snippet: string) => {
+    mockRender = jest.fn<Promise<SVGElement>, [string]>().mockImplementation((snippet: string) => {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('data-snippet', snippet);
-      return svg;
+      return Promise.resolve(svg);
     });
 
     mockPlugin = {

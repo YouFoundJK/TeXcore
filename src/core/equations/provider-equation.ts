@@ -35,16 +35,20 @@ export class ActiveNoteEquationProvider {
         trimmedMathText = trimMathText(trimmedMathText);
       }
 
-      let blockId: string | undefined;
-
+      let blockId: string | undefined = undefined;
       const internalIdMatch = trimmedMathText.match(/% id: (eq-[\w.-]+)/);
       if (internalIdMatch) {
         blockId = internalIdMatch[1];
+      } else {
+        const labelMatch = trimmedMathText.match(/\\label\{(eq-[\w.-]+)\}/);
+        if (labelMatch) {
+          blockId = labelMatch[1];
+        }
       }
 
       const tagMatch = trimmedMathText.match(/\\tag\{(.*?[^\s])\}/);
       let manualTag: string | null = null;
-      if (tagMatch && !internalIdMatch) {
+      if (tagMatch && !blockId) {
         manualTag = tagMatch[1].split('.')[0];
       }
 
@@ -135,9 +139,18 @@ export class ActiveNoteEquationProvider {
             const absStartLine = section.position.start.line + startLineOffset;
             const absEndLine = section.position.start.line + startLineOffset + contentLineCount;
 
+            const startOffset =
+              section.type === 'table'
+                ? section.position.start.offset + block.from
+                : getLineOffset(absStartLine);
+            const endOffset =
+              section.type === 'table'
+                ? section.position.start.offset + block.to
+                : getLineOffset(absEndLine);
+
             const eq = processMathBlock(mathContent, {
-              start: { line: absStartLine, offset: getLineOffset(absStartLine) },
-              end: { line: absEndLine, offset: getLineOffset(absEndLine) }
+              start: { line: absStartLine, offset: startOffset },
+              end: { line: absEndLine, offset: endOffset }
             });
 
             if (eq) {

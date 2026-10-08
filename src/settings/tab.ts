@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, TextAreaComponent, setIcon } from 'obsidian';
 import LatexReferencer from 'main';
-import { NUMBER_STYLES, CustomCallout } from './settings';
+import { NUMBER_STYLES } from './settings';
 import { NoteSuggestModal } from '../ui/custom-notes/modal';
 import { setCssProps } from 'utils/obsidian';
 import { createDescWithDocs } from './docsLinks';
@@ -931,10 +931,10 @@ export class MathSettingTab extends PluginSettingTab {
 
       new Setting(calloutContainer)
         .setName('Callout type')
-        .setDesc('The identifier used in markdown, e.g. "definition" for > [!definition].')
+        .setDesc('The identifier used in Markdown, e.g. "definition" for > [!definition].')
         .addText(text =>
           text
-            .setPlaceholder('e.g. definition')
+            .setPlaceholder('E.g. Definition')
             .setValue(item.type || '')
             .onChange(async value => {
               item.type = value;
@@ -948,7 +948,7 @@ export class MathSettingTab extends PluginSettingTab {
         .setDesc('Optional default title inserted with the callout block.')
         .addText(text =>
           text
-            .setPlaceholder('e.g. Definition')
+            .setPlaceholder('E.g. Definition')
             .setValue(item.title || '')
             .onChange(async value => {
               item.title = value;
@@ -959,7 +959,7 @@ export class MathSettingTab extends PluginSettingTab {
 
       new Setting(calloutContainer)
         .setName('Callout color')
-        .setDesc('Color as RGB triplet (e.g. 219, 51, 96) or Hex code (#db3360).')
+        .setDesc('Color as rgb triplet (e.g. 219, 51, 96) or hex code (#db3360).')
         .addText(text =>
           text
             .setPlaceholder('219, 51, 96 or #db3360')
@@ -973,10 +973,10 @@ export class MathSettingTab extends PluginSettingTab {
 
       new Setting(calloutContainer)
         .setName('Callout icon')
-        .setDesc('Lucide icon identifier (e.g. lucide-bookmark or lucide-brain-circuit).')
+        .setDesc('Lucide icon identifier (e.g. Lucide-bookmark or lucide-brain-circuit).')
         .addText(text =>
           text
-            .setPlaceholder('e.g. lucide-bookmark')
+            .setPlaceholder('E.g. Lucide-bookmark')
             .setValue(item.icon || '')
             .onChange(async value => {
               item.icon = value;
@@ -1006,7 +1006,7 @@ export class MathSettingTab extends PluginSettingTab {
 
         hotkeySetting.addToggle(toggle =>
           toggle
-            .setTooltip('Ctrl / Cmd')
+            .setTooltip('Ctrl / cmd')
             .setValue(mods.includes('Mod'))
             .onChange(async val => {
               if (val && !mods.includes('Mod')) mods.push('Mod');
@@ -1023,7 +1023,7 @@ export class MathSettingTab extends PluginSettingTab {
 
         hotkeySetting.addToggle(toggle =>
           toggle
-            .setTooltip('Alt / Option')
+            .setTooltip('Alt / option')
             .setValue(mods.includes('Alt'))
             .onChange(async val => {
               if (val && !mods.includes('Alt')) mods.push('Alt');
@@ -1057,7 +1057,7 @@ export class MathSettingTab extends PluginSettingTab {
 
         hotkeySetting.addText(text =>
           text
-            .setPlaceholder('Key (e.g. d, b)')
+            .setPlaceholder('Key (e.g. D, b)')
             .setValue(item.hotkeyKey || '')
             .onChange(async value => {
               item.hotkeyKey = value;

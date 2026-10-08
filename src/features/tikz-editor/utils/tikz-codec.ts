@@ -717,9 +717,11 @@ export class TikzCodec {
           }
 
           const name = bracketDirection === 'left' ? 'Left bracket' : 'Right bracket';
+          const defaultTemplate = AssetsManager.getCoreComponents().find(
+            t => t.name === 'Right bracket'
+          );
           const template =
-            AssetsManager.getCoreComponents().find(t => t.name === name) ??
-            AssetsManager.getCoreComponents().find(t => t.name === 'Right bracket')!;
+            AssetsManager.getCoreComponents().find(t => t.name === name) ?? defaultTemplate;
 
           parsedElements.push({
             id: this.createId(),
@@ -743,8 +745,8 @@ export class TikzCodec {
               bracketDirection,
               bracketAmplitude: amplitude
             },
-            svgMarkup: template.svgMarkup,
-            tikzCommand: template.tikzCommand
+            svgMarkup: template?.svgMarkup ?? '',
+            tikzCommand: template?.tikzCommand ?? ''
           });
           continue;
         }

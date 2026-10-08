@@ -26,9 +26,9 @@ export function logDebug(component: string, message: string, data?: unknown): vo
   if (!isDebugEnabled()) return;
   const timestamp = new Date().toISOString().substring(11, 23);
   if (data !== undefined) {
-    console.log(`[ObsiTeX ${timestamp}] [${component}] ${message}`, data);
+    console.debug(`[ObsiTeX ${timestamp}] [${component}] ${message}`, data);
   } else {
-    console.log(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
+    console.debug(`[ObsiTeX ${timestamp}] [${component}] ${message}`);
   }
 }
 

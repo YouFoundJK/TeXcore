@@ -138,10 +138,9 @@ export class TikzTextRenderer {
   }
 
   private appendSpan(container: HTMLElement, text: string, fontSizePx: number): void {
-    const span = document.createElement('span');
+    const span = container.createSpan();
     span.textContent = text;
     span.style.fontSize = `${fontSizePx}px`;
-    container.appendChild(span);
   }
 
   private renderInstantFallback(
@@ -177,7 +176,7 @@ export class TikzTextRenderer {
 
       if (usedMathJax) {
         try {
-          finishRenderMath();
+          void finishRenderMath();
         } catch {
           // ignore
         }
@@ -189,7 +188,7 @@ export class TikzTextRenderer {
         if (color) mathEl.style.color = color;
         container.appendChild(mathEl);
         try {
-          finishRenderMath();
+          void finishRenderMath();
         } catch {
           // ignore
         }

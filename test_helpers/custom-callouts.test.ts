@@ -25,9 +25,8 @@ describe('CustomCalloutManager & formatColorToRgb', () => {
   });
 
   describe('CustomCalloutManager.updateStyles and removeStyles', () => {
-    let styleEl: HTMLStyleElement | null = null;
-
     beforeEach(() => {
+      (window as unknown as { activeDocument: Document }).activeDocument = document;
       document.head.innerHTML = '';
       document.body.innerHTML = '';
       document.body.removeAttribute('style');

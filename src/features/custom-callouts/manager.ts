@@ -38,9 +38,6 @@ export class CustomCalloutManager {
     if (typeof activeDocument !== 'undefined' && activeDocument) {
       docs.push(activeDocument);
     }
-    if (typeof document !== 'undefined' && !docs.includes(document)) {
-      docs.push(document);
-    }
     if (this.plugin?.app?.workspace) {
       try {
         this.plugin.app.workspace.iterateAllLeaves(leaf => {

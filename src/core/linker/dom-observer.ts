@@ -85,6 +85,18 @@ function scanExistingCallouts(plugin: LatexReferencer): void {
 }
 
 /**
+ * Scan all existing table blocks in the DOM and fix any broken equation formatting.
+ */
+function scanExistingTables(): void {
+  const tableBlocks = activeDocument.querySelectorAll('.cm-table-widget, .markdown-rendered table');
+  for (const block of tableBlocks) {
+    if (block.instanceOf(HTMLElement)) {
+      fixMathBrInContainer(block);
+    }
+  }
+}
+
+/**
  * Sets up a MutationObserver on activeDocument.body to detect callout rendering
  * and reprocess equation links within them. Also performs an initial scan
  * after a delay to catch callouts rendered before the cache was ready.
@@ -100,7 +112,13 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
         for (const node of mutation.addedNodes) {
           if (node.instanceOf(HTMLElement)) {
             processEquationLinksInElement(node, plugin);
-            nodesToFix.push(node);
+            const mightContainMath =
+              node.matches?.('.cm-table-widget, table, .math, mjx-container, mjx-merror') ||
+              node.querySelector?.('.cm-table-widget, table, .math, mjx-container, mjx-merror') !==
+                null;
+            if (mightContainMath) {
+              nodesToFix.push(node);
+            }
           }
         }
       }
@@ -113,18 +131,35 @@ export function setupDOMObserver(plugin: LatexReferencer): () => void {
           }
         }
       });
+      // Additional delayed check to catch asynchronous MathJax typesetting in Live Preview tables
+      window.setTimeout(() => {
+        for (const node of nodesToFix) {
+          if (node.isConnected) {
+            fixMathBrInContainer(node);
+          }
+        }
+      }, 120);
     }
   });
 
   observer.observe(activeDocument.body, { childList: true, subtree: true });
 
-  // Initial scan: process callouts that were rendered before the observer
+  // Initial scan: process callouts and tables that were rendered before the observer
   // started or before the equation cache was ready. We use onLayoutReady
-  // to ensure the DOM is fully initialized, plus a small delay to ensure
-  // the equation cache has been built.
+  // to ensure the DOM is fully initialized, plus a small delay.
   plugin.app.workspace.onLayoutReady(() => {
-    window.setTimeout(() => scanExistingCallouts(plugin), 1000);
+    window.setTimeout(() => {
+      scanExistingCallouts(plugin);
+      scanExistingTables();
+    }, 1000);
   });
 
-  return () => observer.disconnect();
+  const leafChangeRef = plugin.app.workspace.on('active-leaf-change', () => {
+    window.setTimeout(() => scanExistingTables(), 200);
+  });
+
+  return () => {
+    observer.disconnect();
+    plugin.app.workspace.offref(leafChangeRef);
+  };
 }

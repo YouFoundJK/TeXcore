@@ -1,6 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { CustomHTMLMachine } from '../src/features/tikz/tikzjax/loader';
 import { Writable } from 'stream';
+
+interface MachineInternal {
+  pointsPerDviUnit: number;
+  svgDepth: number;
+  font: {
+    name: string;
+    designSize: number;
+    scaleFactor: number;
+    metrics: {
+      designSize: number;
+      characters: Record<number, { width: number; height: number; depth: number }>;
+    };
+  };
+  position: { h: number; v: number; w?: number; x?: number; y?: number; z?: number };
+}
 
 describe('CustomHTMLMachine math equation rendering', () => {
   it('correctly preserves vertical orientation of text and rules inside SVG text blocks', () => {
@@ -13,9 +27,10 @@ describe('CustomHTMLMachine math equation rendering', () => {
     });
 
     const machine = new CustomHTMLMachine(page);
-    (machine as any).pointsPerDviUnit = 1;
-    (machine as any).svgDepth = 1;
-    (machine as any).font = {
+    const machineInternal = machine as unknown as MachineInternal;
+    machineInternal.pointsPerDviUnit = 1;
+    machineInternal.svgDepth = 1;
+    machineInternal.font = {
       name: 'cmr10',
       designSize: 655360,
       scaleFactor: 655360,
@@ -30,19 +45,19 @@ describe('CustomHTMLMachine math equation rendering', () => {
     };
 
     // Simulate TeX placing a text block at origin (h=100, v=100)
-    (machine as any).position = { h: 100, v: 100 };
+    machineInternal.position = { h: 100, v: 100 };
     machine.putSVG('<g transform="translate({?x},{?y})">');
 
     // Numerator '1' is higher up in DVI (smaller v, e.g. v=96)
-    (machine as any).position = { h: 105, v: 96 };
+    machineInternal.position = { h: 105, v: 96 };
     machine.putText([49]);
 
     // Fraction bar rule is between them (v=98, height=1)
-    (machine as any).position = { h: 105, v: 98 };
+    machineInternal.position = { h: 105, v: 98 };
     machine.putRule({ a: 1, b: 5 });
 
     // Denominator '2' is lower down in DVI (larger v, e.g. v=103)
-    (machine as any).position = { h: 105, v: 103 };
+    machineInternal.position = { h: 105, v: 103 };
     machine.putText([50]);
 
     machine.putSVG('</g>');

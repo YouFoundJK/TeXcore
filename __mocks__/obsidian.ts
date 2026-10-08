@@ -179,3 +179,17 @@ export class Setting {
 
 export function setIcon(el: HTMLElement, iconId: string): void {}
 export const activeDocument = typeof document !== 'undefined' ? document : null;
+
+export function renderMath(source: string, display: boolean): HTMLElement {
+  const el = typeof document !== 'undefined' ? document.createElement(display ? 'div' : 'span') : ({} as HTMLElement);
+  if (el.className !== undefined) {
+    el.className = display ? 'math math-block is-loaded' : 'math math-inline is-loaded';
+    el.textContent = source;
+  }
+  return el;
+}
+
+export function finishRenderMath(): Promise<void> {
+  return Promise.resolve();
+}
+

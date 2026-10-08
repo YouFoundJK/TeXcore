@@ -28,17 +28,6 @@
 // Helpers — character-level scanner
 // ---------------------------------------------------------------------------
 
-/** Returns true if character at pos in s is preceded by an odd number of backslashes. */
-function isEscaped(s: string, pos: number): boolean {
-  let n = 0;
-  let k = pos - 1;
-  while (k >= 0 && s[k] === '\\') {
-    n++;
-    k--;
-  }
-  return (n & 1) === 1;
-}
-
 // ---------------------------------------------------------------------------
 // Token type tags — for structural decisions
 // ---------------------------------------------------------------------------
