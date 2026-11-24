@@ -41,6 +41,7 @@ import { showNotice, setCssProps } from 'utils/obsidian';
 import { SnippetManager } from 'features/snippets/manager';
 import { CustomNoteManager } from 'features/custom-notes/manager';
 import { CustomCalloutManager } from 'features/custom-callouts/manager';
+import { expandWikiLinksToCodeBlocks } from 'features/link-codeblock';
 import type { TikzRenderer } from './features/tikz/renderer';
 import {
   createRowLayoutProcessor,
@@ -132,6 +133,14 @@ export default class LatexReferencer extends Plugin {
       editorCallback: (editor: Editor) => {
         const block = `\`\`\`obsitex\n${DEFAULT_OBSITEX_TEMPLATE}\n\`\`\`\n`;
         editor.replaceSelection(block);
+      }
+    });
+
+    this.addCommand({
+      id: 'expand-wikilinks-to-codeblocks',
+      name: 'Expand wiki-links to code blocks',
+      editorCallback: (editor: Editor, ctx: MarkdownView | MarkdownFileInfo) => {
+        void expandWikiLinksToCodeBlocks(this.app, editor, ctx.file ?? null);
       }
     });
 
