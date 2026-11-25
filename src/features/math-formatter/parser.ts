@@ -9,7 +9,7 @@
  * code, escaped dollars, etc.) without duplicating it.
  */
 
-import { findDisplayMathBlocks } from 'utils/parse';
+import { findDisplayMathBlocks, MathBlockRange } from 'utils/parse';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,6 +91,56 @@ export function collectFormattedBlocks(
 }
 
 /**
+ * Locates the enclosing display math block that contains the given character
+ * range (or cursor position when startOffset === endOffset).
+ *
+ * Expands hit detection to include:
+ * - Leading horizontal whitespace on the opening line
+ * - Trailing block IDs (`^block-id`) and trailing whitespace on the closing line
+ * - A single trailing newline when a non-empty selection ends at column 0 of the next line
+ *
+ * Returns `null` if the range is not enclosed within any display math block.
+ */
+export function findEnclosingMathBlock(
+  documentText: string,
+  startOffset: number,
+  endOffset = startOffset
+): MathBlockRange | null {
+  const minOffset = Math.min(startOffset, endOffset);
+  const maxOffset = Math.max(startOffset, endOffset);
+  const ranges = findDisplayMathBlocks(documentText);
+
+  for (const range of ranges) {
+    // Include optional trailing block ID on the same line (consistent with formatter.ts, CRLF-safe)
+    const afterClosing = documentText.slice(range.to);
+    const blockIdMatch = afterClosing.match(/^[ \t]*(\^[^\s\r\n]+)/);
+    const effectiveTo = blockIdMatch ? range.to + blockIdMatch[0].length : range.to;
+
+    // Leading horizontal whitespace only on opening line (do NOT include `>` callout prefix)
+    const lineStart = documentText.lastIndexOf('\n', range.from - 1) + 1;
+    const leadingText = documentText.slice(lineStart, range.from);
+    const detectFrom = /^[ \t]*$/.test(leadingText) ? lineStart : range.from;
+
+    // Trailing horizontal whitespace (and \r for CRLF) on closing line
+    const nextNewline = documentText.indexOf('\n', effectiveTo);
+    const lineEnd = nextNewline === -1 ? documentText.length : nextNewline;
+    const trailingText = documentText.slice(effectiveTo, lineEnd);
+    const detectTo = /^[ \t\r]*$/.test(trailingText) ? lineEnd : effectiveTo;
+
+    // Allow a single trailing newline when a non-empty selection starts before detectTo (e.g. Shift+Down)
+    const detectToWithNewline = nextNewline !== -1 && detectTo === lineEnd ? lineEnd + 1 : detectTo;
+    const withinEnd =
+      maxOffset <= detectTo || (minOffset < detectTo && maxOffset <= detectToWithNewline);
+
+    if (minOffset >= detectFrom && withinEnd) {
+      return { from: range.from, to: effectiveTo };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Given a cursor position (character offset) in `documentText`, returns the
  * range of the display math block that contains the cursor, or `null` if the
  * cursor is not inside a display math block.
@@ -98,12 +148,6 @@ export function collectFormattedBlocks(
 export function findBlockAtCursor(
   documentText: string,
   cursorOffset: number
-): { from: number; to: number } | null {
-  const ranges = findDisplayMathBlocks(documentText);
-  for (const range of ranges) {
-    if (cursorOffset >= range.from && cursorOffset <= range.to) {
-      return range;
-    }
-  }
-  return null;
+): MathBlockRange | null {
+  return findEnclosingMathBlock(documentText, cursorOffset, cursorOffset);
 }

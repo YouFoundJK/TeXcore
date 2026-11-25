@@ -9,4 +9,10 @@
  */
 
 export { formatMathContent, formatMathBlock } from './formatter';
-export { replaceMathBlocksInDocument, collectFormattedBlocks, findBlockAtCursor } from './parser';
+export {
+  replaceMathBlocksInDocument,
+  collectFormattedBlocks,
+  findBlockAtCursor,
+  findEnclosingMathBlock,
+  type FormattedBlock
+} from './parser';

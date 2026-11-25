@@ -57,7 +57,7 @@ function tokenise(content: string): Token[] {
   const tokens: Token[] = [];
 
   // We scan line by line, but within each line we look for \begin, \end, \\
-  const lines = content.split('\n');
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
 
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];

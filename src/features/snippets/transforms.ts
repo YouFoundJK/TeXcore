@@ -1,6 +1,13 @@
 import type { Editor, EditorPosition, EditorSelection } from 'obsidian';
+import { findDisplayMathBlocks } from 'utils/parse';
 import { formatMathBlock } from '../math-formatter/formatter';
-import { replaceMathBlocksInDocument } from '../math-formatter/parser';
+import { findEnclosingMathBlock, replaceMathBlocksInDocument } from '../math-formatter/parser';
+
+export type RangeResolver = (
+  documentText: string,
+  fromOffset: number,
+  toOffset: number
+) => { from: number; to: number } | null;
 
 export interface TextTransformSnippet {
   id: string;
@@ -8,11 +15,12 @@ export interface TextTransformSnippet {
   description: string;
   keywords: string[];
   transform: (input: string) => string;
+  resolveRange?: RangeResolver;
 }
 
 export interface TextTransformResult {
   changedCount: number;
-  appliedOn: 'selection' | 'line';
+  appliedOn: 'selection' | 'line' | 'block';
 }
 
 function comparePositionsDesc(a: EditorPosition, b: EditorPosition): number {
@@ -141,24 +149,118 @@ export const BUILTIN_TEXT_TRANSFORM_SNIPPETS: TextTransformSnippet[] = [
   {
     id: 'compact-display-math',
     name: 'Compact Display Math',
-    description: 'Compact selected $$ ... $$ block(s) — select one block or the entire document',
+    description: 'Compact display math block around cursor or inside selection',
     keywords: ['latex', 'math', 'compact', 'format', 'equation', 'display', 'tidy'],
     transform: (input: string): string => {
-      // If input looks like a standalone $$ block, format it directly
       const trimmed = input.trim();
-      if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+      const blocks = findDisplayMathBlocks(trimmed);
+      if (
+        blocks.length === 1 &&
+        blocks[0].from === 0 &&
+        /^[ \t]*(\^[^\s\r\n]+)?$/.test(trimmed.slice(blocks[0].to))
+      ) {
         return formatMathBlock(trimmed);
       }
-      // Otherwise treat as document fragment and format all $$ blocks inside
       return replaceMathBlocksInDocument(input, formatMathBlock);
-    }
+    },
+    resolveRange: findEnclosingMathBlock
   }
 ];
+
+function runResolvedRangeSnippet(
+  editor: Editor,
+  snippet: TextTransformSnippet,
+  resolveRange: RangeResolver
+): TextTransformResult {
+  const content = editor.getValue();
+  const rawTargets: { from: number; to: number; isBlock: boolean }[] = [];
+
+  for (const selection of editor.listSelections()) {
+    const { from, to } = getSelectionRange(selection);
+    const fromOff = editor.posToOffset(from);
+    const toOff = editor.posToOffset(to);
+    const resolved = resolveRange(content, fromOff, toOff);
+
+    if (resolved) {
+      rawTargets.push({ from: resolved.from, to: resolved.to, isBlock: true });
+    } else if (fromOff < toOff) {
+      rawTargets.push({ from: fromOff, to: toOff, isBlock: false });
+    }
+  }
+
+  if (rawTargets.length === 0) {
+    return { changedCount: 0, appliedOn: 'line' };
+  }
+
+  // Sort ascending by start offset (longest range first on ties) and merge overlapping ranges
+  rawTargets.sort((a, b) => a.from - b.from || b.to - a.to);
+  const merged: typeof rawTargets = [];
+  for (const target of rawTargets) {
+    const prev = merged[merged.length - 1];
+    if (prev && target.from <= prev.to) {
+      prev.isBlock =
+        prev.isBlock && target.isBlock && prev.from === target.from && prev.to === target.to;
+      prev.to = Math.max(prev.to, target.to);
+    } else {
+      merged.push({ ...target });
+    }
+  }
+
+  const entries = merged.map(target => {
+    const original = content.slice(target.from, target.to);
+    const transformed = snippet.transform(original);
+    return { ...target, original, transformed, changed: transformed !== original };
+  });
+
+  // Apply edits in descending order so earlier offsets stay valid
+  let changedCount = 0;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.changed) {
+      editor.replaceRange(
+        entry.transformed,
+        editor.offsetToPos(entry.from),
+        editor.offsetToPos(entry.to)
+      );
+      changedCount += 1;
+    }
+  }
+
+  // Compute post-edit selections in ascending order with cumulative length delta
+  let delta = 0;
+  const finalSelections = entries.map(entry => {
+    const finalFrom = entry.from + delta;
+    const finalTo = finalFrom + entry.transformed.length;
+    delta += entry.transformed.length - (entry.to - entry.from);
+    return {
+      anchor: editor.offsetToPos(finalFrom),
+      head: editor.offsetToPos(finalTo)
+    };
+  });
+
+  if (finalSelections.length === 1) {
+    editor.setSelection(finalSelections[0].anchor, finalSelections[0].head);
+  } else if (typeof editor.setSelections === 'function') {
+    editor.setSelections(finalSelections);
+  } else {
+    const last = finalSelections[finalSelections.length - 1];
+    editor.setSelection(last.anchor, last.head);
+  }
+
+  return {
+    changedCount,
+    appliedOn: entries.every(entry => entry.isBlock) ? 'block' : 'selection'
+  };
+}
 
 export function runTextTransformSnippet(
   editor: Editor,
   snippet: TextTransformSnippet
 ): TextTransformResult {
+  if (snippet.resolveRange) {
+    return runResolvedRangeSnippet(editor, snippet, snippet.resolveRange);
+  }
+
   const allSelections = editor.listSelections();
   const nonEmptySelections = allSelections.filter(selection => !isSelectionEmpty(selection));
 
