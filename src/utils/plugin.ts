@@ -48,13 +48,22 @@ export async function insertBlockIdIfNotExist(
   // Get the full text of the math block from the file, e.g., "$$\n\\sin(x)\n$$"
   const originalText = await io.getRange(block.$pos);
 
-  // Detect prefix from the opening line (e.g. "> ", "   > ")
-  // We only care if it has blockquotes, as indentation alone usually works fine.
-  const prefix = getCalloutPrefix(originalText);
+  // Detect callout prefix from the full opening line (since block.$pos.start starts at $$ after '> ')
+  const openingLine = await io.getLine(block.$pos.start.line);
+  const prefix = getCalloutPrefix(openingLine);
+
+  // Guard against stale/invalid range that does not start with $$
+  const strippedStart = originalText.startsWith(prefix)
+    ? originalText.slice(prefix.length)
+    : originalText;
+  if (!strippedStart.trimStart().startsWith('$$')) {
+    showNotice(`${plugin.manifest.name}: Equation block range is out of sync; please retry.`);
+    return;
+  }
 
   // Find the position to insert the ID comment. This should be just before the closing '$$'.
   const insertOffsetInBlock = originalText.lastIndexOf('$$');
-  if (insertOffsetInBlock === -1) {
+  if (insertOffsetInBlock <= 0) {
     // This should not be reached if the block is a valid math block.
     showNotice(`${plugin.manifest.name}: Could not find closing $$ in the math block.`);
     return;
@@ -93,7 +102,7 @@ export async function insertBlockIdIfNotExist(
   const newText = preText + (needsNewline ? '\n' : '') + idComment + closingTag + suffix;
 
   // Use the File IO interface to replace the old block content with the new content.
-  await io.setRange(block.$pos, newText);
+  await io.setRange(block.$pos, newText, originalText);
 
   // Calculate lines added strictly by counting newlines in the *inserted* portion relative to *removed* portion?
   // The previous logic just counted newlines in `textToInsert`.

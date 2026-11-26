@@ -19,7 +19,10 @@ import { LatexLinkProvider } from './core/linker/latex-provider';
 import { createEquationNumberProcessor } from 'core/equations/reading-view-equations';
 import { CustomMathLinksProcessor } from './core/linker/reading-view-linker';
 import { setupDOMObserver } from './core/linker/dom-observer';
-import { createEquationNumberPlugin } from 'core/equations/live-preview-equations';
+import {
+  createEquationNumberPlugin,
+  resetEquationPluginState
+} from 'core/equations/live-preview-equations';
 import {
   createObsitexAutoTemplatePlugin,
   DEFAULT_OBSITEX_TEMPLATE
@@ -295,6 +298,7 @@ export default class LatexReferencer extends Plugin {
   }
 
   onunload() {
+    resetEquationPluginState();
     this.customCalloutManager?.onUnload();
     if (this.tikzRenderer) {
       this.tikzRenderer.onUnload();

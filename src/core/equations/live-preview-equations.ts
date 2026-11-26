@@ -3,13 +3,8 @@ import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorInfoField, MarkdownView } from 'obsidian';
 import LatexReferencer from 'main';
 import { processActiveNoteEquations } from './numbering';
-import {
-  CALLOUT_PREFIX_REGEX,
-  findDisplayMathBlocks,
-  splitMathIntoTopLevelRows,
-  findTopLevelEndEnvMatch,
-  TOP_LEVEL_EQ_ENVS
-} from 'utils/parse';
+import { extractEquationId, findDisplayMathBlocks, getCalloutPrefix } from 'utils/parse';
+import { computeSafeTagUpdate } from './tag-updater';
 import { logDebug } from 'utils/logger';
 
 /**
@@ -48,8 +43,8 @@ function findMathBlocks(state: EditorState): readonly { from: number; to: number
     const closeLineStart = text.lastIndexOf('\n', closePos - 1) + 1;
     const closePrefix = text.substring(closeLineStart, closePos);
 
-    const openCallout = (openPrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
-    const closeCallout = (closePrefix.match(CALLOUT_PREFIX_REGEX) || [''])[0];
+    const openCallout = getCalloutPrefix(openPrefix);
+    const closeCallout = getCalloutPrefix(closePrefix);
     return openCallout === closeCallout;
   });
 }
@@ -73,9 +68,10 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
   const file = state.field(editorInfoField).file;
   if (!file) return [];
 
-  const processedEquations = processActiveNoteEquations(plugin, file, text);
   const mathBlocks = state.field(mathBlockPositionsField);
+  const processedEquations = processActiveNoteEquations(plugin, file, text, undefined, mathBlocks);
   const equationInfos: EquationInfo[] = [];
+  const seenIds = new Set<string>();
 
   logDebug(
     'TagManager',
@@ -84,25 +80,11 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
 
   for (const block of mathBlocks) {
     const blockText = state.doc.sliceString(block.from, block.to);
-    let id: string | null = null;
+    const trailingAfter = text.slice(block.to, Math.min(text.length, block.to + 120));
+    const id = extractEquationId(blockText, trailingAfter, false);
 
-    const idMatch = blockText.match(/% id: (eq-[\w.-]+)/);
-    if (idMatch) {
-      id = idMatch[1];
-    } else {
-      const labelMatch = blockText.match(/\\label\{(eq-[\w.-]+)\}/);
-      if (labelMatch) {
-        id = labelMatch[1];
-      } else {
-        const textAfter = text.substring(block.to, Math.min(text.length, block.to + 100));
-        const nextLineMatch = textAfter.match(/^\s*\n\s*\^(eq-[\w.-]+)/);
-        if (nextLineMatch) {
-          id = nextLineMatch[1];
-        }
-      }
-    }
-
-    if (id) {
+    if (id && !seenIds.has(id)) {
+      seenIds.add(id);
       const eq = processedEquations.get(id);
       const printName = eq?.$printName ?? null;
       logDebug(
@@ -117,7 +99,7 @@ function parseEquationInfo(state: EditorState, plugin: LatexReferencer): Equatio
         printName: printName,
         subIndices: eq?.$subIndices
       });
-    } else {
+    } else if (!id) {
       logDebug(
         'TagManager',
         `Math block [${block.from}-${block.to}] has NO id comment. Snippet: "${blockText.substring(0, 50).replace(/\n/g, ' ')}"`
@@ -142,6 +124,7 @@ function createTagManagerPlugin(
     class {
       timeout: number | null = null;
       blockedBySelection = false;
+      pendingCheckOnFocus = false;
 
       constructor(view: EditorView) {
         logDebug('TagManager', 'ViewPlugin created for view.');
@@ -163,6 +146,12 @@ function createTagManagerPlugin(
           );
           this.scheduleCheck(update.view);
         }
+
+        if (update.focusChanged && update.view.hasFocus && this.pendingCheckOnFocus) {
+          this.pendingCheckOnFocus = false;
+          logDebug('TagManager', 'ViewUpdate: view regained focus. Scheduling pending check.');
+          this.scheduleCheck(update.view);
+        }
       }
       scheduleCheck(view: EditorView) {
         if (this.timeout) window.clearTimeout(this.timeout);
@@ -170,20 +159,17 @@ function createTagManagerPlugin(
       }
 
       runCheck(view: EditorView) {
-        const hasFocus = view.hasFocus;
-        const docFocus = view.dom.ownerDocument?.hasFocus?.();
-        logDebug(
-          'TagManager',
-          `runCheck starting. view.hasFocus=${hasFocus}, docHasFocus=${docFocus}`
-        );
-
-        if (hasFocus === false && docFocus) {
-          logDebug(
-            'TagManager',
-            'runCheck skipped: view.hasFocus is false while document has focus.'
-          );
+        if (view.dom && !view.dom.isConnected) {
+          logDebug('TagManager', 'runCheck skipped: view is detached from DOM.');
           return;
         }
+
+        if (!view.hasFocus) {
+          this.pendingCheckOnFocus = true;
+          logDebug('TagManager', 'runCheck skipped: view does not have focus.');
+          return;
+        }
+        this.pendingCheckOnFocus = false;
 
         const equationInfos = view.state.field(equationField);
         if (!equationInfos || equationInfos.length === 0) {
@@ -214,10 +200,21 @@ function createTagManagerPlugin(
         }
 
         for (const info of equationInfos) {
-          if (info.from < 0 || info.to > view.state.doc.length || info.from >= info.to) {
+          if (info.from < 0 || info.to > view.state.doc.length || info.from + 4 > info.to) {
             logDebug(
               'TagManager',
               `Safety bounds skip for ${info.id}: [${info.from}-${info.to}], doc length ${view.state.doc.length}`
+            );
+            continue;
+          }
+
+          if (
+            view.state.doc.sliceString(info.from, info.from + 2) !== '$$' ||
+            view.state.doc.sliceString(info.to - 2, info.to) !== '$$'
+          ) {
+            logDebug(
+              'TagManager',
+              `Delimiter mismatch skip for ${info.id}: [${info.from}-${info.to}]`
             );
             continue;
           }
@@ -239,155 +236,20 @@ function createTagManagerPlugin(
           if (startPos >= endPos) continue;
 
           const blockContent = view.state.doc.sliceString(startPos, endPos);
-          const idCommentMatch = blockContent.match(/\s*% id: eq-[\w.-]+/);
-          const idIndex = idCommentMatch ? (idCommentMatch.index ?? -1) : -1;
-          const mathText = idIndex !== -1 ? blockContent.substring(0, idIndex) : blockContent;
 
-          const beginEnvMatches = mathText.match(/\\begin\{\s*([a-zA-Z*]+)\s*\}/g);
-          if (beginEnvMatches) {
-            let unclosedTopLevelEnv: string | null = null;
-            for (const m of beginEnvMatches) {
-              const envName = m.match(/\\begin\{\s*([a-zA-Z*]+)\s*\}/)?.[1];
-              if (envName && TOP_LEVEL_EQ_ENVS.has(envName)) {
-                const endEnvMatch = findTopLevelEndEnvMatch(mathText);
-                if (!endEnvMatch) {
-                  unclosedTopLevelEnv = envName;
-                  break;
-                }
-              }
-            }
-            if (unclosedTopLevelEnv) {
-              logDebug(
-                'TagManager',
-                `Skipped tag update for ${info.id}: unclosed environment \\begin{${unclosedTopLevelEnv}}`
-              );
-              continue;
-            }
-          }
+          const updatedBlockContent = computeSafeTagUpdate(blockContent, {
+            printName: info.printName,
+            subIndices: info.subIndices
+          });
 
-          // Mode 1: Sub-equations
-          if (info.subIndices && info.subIndices.size > 0 && info.printName) {
-            const baseName = info.printName.slice(1, -1);
-            const parts = splitMathIntoTopLevelRows(mathText);
-            let needsUpdate = false;
-            const newParts = [...parts];
-
-            for (let i = 0; i < parts.length; i += 2) {
-              const row = parts[i];
-              const cleanedRow = row.replace(/^[ \t]+/, '');
-              if (cleanedRow.trim() === '') continue;
-              const subIndex = i / 2 + 1;
-              const expectedTag = `\\tag{${baseName}.${subIndex}}`;
-
-              if (!cleanedRow.includes(expectedTag)) {
-                needsUpdate = true;
-                const stripped = cleanedRow.replace(/\\tag\{[^{}]+\}/g, '');
-                const endEnvMatch = findTopLevelEndEnvMatch(stripped);
-                if (endEnvMatch && endEnvMatch.index !== undefined) {
-                  const before = stripped.substring(0, endEnvMatch.index).trimEnd();
-                  const environment = endEnvMatch.matchText;
-                  const after = stripped.substring(endEnvMatch.index + environment.length);
-                  newParts[i] = `${before} ${expectedTag} ${environment}${after}`;
-                } else {
-                  newParts[i] = `${stripped.trimEnd()} ${expectedTag}`;
-                }
-              }
-            }
-
-            if (needsUpdate) {
-              const newMathText = newParts.join('');
-              logDebug(
-                'TagManager',
-                `Mode 1: Updating sub-equation tags for ${info.id} to ${baseName}.*`
-              );
-              changes.push({
-                from: startPos,
-                to: startPos + mathText.length,
-                insert: newMathText
-              });
-            } else {
-              logDebug(
-                'TagManager',
-                `Mode 1: Sub-equation tags for ${info.id} already match ${baseName}.*`
-              );
-            }
-            continue;
-          }
-
-          // Mode 2: Normal equations
-          const requiredTagContent = info.printName ? info.printName.slice(1, -1) : null;
-          const existingTagMatch = mathText.match(/\\tag\{([^{}]+)\}/);
-
-          logDebug(
-            'TagManager',
-            `Mode 2 checking ${info.id}: printName="${info.printName}", requiredTag="${requiredTagContent}", existingTag="${existingTagMatch ? existingTagMatch[1] : 'NONE'}"`
-          );
-
-          if (!requiredTagContent) {
-            logDebug('TagManager', `Mode 2 skip for ${info.id}: requiredTagContent is null`);
-            continue;
-          }
-
-          const expectedTagStr = `\\tag{${requiredTagContent}}`;
-
-          if (blockContent.includes(expectedTagStr)) {
-            logDebug(
-              'TagManager',
-              `Mode 2 OK for ${info.id}: blockContent already contains "${expectedTagStr}"`
-            );
-            continue;
-          }
-
-          if (existingTagMatch && existingTagMatch.index !== undefined) {
-            if (existingTagMatch[1] === requiredTagContent) {
-              logDebug(
-                'TagManager',
-                `Mode 2 OK for ${info.id}: tag content "${existingTagMatch[1]}" already equals required "${requiredTagContent}"`
-              );
-              continue;
-            }
-            logDebug(
-              'TagManager',
-              `Mode 2 REPLACE for ${info.id}: changing "${existingTagMatch[0]}" -> "${expectedTagStr}"`
-            );
-            const tagStart = startPos + existingTagMatch.index;
-            const tagEnd = tagStart + existingTagMatch[0].length;
-            changes.push({ from: tagStart, to: tagEnd, insert: expectedTagStr });
-            continue;
-          }
-
-          // No tag exists - insert expectedTagStr right BEFORE endEnv or at math end
-          const endEnvMatch = findTopLevelEndEnvMatch(mathText);
-          if (endEnvMatch && endEnvMatch.index !== undefined) {
-            const insertPos = startPos + endEnvMatch.index;
-            const beforeChar = view.state.doc.sliceString(insertPos - 1, insertPos);
-            const pad = /\s/.test(beforeChar) ? '' : ' ';
-            logDebug(
-              'TagManager',
-              `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" BEFORE \\end at doc pos ${insertPos}`
-            );
-            const isSingleLine = !mathText.includes('\n');
-            const separator = isSingleLine ? ' ' : '\n';
+          if (updatedBlockContent !== null) {
+            logDebug('TagManager', `Updating tags for ${info.id} (${info.printName})`);
             changes.push({
-              from: insertPos,
-              to: insertPos,
-              insert: `${pad}${expectedTagStr}${separator}`
+              from: startPos,
+              to: endPos,
+              insert: updatedBlockContent
             });
-            continue;
           }
-
-          let insertPos = startPos + mathText.length;
-          while (
-            insertPos > startPos &&
-            /\s/.test(view.state.doc.sliceString(insertPos - 1, insertPos))
-          ) {
-            insertPos--;
-          }
-          logDebug(
-            'TagManager',
-            `Mode 2 INSERT for ${info.id}: inserting "${expectedTagStr}" at math end`
-          );
-          changes.push({ from: insertPos, to: insertPos, insert: ` ${expectedTagStr}` });
         }
 
         this.blockedBySelection = blockedChanges > 0;
@@ -402,6 +264,13 @@ function createTagManagerPlugin(
             changes,
             annotations: [tagManagerAnnotation.of(true), Transaction.addToHistory.of(false)]
           });
+        }
+      }
+
+      destroy() {
+        if (this.timeout) {
+          window.clearTimeout(this.timeout);
+          this.timeout = null;
         }
       }
     }
@@ -433,4 +302,8 @@ export function createEquationNumberPlugin(plugin: LatexReferencer): Extension {
   activePlugin = plugin;
   const eqField = getEquationField();
   return [mathBlockPositionsField, eqField, createTagManagerPlugin(plugin, eqField)];
+}
+
+export function resetEquationPluginState(): void {
+  activePlugin = null;
 }

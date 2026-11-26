@@ -1,52 +1,50 @@
-import { TFile, App, CachedMetadata, Pos } from 'obsidian';
+import { TFile, App, Pos } from 'obsidian';
 import { EquationBlock } from 'types';
 import {
   trimMathText,
   parseMarkdownComment,
   parseYamlLike,
-  findDisplayMathBlocks
+  findDisplayMathBlocks,
+  CALLOUT_PREFIX_REGEX,
+  MathBlockRange,
+  computeLineStarts,
+  offsetToLineCol,
+  stripCalloutPrefix,
+  extractEquationId
 } from 'utils/parse';
+
+function stripLatexComments(text: string): string {
+  return text.replace(/(^|[^\\])((?:\\\\)*)%[^\n]*/g, '$1$2');
+}
 
 export class ActiveNoteEquationProvider {
   constructor(public app: App) {}
 
-  getEquations(file: TFile, content: string): EquationBlock[] {
-    const cache: CachedMetadata | null = this.app.metadataCache.getFileCache(file);
+  getEquations(
+    file: TFile,
+    content: string,
+    precomputedBlocks?: readonly MathBlockRange[]
+  ): EquationBlock[] {
     const equations: EquationBlock[] = [];
-
-    const lines = content.split('\n');
-    const getLineOffset = (line: number): number => {
-      let offset = 0;
-      for (let i = 0; i < Math.min(line, lines.length); i++) {
-        offset += lines[i].length + 1;
-      }
-      return offset;
-    };
+    const lineStarts = computeLineStarts(content);
 
     const processMathBlock = (
       mathText: string,
+      trailingAfterBlock: string,
       position: {
-        start: { line: number; col?: number; offset: number };
-        end: { line: number; col?: number; offset: number };
+        start: { line: number; col: number; offset: number };
+        end: { line: number; col: number; offset: number };
       }
-    ) => {
+    ): EquationBlock => {
       let trimmedMathText = mathText.trim();
       if (trimmedMathText.startsWith('$$')) {
         trimmedMathText = trimMathText(trimmedMathText);
       }
 
-      let blockId: string | undefined = undefined;
-      const internalIdMatch = trimmedMathText.match(/% id: (eq-[\w.-]+)/);
-      if (internalIdMatch) {
-        blockId = internalIdMatch[1];
-      } else {
-        const labelMatch = trimmedMathText.match(/\\label\{(eq-[\w.-]+)\}/);
-        if (labelMatch) {
-          blockId = labelMatch[1];
-        }
-      }
+      const blockId = extractEquationId(trimmedMathText, trailingAfterBlock, true);
 
-      const tagMatch = trimmedMathText.match(/\\tag\{(.*?[^\s])\}/);
+      const mathWithoutComments = stripLatexComments(trimmedMathText);
+      const tagMatch = mathWithoutComments.match(/\\tag\*?\{(.*?[^\s])\}/);
       let manualTag: string | null = null;
       if (tagMatch && !blockId) {
         manualTag = tagMatch[1].split('.')[0];
@@ -66,12 +64,12 @@ export class ActiveNoteEquationProvider {
       const fullPos: Pos = {
         start: {
           line: position.start.line,
-          col: position.start.col ?? 0,
+          col: position.start.col,
           offset: position.start.offset
         },
         end: {
           line: position.end.line,
-          col: position.end.col ?? 0,
+          col: position.end.col,
           offset: position.end.offset
         }
       };
@@ -91,92 +89,27 @@ export class ActiveNoteEquationProvider {
       };
     };
 
-    if (cache?.sections && cache.sections.length > 0) {
-      for (let i = 0; i < cache.sections.length; i++) {
-        const section = cache.sections[i];
+    const mathBlocks = precomputedBlocks ?? findDisplayMathBlocks(content);
+    for (const block of mathBlocks) {
+      const startLoc = offsetToLineCol(lineStarts, block.from);
+      const endLoc = offsetToLineCol(lineStarts, block.to);
 
-        if (section.type === 'math') {
-          const text = content.slice(section.position.start.offset, section.position.end.offset);
-          const eq = processMathBlock(text, section.position);
-
-          // Legacy ID Check
-          if (!eq.$blockId) {
-            eq.$blockId = section.id;
-            const nextLineIndex = section.position.end.line + 1;
-            if (nextLineIndex < lines.length) {
-              const nextLine = lines[nextLineIndex].trim();
-              const legacyIdMatch = nextLine.match(/^\^([a-zA-Z0-9\-_]+)$/);
-              if (legacyIdMatch) {
-                eq.$blockId = legacyIdMatch[1];
-              }
-            }
-          }
-          equations.push(eq);
-        } else if (
-          section.type === 'callout' ||
-          section.type === 'blockquote' ||
-          section.type === 'list' ||
-          section.type === 'table'
-        ) {
-          const text = content.slice(section.position.start.offset, section.position.end.offset);
-
-          let processedText = text;
-          if (section.type === 'callout' || section.type === 'blockquote') {
-            const splitLines = text.split(/\r?\n/);
-            const cleanLines = splitLines.map(l => l.replace(/^\s*>\s?/, ''));
-            processedText = cleanLines.join('\n');
-          }
-
-          const mathBlocks = findDisplayMathBlocks(processedText);
-
-          for (const block of mathBlocks) {
-            const mathContent = processedText.substring(block.from + 2, block.to - 2);
-            const prefix = processedText.substring(0, block.from);
-            const startLineOffset = (prefix.match(/\n/g) || []).length;
-            const blockText = processedText.substring(block.from, block.to);
-            const contentLineCount = (blockText.match(/\n/g) || []).length;
-
-            const absStartLine = section.position.start.line + startLineOffset;
-            const absEndLine = section.position.start.line + startLineOffset + contentLineCount;
-
-            const startOffset =
-              section.type === 'table'
-                ? section.position.start.offset + block.from
-                : getLineOffset(absStartLine);
-            const endOffset =
-              section.type === 'table'
-                ? section.position.start.offset + block.to
-                : getLineOffset(absEndLine);
-
-            const eq = processMathBlock(mathContent, {
-              start: { line: absStartLine, offset: startOffset },
-              end: { line: absEndLine, offset: endOffset }
-            });
-
-            if (eq) {
-              equations.push(eq);
-            }
-          }
-        }
+      let rawBlockText = content.slice(block.from, block.to);
+      const openLinePrefix = content.slice(lineStarts[startLoc.line], block.from);
+      if (CALLOUT_PREFIX_REGEX.test(openLinePrefix)) {
+        rawBlockText = rawBlockText
+          .split(/\r?\n/)
+          .map(l => stripCalloutPrefix(l))
+          .join('\n');
       }
-    } else {
-      // Fallback: If cache.sections is not available, extract display math directly from content
-      const mathBlocks = findDisplayMathBlocks(content);
-      for (const block of mathBlocks) {
-        const mathContent = content.substring(block.from, block.to);
-        const prefix = content.substring(0, block.from);
-        const startLine = (prefix.match(/\n/g) || []).length;
-        const blockText = content.substring(block.from, block.to);
-        const lineCount = (blockText.match(/\n/g) || []).length;
-        const endLine = startLine + lineCount;
 
-        const eq = processMathBlock(mathContent, {
-          start: { line: startLine, offset: block.from },
-          end: { line: endLine, offset: block.to }
-        });
+      const trailingAfterBlock = content.slice(block.to, Math.min(content.length, block.to + 120));
+      const eq = processMathBlock(rawBlockText, trailingAfterBlock, {
+        start: { line: startLoc.line, col: startLoc.col, offset: block.from },
+        end: { line: endLoc.line, col: endLoc.col, offset: block.to }
+      });
 
-        equations.push(eq);
-      }
+      equations.push(eq);
     }
 
     return equations;

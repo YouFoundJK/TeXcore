@@ -71,6 +71,13 @@ export function createObsitexAutoTemplatePlugin(): Extension {
           });
         }
       }
+
+      destroy() {
+        if (this.timeout) {
+          window.clearTimeout(this.timeout);
+          this.timeout = null;
+        }
+      }
     }
   );
 }

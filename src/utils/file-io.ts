@@ -11,7 +11,7 @@ export abstract class FileIO {
   ) {}
   abstract read(): Promise<string>;
   abstract setLine(lineNumber: number, text: string): Promise<void>;
-  abstract setRange(position: Pos, text: string): Promise<void>;
+  abstract setRange(position: Pos, text: string, expectedOriginal?: string): Promise<void>;
   abstract insertLine(lineNumber: number, text: string): Promise<void>;
   abstract getLine(lineNumber: number): Promise<string>;
   abstract getRange(position: Pos): Promise<string>;
@@ -40,7 +40,7 @@ export class ActiveNoteIO extends FileIO {
     this.editor.setLine(lineNumber, text);
   }
 
-  async setRange(position: Pos, text: string): Promise<void> {
+  async setRange(position: Pos, text: string, _expectedOriginal?: string): Promise<void> {
     const from = locToEditorPosition(position.start);
     const to = locToEditorPosition(position.end);
     this.editor.replaceRange(text, from, to);
@@ -85,12 +85,16 @@ export class NonActiveNoteIO extends FileIO {
     });
   }
 
-  async setRange(position: Pos, text: string): Promise<void> {
+  async setRange(position: Pos, text: string, expectedOriginal?: string): Promise<void> {
     await this.plugin.app.vault.process(this.file, (data: string): string => {
+      if (
+        expectedOriginal !== undefined &&
+        data.slice(position.start.offset, position.end.offset) !== expectedOriginal
+      ) {
+        return data;
+      }
       return (
-        data.slice(0, position.start.offset) +
-        text +
-        data.slice(position.end.offset + 1, data.length)
+        data.slice(0, position.start.offset) + text + data.slice(position.end.offset, data.length)
       );
     });
   }

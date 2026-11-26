@@ -8,6 +8,7 @@ import { processActiveNoteEquations } from './numbering';
 import { EquationBlock } from 'types';
 import { cleanMathBrTags } from '../../utils/fixer';
 import { fixMathInTableElement } from '../../utils/math-table-sanitizer';
+import { hasNonCommentTag } from '../../utils/parse';
 
 /**
  * Universal surgical fix for <br> / &lt;br&gt; / < b r > in rendered MathJax containers.
@@ -90,7 +91,7 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer): Markdown
         if (equation?.$printName && !equation.$subIndices) {
           const hasMjxTag = Boolean(
             mathEl.querySelector('mjx-labels, mjx-tag, .mjx-tag') ||
-            (equation.$mathText && equation.$mathText.includes('\\tag{'))
+            (equation.$mathText && hasNonCommentTag(equation.$mathText))
           );
 
           if (hasMjxTag) {

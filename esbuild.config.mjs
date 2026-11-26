@@ -33,7 +33,7 @@ async function build() {
             const rootDir = process.cwd();
             const devEnvDir = path.join(
               rootDir,
-              '../plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/TeXcore'
+              '../FCR/plugin-full-calendar/obsidian-dev-vault/.obsidian/plugins/TeXcore'
             );
 
             // Ensure dev output directory exists

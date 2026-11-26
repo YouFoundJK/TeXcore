@@ -1,6 +1,7 @@
 import { TFile, MarkdownView } from 'obsidian';
 import { CONVERTER } from '../../utils/format';
 import { parsePositionalObsitexConfigs } from '../../utils/obsitex';
+import { computeLineStarts, MathBlockRange } from '../../utils/parse';
 import { EquationBlock } from '../../types';
 import LatexReferencer from '../../main';
 import { ActiveNoteEquationProvider } from './provider-equation';
@@ -72,7 +73,8 @@ export function processActiveNoteEquations(
   plugin: LatexReferencer,
   file: TFile,
   content: string,
-  referencerContent?: string
+  referencerContent?: string,
+  precomputedBlocks?: readonly MathBlockRange[]
 ): Map<string, EquationBlock> {
   const settings = plugin.settings;
   const settingsKey = `${settings.eqNumberPrefix}_${settings.eqNumberSuffix}_${settings.eqNumberInit}_${settings.eqNumberStyle}_${settings.numberOnlyReferencedEquations}_${settings.eqRefPrefix}_${settings.eqRefSuffix}`;
@@ -89,7 +91,7 @@ export function processActiveNoteEquations(
   }
 
   const provider = new ActiveNoteEquationProvider(plugin.app);
-  const equations = provider.getEquations(file, content);
+  const equations = provider.getEquations(file, content, precomputedBlocks);
 
   // 1. Scan document(s) to build a map of reference counts.
   const referenceMap = new Map<string, ReferenceInfo>();
@@ -129,17 +131,13 @@ export function processActiveNoteEquations(
   let equationCount = 0;
   const eqSuffix = settings.eqNumberSuffix;
 
-  const lines = content.split('\n');
+  const lineStarts = computeLineStarts(content);
   const getEqOffset = (eq: EquationBlock): number => {
     if (eq.$pos?.start?.offset && eq.$pos.start.offset > 0) {
       return eq.$pos.start.offset;
     }
     const line = eq.$pos?.start?.line ?? 0;
-    let offset = 0;
-    for (let i = 0; i < Math.min(line, lines.length); i++) {
-      offset += lines[i].length + 1;
-    }
-    return offset;
+    return lineStarts[Math.min(line, lineStarts.length - 1)] ?? 0;
   };
 
   // 2. Process each equation using the pre-computed reference map.
@@ -161,6 +159,13 @@ export function processActiveNoteEquations(
     let refName: string | null = null;
 
     if (eq.$blockId) {
+      // M3: Guard against duplicate equation IDs colliding in the map
+      if (processedEquations.has(eq.$blockId)) {
+        eq.$printName = null;
+        eq.$refName = null;
+        continue;
+      }
+
       const refInfo = referenceMap.get(eq.$blockId);
       const backlinkCount = refInfo?.totalCount ?? 0;
       const subIndices = refInfo?.subIndices;

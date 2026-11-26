@@ -237,8 +237,8 @@ $$
       {
         type: 'math',
         position: {
-          start: { line: 9, col: 0, offset: eq2Start },
-          end: { line: 12, col: 2, offset: eq2End }
+          start: { line: 10, col: 0, offset: eq2Start },
+          end: { line: 13, col: 2, offset: eq2End }
         }
       }
     ];
@@ -280,8 +280,8 @@ $$
     expect(cache.blocks!['eq-222']).toEqual({
       id: 'eq-222',
       position: {
-        start: { line: 9, col: 0, offset: eq2Start },
-        end: { line: 12, col: 2, offset: eq2End }
+        start: { line: 10, col: 0, offset: eq2Start },
+        end: { line: 13, col: 2, offset: eq2End }
       }
     });
   });

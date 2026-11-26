@@ -32,12 +32,15 @@
 // Token type tags — for structural decisions
 // ---------------------------------------------------------------------------
 
+import { isEscapedAt } from 'utils/parse';
+
 type TokenKind =
   | 'text' // ordinary content (commands, symbols, letters, digits)
   | 'newline' // a single \n
   | 'row_break' // \\ or \\[...] — mandatory row separator
   | 'env_begin' // \begin{name}
-  | 'env_end'; // \end{name}
+  | 'env_end' // \end{name}
+  | 'comment'; // % ... LaTeX comment to end of line
 
 interface Token {
   kind: TokenKind;
@@ -72,7 +75,18 @@ function tokenise(content: string): Token[] {
       continue;
     }
 
-    // Within a line, scan for \begin{}, \end{}, and \\ row breaks.
+    // Split off trailing unescaped % comment on this line
+    let commentIdx = -1;
+    for (let ci = 0; ci < line.length; ci++) {
+      if (line[ci] === '%' && !isEscapedAt(line, ci)) {
+        commentIdx = ci;
+        break;
+      }
+    }
+    const mathPart = commentIdx === -1 ? line : line.slice(0, commentIdx);
+    const commentPart = commentIdx === -1 ? '' : line.slice(commentIdx);
+
+    // Within the math part of the line, scan for \begin{}, \end{}, and \\ row breaks.
     // Everything between them is `text`.
     const LINE_TOKEN_RE = /\\begin\{([^}]*)\}|\\end\{([^}]*)\}|(\\\\(?:\s*\[[^\]]*\])?)/g;
 
@@ -80,10 +94,10 @@ function tokenise(content: string): Token[] {
     let match: RegExpExecArray | null;
     LINE_TOKEN_RE.lastIndex = 0;
 
-    while ((match = LINE_TOKEN_RE.exec(line)) !== null) {
+    while ((match = LINE_TOKEN_RE.exec(mathPart)) !== null) {
       // Text before this match
       if (match.index > lastIndex) {
-        const chunk = line.slice(lastIndex, match.index);
+        const chunk = mathPart.slice(lastIndex, match.index);
         if (chunk.length > 0) {
           tokens.push({ kind: 'text', value: chunk });
         }
@@ -100,9 +114,13 @@ function tokenise(content: string): Token[] {
       lastIndex = LINE_TOKEN_RE.lastIndex;
     }
 
-    // Remaining text on this line
-    if (lastIndex < line.length) {
-      tokens.push({ kind: 'text', value: line.slice(lastIndex) });
+    // Remaining math text on this line
+    if (lastIndex < mathPart.length) {
+      tokens.push({ kind: 'text', value: mathPart.slice(lastIndex) });
+    }
+
+    if (commentPart) {
+      tokens.push({ kind: 'comment', value: commentPart });
     }
   }
 
@@ -176,8 +194,10 @@ function compact(tokens: Token[]): string {
 
     const keepNewline =
       isBlank ||
-      (prev !== null && (prev.kind === 'row_break' || prev.kind === 'env_begin')) ||
-      (next !== null && (next.kind === 'env_end' || next.kind === 'env_begin'));
+      (prev !== null &&
+        (prev.kind === 'row_break' || prev.kind === 'env_begin' || prev.kind === 'comment')) ||
+      (next !== null &&
+        (next.kind === 'env_end' || next.kind === 'env_begin' || next.kind === 'comment'));
 
     if (keepNewline) {
       out.push('\n');
@@ -214,12 +234,19 @@ function normaliseSpaces(s: string): string {
  * last content token, separated by a single space).
  */
 function hoistTag(s: string): string {
-  // Match \tag{...} potentially on its own line at the end
+  // Match \tag{...} potentially on its own line at the end (outside % comments)
   const tagRe = /\n?\s*(\\tag\{[^}]*\})\s*$/;
   const m = s.match(tagRe);
-  if (!m) return s;
+  if (!m || m.index === undefined) return s;
+  const lineStart = s.lastIndexOf('\n', m.index) + 1;
+  const beforeOnLine = s.slice(lineStart, m.index);
+  for (let i = 0; i < beforeOnLine.length; i++) {
+    if (beforeOnLine[i] === '%' && !isEscapedAt(beforeOnLine, i)) {
+      return s;
+    }
+  }
   const tag = m[1];
-  const body = s.slice(0, m.index ?? s.lastIndexOf(m[0])).trimEnd();
+  const body = s.slice(0, m.index).trimEnd();
   return `${body} ${tag}`;
 }
 
